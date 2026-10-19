@@ -1,0 +1,12 @@
+# 本地凭据与私有配置
+.env
+.env.*
+!.env.example
+.DS_Store
+
+# 真实云端数据、运行记录与生成报告；脱敏样例另建目录并正常版本管理
+/data/raw/
+/data/private/
+/runtime/
+/reports/
+*.log
