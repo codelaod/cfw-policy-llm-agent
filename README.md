@@ -32,6 +32,7 @@
 | [技术背景与选型评估](docs/07-technical-background-and-options.md) | Go/Python/TS、Agent 框架、未来 TUI 与代表性论文/项目 |
 | [云平台接入与能力映射](docs/08-cloud-integration-and-capability-map.md) | 分层只读 API、实际字段、支持边界与离线资料缓存 |
 | [离线验证记录](docs/09-offline-validation-record.md) | 固定依赖、实际通过的检查及未验证范围 |
+| [换环境开发交接](docs/10-environment-handoff.md) | 当前进度、迁移边界、新环境恢复步骤与下一任务 |
 | [离线参考资料](docs/references/README.md) | 随 Git 保存的 11 篇官方正文、来源与校验清单 |
 
 ## 开始实现前
