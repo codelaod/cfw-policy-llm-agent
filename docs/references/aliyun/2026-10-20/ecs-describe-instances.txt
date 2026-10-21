@@ -1,0 +1,1283 @@
+标题：调用DescribeInstances API查询实例的详细信息列表-云服务器 ECS-阿里云-云服务器 ECS(ECS)-阿里云帮助中心
+来源：https://help.aliyun.com/zh/ecs/developer-reference/api-ecs-2014-05-26-describeinstances
+抓取日期：2026-10-20
+说明：官方页面正文的本地提取；保留原始 HTML，不代表云 API 实测。
+
+首页
+云服务器 ECS
+开发参考
+API参考（ECS）
+API目录
+实例
+DescribeInstances - 查询实例的详细信息列表
+DescribeInstances - 查询实例的详细信息列表
+更新时间：
+复制 MD 格式
+产品详情
+我的收藏
+本接口支持根据不同请求条件查询实例列表，并关联查询实例的详细信息。
+接口说明
+使用须知
+通过阿里云 CLI 调用 API 时，不同数据类型的请求参数取值必须遵循格式要求。更多信息，请参见 CLI 参数格式说明。
+使用建议
+通过请求参数 DryRun 发送预检请求，可以检查参数有效性和授权情况。
+分页查询首页时，仅需设置MaxResults以限制返回信息的条目数，返回结果中的NextToken值将作为查询后续页的凭证。查询后续页时，将NextToken参数设置为上一次返回结果中获取到的NextToken值作为查询凭证，并设置MaxResults限制返回条目数。
+调试
+您可以在OpenAPI Explorer中直接运行该接口，免去您计算签名的困扰。运行成功后，OpenAPI Explorer可以自动生成SDK代码示例。
+调试
+授权信息
+下表是API对应的授权信息，可以在RAM权限策略语句的Action元素中使用，用来给RAM用户或RAM角色授予调用此API的权限。具体说明如下：
+操作：是指具体的权限点。
+访问级别：是指每个操作的访问级别，取值为写入（Write）、读取（Read）或列出（List）。
+资源类型：是指操作中支持授权的资源类型。具体说明如下：
+对于必选的资源类型，用前面加 * 表示。
+对于不支持资源级授权的操作，用全部资源表示。
+条件关键字：是指云产品自身定义的条件关键字。
+关联操作：是指成功执行操作所需要的其他权限。操作者必须同时具备关联操作的权限，操作才能成功。
+操作
+访问级别
+资源类型
+条件关键字
+关联操作
+ecs:DescribeInstances
+list
+Instance
+acs:ecs:{#regionId}:{#accountId}:instance/*
+Instance
+acs:ecs:{#regionId}:{#accountId}:instance/{#instanceId}
+ResourceOwner
+无
+请求参数
+名称
+类型
+必填
+描述
+示例值
+RegionId
+string
+是
+实例所属的地域 ID。您可以调用 DescribeRegions 查看最新的阿里云地域列表。
+cn-hangzhou
+VpcId
+string
+否
+专有网络 VPC ID。
+v-bp67acfmxazb4p****
+VSwitchId
+string
+否
+交换机 ID。
+vsw-bp67acfmxazb4p****
+ZoneId
+string
+否
+可用区 ID。
+cn-hangzhou-g
+InstanceNetworkType
+string
+否
+实例网络类型。取值范围：
+vpc：专有网络 VPC。
+classic：经典网络。经典网络功能已下线，详情请参见下线公告。
+vpc
+SecurityGroupId
+string
+否
+实例所属的安全组。
+sg-bp67acfmxazb4p****
+InstanceIds
+string
+否
+实例 ID。取值可以由多个实例 ID 组成一个 JSON 数组，最多支持 100 个 ID，ID 之间用半角逗号（,）隔开。
+["i-bp67acfmxazb4p****", "i-bp67acfmxazb4p****", … "i-bp67acfmxazb4p****"]
+PageNumber
+integer
+否
+说明
+该参数即将下线，推荐您使用 NextToken 与 MaxResults 完成分页查询操作。
+1
+PageSize
+integer
+否
+说明
+该参数即将下线，推荐您使用 NextToken 与 MaxResults 完成分页查询操作。
+10
+NextToken
+string
+否
+查询凭证（Token），取值为上一次 API 调用返回的NextToken参数值。
+caeba0bbb2be03f84eb48b699f0a4883
+MaxResults
+integer
+否
+分页查询时每页行数。最大值为 100。
+默认值：
+当不设置值或设置的值小于 10 时，默认值为 10。
+当设置的值大于 100 时，默认值为 100。
+10
+InnerIpAddresses
+string
+否
+经典网络类型实例的内网 IP 列表。当 InstanceNetworkType=classic 时生效，取值可以由多个 IP 组成一个 JSON 数组，最多支持 100 个 IP，IP 之间用半角逗号（,）隔开。
+说明
+经典网络功能已下线，详情请参见下线公告。
+["10.1.1.1", "10.1.2.1", … "10.1.10.1"]
+PrivateIpAddresses
+string
+否
+VPC 网络类型实例的私有 IP。当 InstanceNetworkType=vpc 时生效，取值可以由多个 IP 组成一个 JSON 数组，最多支持 100 个 IP，IP 之间用半角逗号（,）隔开。
+["172.16.1.1", "172.16.2.1", … "172.16.10.1"]
+PublicIpAddresses
+string
+否
+实例的公网 IP 列表。取值可以由多个 IP 组成一个 JSON 数组，最多支持 100 个 IP，IP 之间用半角逗号（,）隔开。
+["42.1.1.**", "42.1.2.**", … "42.1.10.**"]
+EipAddresses
+string
+否
+实例的弹性公网 IP 列表。当 InstanceNetworkType=vpc 时该参数生效，取值可以由多个 IP 组成一个 JSON 数组，最多支持 100 个 IP，IP 之间用半角逗号（,）隔开。
+["42.1.1.**", "42.1.2.**", … "42.1.10.**"]
+InstanceChargeType
+string
+否
+实例的计费方式。取值范围：
+PostPaid：按量付费。
+PrePaid：包年包月。
+PostPaid
+InternetChargeType
+string
+否
+公网带宽计费方式。取值范围：
+PayByBandwidth：按固定带宽计费。
+PayByTraffic：按使用流量计费。
+说明
+按使用流量计费模式下的出入带宽峰值都是带宽上限，不作为业务承诺指标。当出现资源争抢时，带宽峰值可能会受到限制。如果您的业务需要有带宽的保障，请使用按固定带宽计费模式。
+PayByTraffic
+InstanceName
+string
+否
+实例名称，支持使用通配符*进行模糊搜索。
+Test
+ImageId
+string
+否
+镜像 ID。
+m-bp67acfmxazb4p****
+Status
+string
+否
+实例状态。取值范围：
+Pending：创建中。
+Running：运行中。
+Starting：启动中。
+Stopping：停止中。
+Stopped：已停止。
+Running
+LockReason
+string
+否
+资源被锁定的原因。取值范围：
+financial：因欠费被锁定。
+security：因安全原因被锁定。
+Recycling：抢占式实例的待释放锁定状态。
+dedicatedhostfinancial：因为专有宿主机欠费导致 ECS 实例被锁定。
+refunded：因退款被锁定。
+security
+Filter.1.Key
+string
+否
+查询资源时的筛选键，取值必须为CreationStartTime。同时设置Filter.1.Key和Filter.1.Value可以查询在指定时间点后创建的资源信息。
+CreationStartTime
+Filter.2.Key
+string
+否
+查询资源时的筛选键，取值必须为CreationEndTime。同时设置Filter.2.Key和Filter.2.Value可以查询在指定时间点前创建的资源信息。
+CreationEndTime
+Filter.3.Key
+string
+否
+查询资源时的筛选键，取值必须为ExpiredStartTime。同时设置Filter.3.Key和Filter.3.Value可以查询在指定时间点后到期的资源信息。
+ExpiredStartTime
+Filter.4.Key
+string
+否
+查询资源时的筛选键，取值必须为ExpiredEndTime。同时设置Filter.4.Key和Filter.4.Value可以查询在指定时间点前到期的资源信息。
+ExpiredEndTime
+Filter.1.Value
+string
+否
+查询资源时的筛选值。指定该参数时必须同时指定Filter.1.Key参数，格式为：yyyy-MM-ddTHH:mmZ，采用 UTC +0 时区。
+2017-12-05T22:40Z
+Filter.2.Value
+string
+否
+查询资源时的筛选值。指定该参数时必须同时指定Filter.2.Key参数，格式为：yyyy-MM-ddTHH:mmZ，采用 UTC +0 时区。
+2017-12-06T22:40Z
+Filter.3.Value
+string
+否
+查询资源时的筛选值。指定该参数时必须同时指定Filter.3.Key参数，格式为：yyyy-MM-ddTHH:mmZ，采用 UTC +0 时区。
+2017-12-07T22:40Z
+Filter.4.Value
+string
+否
+查询资源时的筛选值。指定该参数时必须同时指定Filter.4.Key参数，格式为：yyyy-MM-ddTHH:mmZ，采用 UTC +0 时区。
+2017-12-08T22:40Z
+DeviceAvailable
+boolean
+否
+说明
+该参数正在邀测中，暂不支持使用。
+false
+IoOptimized
+boolean
+否
+是否是 I/O 优化型实例。取值范围：
+true：是。
+false：否。
+true
+NeedSaleCycle
+boolean
+否
+说明
+该参数正在邀测中，暂不支持使用。
+false
+InstanceType
+string
+否
+实例的规格。
+ecs.g5.large
+InstanceTypeFamily
+string
+否
+实例的规格族。
+ecs.g5
+KeyPairName
+string
+否
+实例使用的 SSH 密钥对名称。
+KeyPairNameTest
+ResourceGroupId
+string
+否
+实例所在的企业资源组 ID。使用该参数过滤资源时，资源数量不能超过 1000 个。
+说明
+不支持默认资源组过滤。
+rg-bp67acfmxazb4p****
+HpcClusterId
+string
+否
+实例所在的 HPC 集群 ID。
+hpc-bp67acfmxazb4p****
+RdmaIpAddresses
+string
+否
+HPC 实例的 RDMA 网络 IP。
+10.10.10.102
+DryRun
+boolean
+否
+是否只预检此次请求。取值范围：
+true：发送检查请求，不会查询资源状况。检查项包括 AccessKey 是否有效、RAM 用户的授权情况和是否填写了必需参数。如果检查不通过，则返回对应错误。如果检查通过，会返回错误码 DryRunOperation。
+false：发送正常请求，通过检查后返回 2XX HTTP 状态码并直接查询资源状况。
+默认值：false。
+false
+HttpEndpoint
+string
+否
+是否启用实例元数据的访问通道。取值范围：
+enabled：启用。
+disabled：禁用。
+默认值：enabled。
+说明
+有关实例元数据的更多信息，请参见实例元数据概述。
+enabled
+HttpTokens
+string
+否
+访问实例元数据时是否强制使用加固模式（IMDSv2）。取值范围：
+optional：不强制使用。
+required：强制使用。设置该取值后，普通模式无法访问实例元数据。
+默认值：optional。
+说明
+有关访问实例元数据模式的更多信息，请参见实例元数据访问模式。
+optional
+HttpPutResponseHopLimit
+integer
+否
+说明
+该参数暂未开放使用。
+0
+Ipv6Address
+array
+否
+为弹性网卡指定的 IPv6 地址。
+string
+否
+弹性网卡的 IPv6 地址。N 表示可以设置多个 IPv6 地址，N 的取值范围为 1~100。
+2408:4321:180:1701:94c7:bc38:3bfa:****
+Tag
+array<object>
+否
+标签列表。
+object
+否
+标签列表。
+Key
+string
+否
+实例的标签键。N 的取值范围为 1~20。
+使用一个标签过滤资源，查询到该标签下的资源数量不能超过 1000 个；使用多个标签过滤资源，查询到同时绑定了多个标签的资源数量不能超过 1000 个。如果资源数量超过 1000 个，请使用 ListTagResources 接口进行查询。
+TestKey
+Value
+string
+否
+实例的标签值。N 的取值范围：1~20。
+TestValue
+key
+string
+否
+标签键。
+说明
+为提高兼容性，建议您使用另一个Tag.N.Key参数。
+keyTest
+value
+string
+否
+标签值。
+说明
+为提高兼容性，建议您使用另一个Tag.N.Value参数。
+valueTest
+AdditionalAttributes
+array
+否
+实例其他属性列表。
+META_OPTIONS
+string
+否
+其他属性值。N 的取值范围为 1~5。取值范围：
+META_OPTIONS：实例元数据。
+DDH_CLUSTER：专有宿主机集群。
+NETWORK_PRIMARY_ENI_IP ：主网卡辅助 IP。
+PRIVATE_DNS_OPTIONS：私网域名信息。
+CPU_OPTIONS_TOPOLOGY_TYPE：实例的 CPU 拓扑类型。
+CURRENT_OS_NVME_SUPPORTED：当前操作系统是否支持通过 NVMe 协议访问磁盘。
+LOGIN_AS_NON_ROOT：实例是否配置了 ecs-user 用户登录。
+META_OPTIONS
+返回参数
+名称
+类型
+描述
+示例值
+object
+Instances
+object
+Instance
+array<object>
+由 Instances 组成的数组格式，返回实例的信息。
+array<object>
+AdditionalInfo
+object
+说明
+该参数正在邀测中，暂不支持使用。
+EnableHighDensityMode
+boolean
+说明
+该参数正在邀测中，暂不支持使用。
+true
+ManagedHostId
+string
+平台管理的主机唯一标识，如 mh-f2d3647ca21****
+mh-f2d3647ca21****
+NodeSerialNumber
+string
+AutoReleaseTime
+string
+按量付费实例的自动释放时间。
+2017-12-10T04:04Z
+ClockOptions
+object
+PtpStatus
+string
+ClusterId
+string
+实例所在的集群 ID。
+说明
+该参数即将被弃用，为提高兼容性，请尽量使用其他参数。
+c-bp67acfmxazb4p****
+Cpu
+integer
+vCPU 数。
+8
+CpuOptions
+object
+CPU 配置详情。
+CoreCount
+integer
+物理 CPU 核心数。
+2
+EnableVISST
+boolean
+EnableVRDT
+boolean
+NestedVirtualization
+string
+是否开启嵌套虚拟化
+enabled
+Numa
+string
+说明
+该参数已废弃。
+null
+ThreadsPerCore
+integer
+CPU 线程数。
+2
+TopologyType
+string
+实例的 CPU 拓扑类型。可能值：
+HT 离散模式：ContinuousCoreToHTMapping
+HT 连续模式：DiscreteCoreToHTMapping
+DiscreteCoreToHTMapping
+TurboMode
+string
+CreationTime
+string
+实例创建时间。以 ISO 8601 为标准，并使用 UTC+0 时间，格式为 yyyy-MM-ddTHH:mmZ。更多信息，请参见ISO 8601。
+2017-12-10T04:04Z
+CreditSpecification
+string
+突发性能实例的运行模式。可能值：
+Standard：标准模式。有关实例性能的更多信息，请参见什么是突发性能实例中的性能约束模式章节。
+Unlimited：无性能约束模式，有关实例性能的更多信息，请参见什么是突发性能实例中的无性能约束模式章节。
+Standard
+DedicatedHostAttribute
+object
+由专有宿主机集群 ID（DedicatedHostClusterId）、专有宿主机 ID（DedicatedHostId）和名称（DedicatedHostName）组成的宿主机属性数组。
+DedicatedHostClusterId
+string
+专有宿主机集群 ID。
+dc-bp67acfmxazb4h****
+DedicatedHostId
+string
+专有宿主机 ID。
+dh-bp67acfmxazb4p****
+DedicatedHostName
+string
+专有宿主机名称。
+testDedicatedHostName
+DedicatedInstanceAttribute
+object
+专有宿主机实例的属性。
+Affinity
+string
+专有宿主机实例是否与专有宿主机关联。可能值：
+default：专有宿主机实例不与专有宿主机关联。停机不收费实例重启后，可能会放置在自动资源部署池中的其它专有宿主机上。
+host：专有宿主机实例与专有宿主机关联。停机不收费实例重启后，仍放置在原专有宿主机上。
+default
+Tenancy
+string
+实例的宿主机类型是否为专有宿主机。可能值：
+default：实例的宿主机类型不是专有宿主机。
+host：实例的宿主机类型为专有宿主机。
+default
+DeletionProtection
+boolean
+实例释放保护属性，指定是否支持通过控制台或 API（DeleteInstance）释放实例。
+true：已开启实例释放保护。
+false：未开启实例释放保护。
+说明
+该属性仅适用于按量付费实例，且只能限制手动释放操作，对系统释放操作不生效。
+false
+DeploymentSetGroupNo
+integer
+ECS 实例绑定部署集分散部署时，实例在部署集中的分组位置。
+1
+DeploymentSetId
+string
+部署集 ID。
+ds-bp67acfmxazb4p****
+Description
+string
+实例描述。
+testDescription
+DeviceAvailable
+boolean
+实例是否可以挂载数据盘。
+true：可以挂载数据盘。
+false：不可以挂载数据盘。
+true
+EcsCapacityReservationAttr
+object
+云服务器 ECS 的容量预留相关参数。
+CapacityReservationId
+string
+容量预留 ID。
+cr-bp67acfmxazb4p****
+CapacityReservationPreference
+string
+容量预留偏好。
+cr-bp67acfmxazb4p****
+EipAddress
+object
+弹性公网 IP 绑定信息。
+AllocationId
+string
+弹性公网 IP 的 ID。
+eip-2ze88m67qx5z****
+Bandwidth
+integer
+弹性公网 IP 的公网带宽限速，单位为 Mbit/s。
+5
+InternetChargeType
+string
+弹性公网 IP 的计费方式。
+PayByBandwidth：按带宽计费。
+PayByTraffic：按流量计费。
+PayByTraffic
+IpAddress
+string
+弹性公网 IP。
+42.112.**.**
+IsSupportUnassociate
+boolean
+是否可以解绑弹性公网 IP。
+true
+EnableNVS
+boolean
+ExpiredTime
+string
+过期时间。以 ISO 8601 为标准，并使用 UTC+0 时间，格式为 yyyy-MM-ddTHH:mmZ。更多信息，请参见ISO 8601。
+2017-12-10T04:04Z
+GPUAmount
+integer
+实例规格附带的 GPU 数量。
+4
+GPUSpec
+string
+实例规格附带的 GPU 类型。
+NVIDIA V100
+HibernationOptions
+object
+说明
+该参数正在邀测中，暂未开放使用。
+Configured
+boolean
+说明
+该参数正在邀测中，暂未开放使用。
+false
+HostName
+string
+实例主机名。
+testHostName
+HpcClusterId
+string
+实例所属的 HPC 集群 ID。
+hpc-bp67acfmxazb4p****
+ISP
+string
+说明
+该参数正在邀测中，暂未开放使用。
+null
+ImageId
+string
+实例运行的镜像 ID。
+m-bp67acfmxazb4p****
+ImageOptions
+object
+镜像相关属性信息。
+CurrentOSNVMeSupported
+boolean
+当前操作系统是否支持通过 NVMe 协议访问磁盘。可能值：
+true：是。
+false：否。
+说明
+当请求参数 AdditionalAttributes 包含 CURRENT_OS_NVME_SUPPORTED 时才会返回该参数。
+true
+LoginAsNonRoot
+boolean
+使用该镜像的实例是否支持使用 ecs-user 用户登录。可能值：
+true：是。
+false：否。
+false
+InnerIpAddress
+object
+IpAddress
+array
+经典网络类型实例的内网 IP 地址列表。
+说明
+经典网络功能已下线，详情请参见下线公告。
+string
+经典网络类型实例的内网 IP 地址。
+10.170.**.**
+InstanceChargeType
+string
+实例的计费方式。可能值：
+PrePaid：包年包月。
+PostPaid：按量付费。
+PostPaid
+InstanceId
+string
+实例 ID。
+i-bp67acfmxazb4p****
+InstanceName
+string
+实例名称。
+InstanceNameTest
+InstanceNetworkType
+string
+实例网络类型。可能值：
+vpc：专有网络 VPC。
+classic：经典网络。经典网络功能已下线，详情请参见下线公告。
+vpc
+InstanceType
+string
+实例规格。
+ecs.g5.large
+InstanceTypeFamily
+string
+实例规格族。
+ecs.g5
+InternetChargeType
+string
+网络计费类型。可能值：
+PayByBandwidth：按固定带宽计费。
+PayByTraffic：按使用流量计费。
+PayByTraffic
+InternetMaxBandwidthIn
+integer
+公网入带宽最大值，单位：Mbit/s。
+50
+InternetMaxBandwidthOut
+integer
+公网出带宽最大值，单位：Mbit/s。
+5
+IoOptimized
+boolean
+是否为 I/O 优化型实例。
+true：是。
+false：否。
+true
+KeyPairName
+string
+密钥对名称。
+testKeyPairName
+LocalStorageAmount
+integer
+实例挂载的本地存储数量。
+2
+LocalStorageCapacity
+integer
+实例挂载的本地存储容量。单位：GiB。
+1000
+Memory
+integer
+内存大小，单位为 MiB。
+16384
+MetadataOptions
+object
+元数据选项集合。
+HttpEndpoint
+string
+是否启用实例元数据的访问通道。可能值：
+enabled：启用。
+disabled：禁用。
+enabled
+HttpPutResponseHopLimit
+integer
+说明
+该参数暂未开放使用。
+0
+HttpTokens
+string
+访问实例元数据时是否强制使用加固模式（IMDSv2）。可能值：
+optional：不强制使用。
+required：强制使用。
+optional
+InstanceMetadataTags
+string
+NetworkInterfaces
+object
+NetworkInterface
+array<object>
+实例包含的弹性网卡集合。
+array<object>
+实例包含的弹性网卡集合。
+Ipv4PrefixSets
+object
+Ipv4PrefixSet
+array<object>
+弹性网卡已分配的 IPv4 前缀集合。仅当请求参数AdditionalAttributes.N取值为NETWORK_PRIMARY_ENI_IP时，才会返回该参数值。
+object
+Ipv4Prefix
+string
+弹性网卡已分配的 IPv4 前缀。
+192.168.*.*/28
+Ipv6PrefixSets
+object
+Ipv6PrefixSet
+array<object>
+弹性网卡已分配的 IPv6 前缀集合。仅当请求参数AdditionalAttributes.N取值为NETWORK_PRIMARY_ENI_IP时，才会返回该参数值。
+object
+Ipv6Prefix
+string
+弹性网卡已分配的 IPv6 前缀。
+2001:1111:*:*::/80
+Ipv6Sets
+object
+Ipv6Set
+array<object>
+弹性网卡已分配的 IPv6 地址集合。仅当请求参数AdditionalAttributes.N取值为NETWORK_PRIMARY_ENI_IP时，才会返回该参数值。
+object
+Ipv6Address
+string
+弹性网卡已分配的 IPv6 地址。
+2408:4321:180:1701:94c7:bc38:3bfa:***
+Primary
+boolean
+MacAddress
+string
+弹性网卡的 MAC 地址。
+00:16:3e:32:b4:**
+NetworkInterfaceId
+string
+弹性网卡的 ID。
+eni-2zeh9atclduxvf1z****
+PrimaryIpAddress
+string
+弹性网卡主私有 IP 地址。
+172.17.**.***
+PrivateIpSets
+object
+PrivateIpSet
+array<object>
+PrivateIpSet 组成的集合。
+object
+Primary
+boolean
+是否是主私网 IP 地址，可能值：
+true：是。
+false：否。
+true
+PrivateDnsName
+string
+实例的私网域名。
+说明
+仅当HostnameType取值为IpBased或者InstanceIdBased时，返回固定格式的私网域名。
+dnsTestName
+PrivateIpAddress
+string
+实例的私网 IP 地址。
+172.17.**.**
+Type
+string
+弹性网卡类型。可能值：
+Primary：主网卡。
+Secondary：辅助弹性网卡。
+Primary
+OSName
+string
+实例的操作系统名称。
+CentOS 7.4 64 位
+OSNameEn
+string
+实例操作系统的英文名称。
+CentOS 7.4 64 bit
+OSType
+string
+实例的操作系统类型，分为 Windows Server 和 Linux 两种。可能值：
+windows。
+linux。
+linux
+OperationLocks
+object
+LockReason
+array<object>
+实例的锁定原因。
+object
+LockMsg
+string
+实例被锁定的描述信息。
+The specified instance is locked due to financial reason.
+LockReason
+string
+锁定类型。可能值：
+financial：因欠费被锁定。
+security：因安全原因被锁定。
+Recycling：抢占式实例的待释放锁定状态。
+dedicatedhostfinancial：因为专有宿主机欠费导致 ECS 实例被锁定。
+refunded：因退款被锁定。
+Recycling
+PrivateDnsNameOptions
+object
+实例的私网域名配置信息集合。
+关于私网域名解析，请参见ECS 私网域名解析
+。
+说明
+仅当请求参数AdditionalAttributes取值包含PRIVATE_DNS_OPTIONS时，返回该参数。
+EnableInstanceIdDnsAAAARecord
+boolean
+开启/关闭实例 ID 类型的域名到 IPv6 的解析。可能值：
+true：开启。
+false：关闭。
+默认值：false。
+false
+EnableInstanceIdDnsARecord
+boolean
+开启/关闭实例 ID 类型的域名到 IPv4 的解析。可能值：
+true：开启。
+false：关闭。
+默认值：false。
+false
+EnableIpDnsARecord
+boolean
+开启/关闭 IP 类型的域名到 IPv4 的解析。可能值：
+true：开启。
+false：关闭。
+默认值：false。
+true
+EnableIpDnsPtrRecord
+boolean
+开启/关闭 IPv4 到 IP 类型的域名解析。可能值：
+true：开启。
+false：关闭。
+默认值：false。
+true
+HostnameType
+string
+主机名类型，可能值：
+Custom：自定义。
+IpBased：基于 IP 格式的主机。
+InstanceIdBased：基于实例 ID 格式的主机名。
+默认值：Custom。
+Custom
+PublicIpAddress
+object
+IpAddress
+array
+实例公网 IP 地址列表。
+string
+实例公网 IP 地址。
+121.40.**.**
+RdmaIpAddress
+object
+IpAddress
+array
+HPC 实例的 RDMA 网络 IP 列表。
+string
+HPC 实例的 RDMA 网络 IP。
+10.10.10.102
+Recyclable
+boolean
+实例是否可以回收。
+false
+RegionId
+string
+实例所属地域 ID。
+cn-hangzhou
+ResourceGroupId
+string
+实例所属的企业资源组 ID。
+rg-bp67acfmxazb4p****
+SaleCycle
+string
+说明
+该参数已弃用，不再返回有意义的数据。
+month
+SecurityGroupIds
+object
+SecurityGroupId
+array
+实例所属安全组 ID 列表。
+string
+安全组 ID。
+sg-bp67acfmxazb4p****
+SecurityOptions
+object
+EnableSecureBoot
+boolean
+是否开启了 UEFI 安全启动
+SerialNumber
+string
+实例序列号。
+51d1353b-22bf-4567-a176-8b3e12e4****
+SpotDuration
+integer
+抢占式实例的保留时长，单位为小时。可能值：
+1：创建后阿里云会保证实例运行 1 小时不会被自动释放；超过 1 小时后，系统会自动比较出价与市场价格、检查资源库存，来决定实例的持有和回收。
+0：创建后，阿里云不保证实例运行 1 小时，系统会自动比较出价与市场价格、检查资源库存，来决定实例的持有和回收。
+实例回收前 5 分钟阿里云会通过 ECS 系统事件向您发送通知。抢占式实例按秒计费，建议您结合具体任务执行耗时来选择合适的保留时长。
+说明
+当 SpotStrategy 值为 SpotWithPriceLimit 或 SpotAsPriceGo 时返回该参数。
+1
+SpotInterruptionBehavior
+string
+平台发起抢占式实例中断时，抢占式实例的中断模式。可能值：
+Terminate：释放。
+Stop：节省停机。
+Terminate
+SpotPriceLimit
+number
+实例的每小时最高价格。支持最大 3 位小数，参数 SpotStrategy=SpotWithPriceLimit 时，该参数生效。
+0.98
+SpotStrategy
+string
+按量实例的竞价策略。可能值：
+NoSpot：正常按量付费实例。
+SpotWithPriceLimit：设置上限价格的抢占式实例。
+SpotAsPriceGo：系统自动出价，最高按量付费价格的抢占式实例。
+NoSpot
+StartTime
+string
+实例最近一次的启动时间。以 ISO 8601 为标准，并使用 UTC+0 时间，格式为 yyyy-MM-ddTHH:mmZ。更多信息，请参见ISO 8601。
+2017-12-10T04:04Z
+Status
+string
+实例状态。
+Running
+StoppedMode
+string
+实例停机后是否继续收费。可能值：
+KeepCharging：停机后继续收费，为您继续保留库存资源。
+StopCharging：停机后不收费。停机后，我们释放实例对应的资源，例如 vCPU、内存和公网 IP 等资源。重启是否成功依赖于当前地域中是否仍有资源库存。
+Not-applicable：本实例不支持停机不收费功能。
+KeepCharging
+Tags
+object
+Tag
+array<object>
+实例的标签集合。
+object
+TagKey
+string
+实例的标签键。
+TestKey
+TagValue
+string
+实例的标签值。
+TestValue
+VlanId
+string
+实例的 VLAN ID。
+说明
+该参数即将被弃用，为提高兼容性，请尽量使用其他参数。
+10
+VpcAttributes
+object
+专有网络 VPC 属性。
+NatIpAddress
+string
+云产品的 IP，用于 VPC 云产品之间的网络互通。
+172.17.**.**
+PrivateIpAddress
+object
+IpAddress
+array
+私有 IP 地址列表。
+string
+私有 IP 地址。
+172.17.**.**
+VSwitchId
+string
+虚拟交换机 ID。
+vsw-2zeh0r1pabwtg6wcs****
+VpcId
+string
+专有网络 VPC ID。
+vpc-2zeuphj08tt7q3brd****
+ZoneId
+string
+实例所属可用区。
+cn-hangzhou-g
+NextToken
+string
+本次调用返回的查询凭证值。
+caeba0bbb2be03f84eb48b699f0a4883
+PageNumber
+integer
+实例列表的页码。
+1
+PageSize
+integer
+输入时设置的每页行数。
+10
+RequestId
+string
+请求 ID。
+473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E
+TotalCount
+integer
+查询到的实例总数。
+说明
+使用MaxResults和NextToken参数进行分页查询时，返回的TotalCount参数值无意义。
+1
+示例
+正常返回示例
+JSON格式
+{
+"Instances": {
+"Instance": [
+{
+"AdditionalInfo": {
+"EnableHighDensityMode": true,
+"ManagedHostId": "mh-f2d3647ca21****",
+"NodeSerialNumber": ""
+},
+"AutoReleaseTime": "2017-12-10T04:04Z",
+"ClockOptions": {
+"PtpStatus": ""
+},
+"ClusterId": "c-bp67acfmxazb4p****",
+"Cpu": 8,
+"CpuOptions": {
+"CoreCount": 2,
+"EnableVISST": true,
+"EnableVRDT": true,
+"NestedVirtualization": "enabled",
+"Numa": "null",
+"ThreadsPerCore": 2,
+"TopologyType": "DiscreteCoreToHTMapping",
+"TurboMode": ""
+},
+"CreationTime": "2017-12-10T04:04Z",
+"CreditSpecification": "Standard",
+"DedicatedHostAttribute": {
+"DedicatedHostClusterId": "dc-bp67acfmxazb4h****",
+"DedicatedHostId": "dh-bp67acfmxazb4p****",
+"DedicatedHostName": "testDedicatedHostName"
+},
+"DedicatedInstanceAttribute": {
+"Affinity": "default",
+"Tenancy": "default"
+},
+"DeletionProtection": false,
+"DeploymentSetGroupNo": 1,
+"DeploymentSetId": "ds-bp67acfmxazb4p****",
+"Description": "testDescription",
+"DeviceAvailable": true,
+"EcsCapacityReservationAttr": {
+"CapacityReservationId": "cr-bp67acfmxazb4p****",
+"CapacityReservationPreference": "cr-bp67acfmxazb4p****"
+},
+"EipAddress": {
+"AllocationId": "eip-2ze88m67qx5z****",
+"Bandwidth": 5,
+"InternetChargeType": "PayByTraffic",
+"IpAddress": "42.112.**.**",
+"IsSupportUnassociate": true
+},
+"EnableNVS": true,
+"ExpiredTime": "2017-12-10T04:04Z",
+"GPUAmount": 4,
+"GPUSpec": "NVIDIA V100",
+"HibernationOptions": {
+"Configured": false
+},
+"HostName": "testHostName",
+"HpcClusterId": "hpc-bp67acfmxazb4p****",
+"ISP": "null",
+"ImageId": "m-bp67acfmxazb4p****",
+"ImageOptions": {
+"CurrentOSNVMeSupported": true,
+"LoginAsNonRoot": false
+},
+"InnerIpAddress": {
+"IpAddress": [
+"10.170.**.**"
+]
+},
+"InstanceChargeType": "PostPaid",
+"InstanceId": "i-bp67acfmxazb4p****",
+"InstanceName": "InstanceNameTest",
+"InstanceNetworkType": "vpc",
+"InstanceType": "ecs.g5.large",
+"InstanceTypeFamily": "ecs.g5",
+"InternetChargeType": "PayByTraffic",
+"InternetMaxBandwidthIn": 50,
+"InternetMaxBandwidthOut": 5,
+"IoOptimized": true,
+"KeyPairName": "testKeyPairName",
+"LocalStorageAmount": 2,
+"LocalStorageCapacity": 1000,
+"Memory": 16384,
+"MetadataOptions": {
+"HttpEndpoint": "enabled",
+"HttpPutResponseHopLimit": 0,
+"HttpTokens": "optional",
+"InstanceMetadataTags": ""
+},
+"NetworkInterfaces": {
+"NetworkInterface": [
+{
+"Ipv4PrefixSets": {
+"Ipv4PrefixSet": [
+{
+"Ipv4Prefix": "192.168.*.*/28"
+}
+]
+},
+"Ipv6PrefixSets": {
+"Ipv6PrefixSet": [
+{
+"Ipv6Prefix": "2001:1111:*:*::/80"
+}
+]
+},
+"Ipv6Sets": {
+"Ipv6Set": [
+{
+"Ipv6Address": "2408:4321:180:1701:94c7:bc38:3bfa:***",
+"Primary": true
+}
+]
+},
+"MacAddress": "00:16:3e:32:b4:**",
+"NetworkInterfaceId": "eni-2zeh9atclduxvf1z****",
+"PrimaryIpAddress": "172.17.**.***",
+"PrivateIpSets": {
+"PrivateIpSet": [
+{
+"Primary": true,
+"PrivateDnsName": "dnsTestName",
+"PrivateIpAddress": "172.17.**.**"
+}
+]
+},
+"Type": "Primary"
+}
+]
+},
+"OSName": "CentOS 7.4 64 位",
+"OSNameEn": "CentOS 7.4 64 bit",
+"OSType": "linux",
+"OperationLocks": {
+"LockReason": [
+{
+"LockMsg": "The specified instance is locked due to financial reason.",
+"LockReason": "Recycling"
+}
+]
+},
+"PrivateDnsNameOptions": {
+"EnableInstanceIdDnsAAAARecord": false,
+"EnableInstanceIdDnsARecord": false,
+"EnableIpDnsARecord": true,
+"EnableIpDnsPtrRecord": true,
+"HostnameType": "Custom"
+},
+"PublicIpAddress": {
+"IpAddress": [
+"121.40.**.**"
+]
+},
+"RdmaIpAddress": {
+"IpAddress": [
+"10.10.10.102"
+]
+},
+"Recyclable": false,
+"RegionId": "cn-hangzhou",
+"ResourceGroupId": "rg-bp67acfmxazb4p****",
+"SaleCycle": "month",
+"SecurityGroupIds": {
+"SecurityGroupId": [
+"sg-bp67acfmxazb4p****"
+]
+},
+"SecurityOptions": {
+"EnableSecureBoot": true
+},
+"SerialNumber": "51d1353b-22bf-4567-a176-8b3e12e4****",
+"SpotDuration": 1,
+"SpotInterruptionBehavior": "Terminate",
+"SpotPriceLimit": 0.98,
+"SpotStrategy": "NoSpot",
+"StartTime": "2017-12-10T04:04Z",
+"Status": "Running",
+"StoppedMode": "KeepCharging",
+"Tags": {
+"Tag": [
+{
+"TagKey": "TestKey",
+"TagValue": "TestValue"
+}
+]
+},
+"VlanId": "10",
+"VpcAttributes": {
+"NatIpAddress": "172.17.**.**",
+"PrivateIpAddress": {
+"IpAddress": [
+"172.17.**.**"
+]
+},
+"VSwitchId": "vsw-2zeh0r1pabwtg6wcs****",
+"VpcId": "vpc-2zeuphj08tt7q3brd****"
+},
+"ZoneId": "cn-hangzhou-g"
+}
+]
+},
+"NextToken": "caeba0bbb2be03f84eb48b699f0a4883",
+"PageNumber": 1,
+"PageSize": 10,
+"RequestId": "473469C7-AA6F-4DC5-B3DB-A3DC0DE3C83E",
+"TotalCount": 1
+}
+错误码
+HTTP status code
+错误码
+错误信息
+描述
+400
+InvalidTag.Mismatch
+The specified Tag.n.Key and Tag.n.Value are not match.
+指定的 Tag.N.Key 和 Tag.N.Value 不匹配。
+400
+InvalidTagCount
+The specified tags are beyond the permitted range.
+指定的标记超出取值范围。
+400
+InvalidHpcClusterId.NotFound
+The specified HpcClusterId is not found.
+指定的参数 HpcClusterId 不存在。
+400
+InvalidHpcClusterId.Creating
+The specified HpcClusterId is creating.
+指定的 HPC 集群正在创建中。
+400
+InternalError
+The request processing has failed due to some unknown error, exception or failure.
+400
+Throttling.PageNumberLimited
+Request throttled. Please use NextToken instead of PageNumber for pagination.
+当前请求已限流，请使用 NextToken 替代 PageNumber 方式进行分页查询。
+404
+InvalidInstanceChargeType.NotFound
+The InstanceChargeType does not exist in our records.
+404
+InvalidInternetChargeType.ValueNotSupported
+The specified InternetChargeType is not valid.
+404
+InvalidLockReason.NotFound
+The specified LockReason is not found.
+所指定的锁定原因不存在
+404
+InvalidFilterKey.NotFound
+Invalid filter.%s.
+指定的Filter.N.Key无效。
+404
+InvalidFilterValue
+Invalid filter.%s.
+404
+InvalidNetworkType.NotFound
+The specified InstanceNetworkType is not found.
+404
+InvalidStatus.NotFound
+The specified Status is not found.
+访问错误中心查看更多错误码。
+变更历史
+更多信息，参考变更详情。
+上一篇：DescribeInstanceStatus - 查询实例的状态信息列表下一篇：DescribeInstanceTypeFamilies - 查询实例规格族列表
+该文章对您有帮助吗？
+反馈

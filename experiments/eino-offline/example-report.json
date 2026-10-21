@@ -1,0 +1,156 @@
+[
+  {
+    "mode": "scripted_model",
+    "scenario": "whitelist",
+    "status": "completed",
+    "model_calls": 3,
+    "tool_calls": 2,
+    "tool_result_roundtrips": 2,
+    "decision": {
+      "status": "conditional_recommendation",
+      "asset_id": "demo-web-001",
+      "evidence_ids": [
+        "ev-asset",
+        "ev-intent"
+      ],
+      "admin_sources": [
+        "198.51.100.10/32"
+      ],
+      "conditions": [
+        "仅建议收敛到给定来源；仍需核对规则顺序与默认行为，不代表其他来源已拒绝或服务实际可达。"
+      ]
+    },
+    "events": [
+      {
+        "sequence": 1,
+        "kind": "model_requested",
+        "name": "scripted_model"
+      },
+      {
+        "sequence": 2,
+        "kind": "tool_requested",
+        "name": "get_asset",
+        "call_id": "call-1"
+      },
+      {
+        "sequence": 3,
+        "kind": "tool_started",
+        "name": "get_asset",
+        "call_id": "call-1"
+      },
+      {
+        "sequence": 4,
+        "kind": "tool_succeeded",
+        "name": "get_asset",
+        "call_id": "call-1"
+      },
+      {
+        "sequence": 5,
+        "kind": "model_requested",
+        "name": "scripted_model"
+      },
+      {
+        "sequence": 6,
+        "kind": "tool_result_received",
+        "name": "get_asset",
+        "call_id": "call-1"
+      },
+      {
+        "sequence": 7,
+        "kind": "tool_requested",
+        "name": "get_business_intent",
+        "call_id": "call-2"
+      },
+      {
+        "sequence": 8,
+        "kind": "tool_started",
+        "name": "get_business_intent",
+        "call_id": "call-2"
+      },
+      {
+        "sequence": 9,
+        "kind": "tool_succeeded",
+        "name": "get_business_intent",
+        "call_id": "call-2"
+      },
+      {
+        "sequence": 10,
+        "kind": "model_requested",
+        "name": "scripted_model"
+      },
+      {
+        "sequence": 11,
+        "kind": "tool_result_received",
+        "name": "get_business_intent",
+        "call_id": "call-2"
+      },
+      {
+        "sequence": 12,
+        "kind": "model_completed",
+        "name": "scripted_model"
+      }
+    ],
+    "validation_boundary": "synthetic Eino integration only; not real-model compatibility, autonomous decision quality, cloud API or firewall correctness validation"
+  },
+  {
+    "mode": "scripted_model",
+    "scenario": "missing-whitelist",
+    "status": "completed",
+    "model_calls": 2,
+    "tool_calls": 1,
+    "tool_result_roundtrips": 1,
+    "decision": {
+      "status": "needs_confirmation",
+      "asset_id": "demo-web-001",
+      "evidence_ids": [
+        "ev-intent"
+      ],
+      "admin_sources": [],
+      "conditions": [
+        "样例没有提供管理来源，需要人工补充，不得编造白名单。"
+      ]
+    },
+    "events": [
+      {
+        "sequence": 1,
+        "kind": "model_requested",
+        "name": "scripted_model"
+      },
+      {
+        "sequence": 2,
+        "kind": "tool_requested",
+        "name": "get_business_intent",
+        "call_id": "call-1"
+      },
+      {
+        "sequence": 3,
+        "kind": "tool_started",
+        "name": "get_business_intent",
+        "call_id": "call-1"
+      },
+      {
+        "sequence": 4,
+        "kind": "tool_succeeded",
+        "name": "get_business_intent",
+        "call_id": "call-1"
+      },
+      {
+        "sequence": 5,
+        "kind": "model_requested",
+        "name": "scripted_model"
+      },
+      {
+        "sequence": 6,
+        "kind": "tool_result_received",
+        "name": "get_business_intent",
+        "call_id": "call-1"
+      },
+      {
+        "sequence": 7,
+        "kind": "model_completed",
+        "name": "scripted_model"
+      }
+    ],
+    "validation_boundary": "synthetic Eino integration only; not real-model compatibility, autonomous decision quality, cloud API or firewall correctness validation"
+  }
+]

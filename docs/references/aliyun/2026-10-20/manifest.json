@@ -1,0 +1,134 @@
+{
+  "schema_version": 1,
+  "archived_date": "2026-10-21",
+  "retrieved_date": "2026-10-20",
+  "description": "用户授权纳入 Git 的选定公开官方文档正文快照；非云账号实采数据；保留第三方来源归属，不重新授权原文。",
+  "scope": "11 篇与当前方案有关的阿里云官方页面正文；不包含原始 HTML、脚本、凭据或运行日志。",
+  "documents": [
+    {
+      "id": "cfw-api-overview",
+      "title": "全部可调用接口功能参考大全-云防火墙-阿里云-云防火墙(Cloud Firewall)-阿里云帮助中心",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-overview",
+      "retrieved_date": "2026-10-20",
+      "text_file": "cfw-api-overview.txt",
+      "text_bytes": 31537,
+      "text_sha256": "619912f816ae5aff3adccb42717961da2b2a528866fab8426dab5991e5f7b364",
+      "original_html_sha256": "d0fc6af33a76e0ada8d72e6038915a0a8fd3a7a10d919f59a821c85a26b15393"
+    },
+    {
+      "id": "cfw-describe-asset-list",
+      "title": "使用DescribeAssetList查询资产列表-云防火墙-阿里云-云防火墙(Cloud Firewall)-阿里云帮助中心",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describeassetlist",
+      "retrieved_date": "2026-10-20",
+      "text_file": "cfw-describe-asset-list.txt",
+      "text_bytes": 8686,
+      "text_sha256": "01da2a6fa8060702a8988029508c526051386b591bb48c9e54606daaf1aa59c3",
+      "original_html_sha256": "a88709f18746f734a2229fef7f0b0c7d121100e921bfe3988f81d1f1beba36b2"
+    },
+    {
+      "id": "cfw-describe-control-policy",
+      "title": "使用DescribeControlPolicy查询访问控制策略-云防火墙-阿里云-云防火墙(Cloud Firewall)-阿里云帮助中心",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describecontrolpolicy",
+      "retrieved_date": "2026-10-20",
+      "text_file": "cfw-describe-control-policy.txt",
+      "text_bytes": 16970,
+      "text_sha256": "422112d40b4a676efd44d31f64a2b4a3b762c9c74f598950b0940522f74d8c0a",
+      "original_html_sha256": "eece21ddcba3c1f5013835f40d893dc3d81943e6bfb33201bbda56e02dfce449"
+    },
+    {
+      "id": "cfw-describe-address-book",
+      "title": "使用DescribeAddressBook接口批量查询地址簿列表-云防火墙-阿里云-云防火墙(Cloud Firewall)-阿里云帮助中心",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describeaddressbook",
+      "retrieved_date": "2026-10-20",
+      "text_file": "cfw-describe-address-book.txt",
+      "text_bytes": 11196,
+      "text_sha256": "e1d3780e2e60ee5eac244bd2ef7c71c254594814af0e84b5e9274a0369caa2af",
+      "original_html_sha256": "c9a4127f5fd931da2b28b724b79f6b997197ae30b6728ad12ca17ab17bb9f4b3"
+    },
+    {
+      "id": "cfw-internet-policy-guide",
+      "title": "配置资产和互联网之间的双向流量的访问控制策略-云防火墙(Cloud Firewall)-阿里云帮助中心",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/create-inbound-and-outbound-access-control-policies-for-the-internet-firewall",
+      "retrieved_date": "2026-10-20",
+      "text_file": "cfw-internet-policy-guide.txt",
+      "text_bytes": 22224,
+      "text_sha256": "819fc0169d19582840962de6702822d0875e7ce3758d50cdee96ff55e684a553",
+      "original_html_sha256": "107235e8588a786470956c75278dd89a213fb01b3103de4d14241a7f69c61ee2"
+    },
+    {
+      "id": "cfw-policy-matching",
+      "title": "访问控制策略的流量匹配原理-云防火墙(Cloud Firewall)-阿里云帮助中心",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/how-access-control-policies-work-1",
+      "retrieved_date": "2026-10-20",
+      "text_file": "cfw-policy-matching.txt",
+      "text_bytes": 18594,
+      "text_sha256": "e61469597b8d4e4d089305c6294228b9142a899a2aa917cfaa83a81e86051460",
+      "original_html_sha256": "c42e89c6e21425e40f1a7cc13d5d0cb19a70768d6f2dbfc3b2c4f7fe618e1284"
+    },
+    {
+      "id": "cfw-strict-mode",
+      "title": "配置访问控制严格和宽松引擎模式-云防火墙(Cloud Firewall)-阿里云帮助中心",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/configure-the-strict-mode-of-the-internet-firewall",
+      "retrieved_date": "2026-10-20",
+      "text_file": "cfw-strict-mode.txt",
+      "text_bytes": 3299,
+      "text_sha256": "7731d294e07fb410c82c4d0389be6aac95d1a43d0159d985f41add658020b8d2",
+      "original_html_sha256": "36b4e196be324a73d46d063361f9149bd80ed496b2400f37a17c091592fc2522"
+    },
+    {
+      "id": "cfw-native-security-agent",
+      "title": "通过安全运营Agent配置访问控制策略-云防火墙(Cloud Firewall)-阿里云帮助中心",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/configure-access-control-policies-through-security-operation-agent",
+      "retrieved_date": "2026-10-20",
+      "text_file": "cfw-native-security-agent.txt",
+      "text_bytes": 5337,
+      "text_sha256": "f98365463ee8fca2fbcb6f5b7eba8b6ea8fc8d620759e6e70726fdf08e56f4a7",
+      "original_html_sha256": "000ae56948479b2a2104bbab8c97906ee9e13513c2f67f35ba28d78e6728d9b7",
+      "previous_attempts": [
+        {
+          "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/use-the-security-operation-agent-to-generate-access-control-policies",
+          "status": "failed",
+          "error": "ValueError: 正文提取过短，需要人工复核"
+        }
+      ]
+    },
+    {
+      "id": "ecs-describe-instances",
+      "title": "调用DescribeInstances API查询实例的详细信息列表-云服务器 ECS-阿里云-云服务器 ECS(ECS)-阿里云帮助中心",
+      "url": "https://help.aliyun.com/zh/ecs/developer-reference/api-ecs-2014-05-26-describeinstances",
+      "retrieved_date": "2026-10-20",
+      "text_file": "ecs-describe-instances.txt",
+      "text_bytes": 31796,
+      "text_sha256": "7cad8a458e75e77fbf93c9f3e8e55a9993fd72ecaba4f5a15218b4d033e6d6f5",
+      "original_html_sha256": "dd596d28104e3c71920958aeef78fe0ca4361fb41a19674c6af78027f78f1dd4"
+    },
+    {
+      "id": "ecs-describe-security-group-attribute",
+      "title": "使用DescribeSecurityGroupAttribute查询指定安全组的属性及规则-云服务器 ECS-阿里云-云服务器 ECS(ECS)-阿里云帮助中心",
+      "url": "https://help.aliyun.com/zh/ecs/developer-reference/api-ecs-2014-05-26-describesecuritygroupattribute",
+      "retrieved_date": "2026-10-20",
+      "text_file": "ecs-describe-security-group-attribute.txt",
+      "text_bytes": 8948,
+      "text_sha256": "b2f0e8522cf52290ca939781c404120329793ed1e9fd672bae5a7da7f3598f4d",
+      "original_html_sha256": "320907b067f1bf5d37e6c8e79bf3cb85b8aefa29b05f1a6cb52ba1d6439b16f8"
+    },
+    {
+      "id": "eip-describe-eip-addresses",
+      "title": "调用DescribeEipAddresses接口查询指定地域已创建的EIP-阿里云帮助中心",
+      "url": "https://help.aliyun.com/en/vpc/api-describeeipaddresses",
+      "retrieved_date": "2026-10-20",
+      "text_file": "eip-describe-eip-addresses.txt",
+      "text_bytes": 16773,
+      "text_sha256": "1a8293d44045cce6c4572c020f3b8ec1a54cab4072a30c94d9d400cc4455a832",
+      "original_html_sha256": "8cd97ec2205b1c72405f91cff7ec03bafdc0ffe25e6165fad012f00acb063490",
+      "note": "旧版官方入口，正文容器为 section 而不是 main；当前 SDK 与完整字段仍待验证",
+      "previous_attempts": [
+        {
+          "url": "https://help.aliyun.com/zh/eip/developer-reference/api-vpc-2016-04-28-describeeipaddresses",
+          "status": "failed",
+          "error": "ValueError: 正文提取过短，需要人工复核"
+        }
+      ]
+    }
+  ]
+}

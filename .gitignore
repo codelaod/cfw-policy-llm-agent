@@ -10,3 +10,10 @@
 /runtime/
 /reports/
 *.log
+
+# 官方资料的本地研究缓存；索引与结论保存在 docs/
+/data/reference-cache/
+
+# 项目内依赖/构建缓存与实验可执行文件
+/.cache/
+/experiments/eino-offline/eino-offline

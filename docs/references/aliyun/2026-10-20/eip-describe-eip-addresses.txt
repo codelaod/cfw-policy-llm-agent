@@ -1,0 +1,612 @@
+标题：调用DescribeEipAddresses接口查询指定地域已创建的EIP-阿里云帮助中心
+来源：https://help.aliyun.com/en/vpc/api-describeeipaddresses
+抓取日期：2026-10-20
+说明：旧版官方文档入口的本地正文提取；具体接入需再核对当前 OpenAPI 与 SDK。
+
+首页
+DescribeEipAddresses
+DescribeEipAddresses
+更新时间: 2023-08-10 11:22:04
+调用DescribeEipAddresses接口查询指定地域已创建的EIP。
+使用说明
+本接口可以查询指定地域已创建的EIP信息，包括EIP的带宽峰值、计费方式，当前绑定的实例类型等。
+调试
+您可以在OpenAPI Explorer中直接运行该接口，免去您计算签名的困扰。运行成功后，OpenAPI Explorer可以自动生成SDK代码示例。
+请求参数
+名称
+类型
+是否必选
+示例值
+描述
+Action
+String
+是
+DescribeEipAddresses
+系统规定参数。取值：DescribeEipAddresses。
+RegionId
+String
+是
+cn-hangzhou
+EIP所在的地域ID。
+您可以通过调用DescribeRegions接口获取地域ID。
+IncludeReservationData
+Boolean
+否
+false
+是否包含未生效的订购数据，取值：
+false（默认值）：不包含未生效的订购数据。
+true：包含未生效的订购数据。
+Status
+String
+否
+Available
+EIP的状态，取值：
+Associating：绑定中。
+Unassociating：解绑中。
+InUse：已分配。
+Available：可用。
+Releasing：释放中。
+EipAddress
+String
+否
+47.75.XX.XX
+要查询的EIP的IP地址。
+最多支持输入50个EIP的IP地址，IP地址之间用半角逗号（,）分隔。
+说明
+如果同时传入EipAddress和AllocationId参数，EipAddress可输入50个EIP的IP地址，AllocationId也可同时输入50个EIP的实例ID。
+AllocationId
+String
+否
+eip-2zeerraiwb7ujxscd****
+要查询的EIP实例的ID。
+最多支持输入50个EIP实例ID，实例ID之间用半角逗号（,）分隔。
+说明
+如果同时传入EipAddress和AllocationId参数，AllocationId可输入50个EIP的实例ID，EipAddress也可同时输入50个EIP的IP地址。
+SegmentInstanceId
+String
+否
+eipsg-t4nr90yik5oy38xdy****
+连续EIP的实例ID。
+ResourceGroupId
+String
+否
+rg-acfmxazb4pcdvf****
+EIP所属的资源组的ID。
+PageNumber
+Integer
+否
+10
+列表的页码。默认值：1。
+PageSize
+Integer
+否
+10
+分页查询时每页的行数。最大值：100。默认值：10。
+ISP
+String
+否
+BGP
+线路类型。取值：
+BGP（默认值）：BGP（多线）线路。目前全部地域都支持BGP（多线）线路EIP。
+BGP_PRO：BGP（多线）_精品线路。目前仅中国香港、新加坡、日本（东京）、马来西亚（吉隆坡）、菲律宾（马尼拉）、印度尼西亚（雅加达）和泰国（曼谷）地域支持BGP（多线）_精品线路EIP。
+关于BGP（多线）线路和BGP（多线）_精品线路的更多信息，请参见EIP线路类型。
+如果您是单线带宽的白名单用户，您还可以选择以下类型：
+ChinaTelecom：中国电信
+ChinaUnicom：中国联通
+ChinaMobile：中国移动
+ChinaTelecom_L2：中国电信L2
+ChinaUnicom_L2：中国联通L2
+ChinaMobile_L2：中国移动L2
+如果您是杭州金融云用户，该字段必填，取值：BGP_FinanceCloud。
+Filter.1.Key
+String
+否
+CreationStartTime
+查询资源时的筛选键，必须取值为CreationStartTime（资源创建的开始时间）。
+Filter.2.Key
+String
+否
+CreationEndTime
+查询资源时的筛选键，必须取值为CreationEndTime（资源创建的结束时间）。
+Filter.1.Value
+String
+否
+2023-01-01T01:00Z
+查询资源时的筛选值。使用UTC时间，格式为YYYY-MM-DDThh:mmZ。
+Filter.2.Value
+String
+否
+2023-01-06T02:00Z
+查询资源时的筛选值。使用UTC时间，格式为YYYY-MM-DDThh:mmZ。
+LockReason
+String
+否
+financial
+锁定类型，取值：
+financial：因欠费被锁定。
+security：因安全原因被锁定。
+AssociatedInstanceType
+String
+否
+EcsInstance
+要绑定的云产品实例的类型，取值：
+EcsInstance（默认值）：VPC类型的ECS实例。
+SlbInstance：VPC类型的SLB实例。
+Nat：NAT网关。
+HaVip：高可用虚拟IP。
+NetworkInterface：辅助弹性网卡。
+IpAddress：IP地址。
+说明
+每个ECS实例、SLB实例、高可用虚拟IP和IP地址同时只能绑定一个EIP，NAT网关可以绑定多个EIP。辅助弹性网卡可以绑定EIP的个数受EIP绑定模式影响，更多信息，请参见弹性公网IP概述。
+AssociatedInstanceId
+String
+否
+i-2zebb08phyccdvf****
+云产品的实例ID。
+ChargeType
+String
+否
+PostPaid
+EIP的付费模式，取值：
+PostPaid：按量计费。
+PrePaid：包年包月。
+DryRun
+Boolean
+否
+false
+是否只预检此次请求，取值：
+true：发送检查请求，不会查询资源状况。检查项包括是否填写了必需参数、请求格式、业务限制。如果检查不通过，则返回对应错误。如果检查通过，则返回错误码DryRunOperation。
+false（默认值）：发送正常请求，通过检查后返回HTTP 2xx状态码并直接进行操作。
+EipName
+String
+否
+EIP-01
+EIP的名称。
+长度为1~128个字符，必须以字母或中文开头，可包含数字、下划线（_）和短划线（-）。
+Tag.N.Key
+String
+否
+FinanceDept
+标签键。最多支持输入20个标签键。一旦传入该值，则不允许为空字符串。
+一个标签键最多支持128个字符，不能以aliyun和acs:开头，不能包含http://或者https://。
+Tag.N.Value
+String
+否
+FinanceJoshua
+标签值。最多支持输入20个标签值。一旦传入该值，可以为空字符串。
+一个标签值最多支持128个字符，不能以aliyun和acs:开头，不能包含http://或者https://。
+SecurityProtectionEnabled
+Boolean
+否
+false
+是否开启DDoS防护（增强版）。取值：
+false（默认值）：不开启。
+true：开启。
+PublicIpAddressPoolId
+String
+否
+pippool-2vc0kxcedhquybdsz****
+要查询的EIP所属IP地址池ID。
+返回数据
+名称
+类型
+示例值
+描述
+PageSize
+Integer
+10
+每页包含的条目数。
+RequestId
+String
+4EC47282-1B74-4534-BD0E-403F3EE64CAF
+请求ID。
+PageNumber
+Integer
+10
+当前页码。
+TotalCount
+Integer
+1
+列表条目数。
+EipAddresses
+Array of EipAddress
+EIP的详细信息。
+EipAddress
+ReservationActiveTime
+String
+2021-05-23T16:00:00Z
+续费生效时间，格式为YYYY-MM-DDThh:mm:ssZ。
+Status
+String
+Available
+EIP的状态。
+Associating：绑定中。
+Unassociating：解绑中。
+InUse：已分配。
+Available：可用。
+Releasing：释放中。
+ReservationOrderType
+String
+RENEWCHANGE
+续费订单类型。
+RENEWCHANGE：续费变配。
+TEMP_UPGRADE：短时升配。
+UPGRADE ：升级。
+AllocationTime
+String
+2021-04-23T01:37:38Z
+EIP的创建时间，格式为YYYY-MM-DDThh:mm:ssZ。
+Netmode
+String
+public
+网络类型。仅取值：public，表示公网。
+ChargeType
+String
+PostPaid
+EIP的付费模式，取值：
+PostPaid：按量计费。
+PrePaid：包年包月。
+Description
+String
+abc
+EIP的描述信息。
+SegmentInstanceId
+String
+eipsg-t4nr90yik5oy38xd****
+连续EIP的实例ID。
+仅EIP属于连续EIP时才会返回该参数值。
+ReservationInternetChargeType
+String
+PayByBandwidth
+续费付费类型。
+PayByBandwidth：按固定带宽计费。
+PayByTraffic：按使用流量计费。
+BandwidthPackageId
+String
+cbwp-bp1ego3i4j07ccdvf****
+加入的共享带宽ID。
+IpAddress
+String
+47.75.XX.XX
+EIP的IP地址。
+Bandwidth
+String
+5
+EIP的带宽峰值。单位：Mbps。
+ReservationBandwidth
+String
+12
+续费带宽。单位：Mbps。
+EipBandwidth
+String
+101
+EIP加入共享带宽之前或退出共享带宽之后的带宽。单位：Mbps。
+Name
+String
+EIP-01
+EIP的名称。
+InstanceRegionId
+String
+cn-hangzhou
+当前绑定的资源的地域ID。
+DeletionProtection
+Boolean
+true
+是否开启了删除保护功能。
+true：已开启。
+false：未开启。
+InstanceId
+String
+i-bp15zckdt37cdvf****
+当前绑定的实例的ID。
+SecondLimited
+Boolean
+false
+是否配置了二级限速。
+true：已配置。
+false：未配置。
+InstanceType
+String
+EcsInstance
+当前绑定的实例类型。
+EcsInstance：VPC类型的ECS实例。
+SlbInstance：VPC类型的SLB实例。
+Nat：NAT网关。
+HaVip：高可用虚拟IP。
+NetworkInterface：辅助弹性网卡。
+IpAddress：IP地址。
+HDMonitorStatus
+String
+false
+EIP是否开启了秒级监控。
+false：未开启。
+true：已开启。
+RegionId
+String
+cn-hangzhou
+EIP所在的地域ID。
+BandwidthPackageBandwidth
+String
+50
+EIP加入的共享带宽的带宽值。单位：Mbps。
+ServiceManaged
+Integer
+0
+是否为服务账号创建的资源。
+0：非服务账号创建。
+1：服务账号创建。
+ExpiredTime
+String
+2021-05-23T02:00:00Z
+到期时间，格式为YYYY-MM-DDThh:mm:ssZ。
+ResourceGroupId
+String
+rg-acfmxazcdxs****
+资源组ID。
+AllocationId
+String
+eip-2zeerraiwb7ujcdvf****
+EIP的实例ID。
+InternetChargeType
+String
+PayByBandwidth
+EIP的计费方式。
+PayByBandwidth：按固定带宽计费。
+PayByTraffic：按使用流量计费。
+BusinessStatus
+String
+Normal
+EIP实例的业务状态。
+Normal：正常。
+FinancialLocked：被锁定。
+BandwidthPackageType
+String
+CommonBandwidthPackage
+带宽的类型，仅支持返回CommonBandwidthPackage（共享带宽）。
+HasReservationData
+String
+false
+是否有续费数据。
+false：无续费数据。
+true：有续费数据。只有在入参IncludeReservationData为true，且有未生效订购数据时才会为true。
+ISP
+String
+BGP
+线路类型。
+BGP：BGP（多线）线路。目前全部地域都支持BGP（多线）线路EIP。
+BGP_PRO：BGP（多线）_精品线路。目前仅中国香港、新加坡、日本（东京）、马来西亚（吉隆坡）、菲律宾（马尼拉）、印度尼西亚（雅加达）和泰国（曼谷）地域支持BGP（多线）_精品线路EIP。
+关于BGP（多线）线路和BGP（多线）_精品线路的更多信息，请参见EIP线路类型。
+如果您是单线带宽的白名单用户，返回类型还可能为：
+ChinaTelecom：中国电信
+ChinaUnicom：中国联通
+ChinaMobile：中国移动
+ChinaTelecom_L2：中国电信L2
+ChinaUnicom_L2：中国联通L2
+ChinaMobile_L2：中国移动L2
+如果您是杭州金融云用户，返回BGP_FinanceCloud。
+OperationLocks
+Array of LockReason
+锁定详情。
+LockReason
+LockReason
+String
+financial
+锁定类型。
+financial：因欠费被锁定。
+security：因安全原因被锁定。
+Tags
+Array of Tag
+EIP的标签列表。
+Tag
+Key
+String
+KeyTest
+EIP的标签键。
+Value
+String
+ValueTest
+EIP的标签值。
+SecurityProtectionTypes
+Array of String
+AntiDDoS_Enhanced
+安全防护级别。
+返回为空时，表示DDoS防护（基础版）。
+返回AntiDDoS_Enhanced时，表示DDoS防护（增强版）。
+PublicIpAddressPoolId
+String
+pippool-2vc0kxcedhquybdsz****
+EIP所属的IP地址池ID。
+VpcId
+String
+vpc-bp15zckdt37pq72zv****
+开通了IPv4网关功能且与EIP同地域的VPC ID。
+EIP绑定IP地址时，系统可以根据该VPC的路由配置，使绑定的IP地址具备公网访问能力。
+说明
+InstanceType为IpAddress时，即绑定EIP的实例类型为IP地址时，返回该参数。
+Zone
+String
+ap-southeast-1-lzdvn-cb
+EIP的可用区。
+仅当EIP业务类型为云盒时，返回该参数。
+BizType
+String
+CloudBox
+EIP的业务类型。
+CloudBox：云盒。仅云盒用户支持该类型。
+Default（默认值）：默认，表示非特殊类型。
+示例
+请求示例
+http(s)://[Endpoint]/?Action=DescribeEipAddresses
+&RegionId=cn-hangzhou
+&IncludeReservationData=false
+&Status=Available
+&EipAddress=47.75.XX.XX
+&AllocationId=eip-2zeerraiwb7ujxscd****
+&SegmentInstanceId=eipsg-t4nr90yik5oy38xdy****
+&ResourceGroupId=rg-acfmxazb4pcdvf****
+&PageNumber=10
+&PageSize=10
+&ISP=BGP
+&Filter.1.Key=CreationStartTime
+&Filter.2.Key=CreationEndTime
+&Filter.1.Value=2023-01-01T01:00Z
+&Filter.2.Value=2023-01-06T02:00Z
+&LockReason=financial
+&AssociatedInstanceType=EcsInstance
+&AssociatedInstanceId=i-2zebb08phyccdvf****
+&ChargeType=PostPaid
+&DryRun=false
+&EipName=EIP-01
+&Tag=[null]
+&SecurityProtectionEnabled=false
+&PublicIpAddressPoolId=pippool-2vc0kxcedhquybdsz****
+&公共请求参数
+正常返回示例
+XML格式
+HTTP/1.1 200 OK
+Content-Type:application/xml
+<DescribeEipAddressesResponse>
+<PageSize>10</PageSize>
+<RequestId>4EC47282-1B74-4534-BD0E-403F3EE64CAF</RequestId>
+<PageNumber>10</PageNumber>
+<TotalCount>1</TotalCount>
+<EipAddresses>
+<ReservationActiveTime>2021-05-23T16:00:00Z</ReservationActiveTime>
+<Status>Available</Status>
+<ReservationOrderType>RENEWCHANGE</ReservationOrderType>
+<AllocationTime>2021-04-23T01:37:38Z</AllocationTime>
+<Netmode>public</Netmode>
+<ChargeType>PostPaid</ChargeType>
+<Description>abc</Description>
+<SegmentInstanceId>eipsg-t4nr90yik5oy38xd****</SegmentInstanceId>
+<ReservationInternetChargeType>PayByBandwidth</ReservationInternetChargeType>
+<BandwidthPackageId>cbwp-bp1ego3i4j07ccdvf****</BandwidthPackageId>
+<IpAddress>47.75.XX.XX</IpAddress>
+<Bandwidth>5</Bandwidth>
+<ReservationBandwidth>12</ReservationBandwidth>
+<EipBandwidth>101</EipBandwidth>
+<Name>EIP-01</Name>
+<InstanceRegionId> cn-hangzhou</InstanceRegionId>
+<DeletionProtection>true</DeletionProtection>
+<InstanceId>i-bp15zckdt37cdvf****</InstanceId>
+<SecondLimited>false</SecondLimited>
+<InstanceType>EcsInstance</InstanceType>
+<HDMonitorStatus>false</HDMonitorStatus>
+<RegionId>cn-hangzhou</RegionId>
+<BandwidthPackageBandwidth>50</BandwidthPackageBandwidth>
+<ServiceManaged>0</ServiceManaged>
+<ExpiredTime>2021-05-23T02:00:00Z</ExpiredTime>
+<ResourceGroupId>rg-acfmxazcdxs****</ResourceGroupId>
+<AllocationId>eip-2zeerraiwb7ujcdvf****</AllocationId>
+<InternetChargeType>PayByBandwidth</InternetChargeType>
+<BusinessStatus>Normal</BusinessStatus>
+<BandwidthPackageType>CommonBandwidthPackage</BandwidthPackageType>
+<HasReservationData>false</HasReservationData>
+<ISP>BGP</ISP>
+<OperationLocks>
+<LockReason>financial</LockReason>
+</OperationLocks>
+<Tags>
+<Key>KeyTest</Key>
+<Value>ValueTest</Value>
+</Tags>
+<SecurityProtectionTypes>AntiDDoS_Enhanced</SecurityProtectionTypes>
+<PublicIpAddressPoolId>pippool-2vc0kxcedhquybdsz****</PublicIpAddressPoolId>
+<VpcId>vpc-bp15zckdt37pq72zv****</VpcId>
+<Zone>ap-southeast-1-lzdvn-cb</Zone>
+<BizType>CloudBox</BizType>
+</EipAddresses>
+</DescribeEipAddressesResponse>
+JSON格式
+HTTP/1.1 200 OK
+Content-Type:application/json
+{
+"PageSize" : 10,
+"RequestId" : "4EC47282-1B74-4534-BD0E-403F3EE64CAF",
+"PageNumber" : 10,
+"TotalCount" : 1,
+"EipAddresses" : [ {
+"ReservationActiveTime" : "2021-05-23T16:00:00Z",
+"Status" : "Available",
+"ReservationOrderType" : "RENEWCHANGE",
+"AllocationTime" : "2021-04-23T01:37:38Z",
+"Netmode" : "public",
+"ChargeType" : "PostPaid",
+"Description" : "abc",
+"SegmentInstanceId" : "eipsg-t4nr90yik5oy38xd****",
+"ReservationInternetChargeType" : "PayByBandwidth",
+"BandwidthPackageId" : "cbwp-bp1ego3i4j07ccdvf****",
+"IpAddress" : "47.75.XX.XX",
+"Bandwidth" : "5",
+"ReservationBandwidth" : "12",
+"EipBandwidth" : "101",
+"Name" : "EIP-01",
+"InstanceRegionId" : " cn-hangzhou",
+"DeletionProtection" : true,
+"InstanceId" : "i-bp15zckdt37cdvf****",
+"SecondLimited" : false,
+"InstanceType" : "EcsInstance",
+"HDMonitorStatus" : "false",
+"RegionId" : "cn-hangzhou",
+"BandwidthPackageBandwidth" : "50",
+"ServiceManaged" : 0,
+"ExpiredTime" : "2021-05-23T02:00:00Z",
+"ResourceGroupId" : "rg-acfmxazcdxs****",
+"AllocationId" : "eip-2zeerraiwb7ujcdvf****",
+"InternetChargeType" : "PayByBandwidth",
+"BusinessStatus" : "Normal",
+"BandwidthPackageType" : "CommonBandwidthPackage",
+"HasReservationData" : "false",
+"ISP" : "BGP",
+"OperationLocks" : [ {
+"LockReason" : "financial"
+} ],
+"Tags" : [ {
+"Key" : "KeyTest",
+"Value" : "ValueTest"
+} ],
+"SecurityProtectionTypes" : [ "AntiDDoS_Enhanced" ],
+"PublicIpAddressPoolId" : "pippool-2vc0kxcedhquybdsz****",
+"VpcId" : "vpc-bp15zckdt37pq72zv****",
+"Zone" : "ap-southeast-1-lzdvn-cb",
+"BizType" : "CloudBox"
+} ]
+}
+错误码
+HttpCode
+错误码
+错误信息
+描述
+400
+InvalidIAssociatedInstanceType.ValueNotSupported
+The specified value of AssociatedInstanceType is not supported.
+AssociatedInstanceType的值不合法，请您检查该参数是否正确。
+400
+InvalidChargeType.ValueNotSupported
+The specified ChargeType is not supported.
+该计费方式不支持，请您重新选择计费方式。
+400
+InvalidResourceGroupId
+The specified ResourceGroupId does not exist.
+资源组ID不存在。
+400
+InvalidTagKey
+The tag keys are not valid.
+无效的标签索引
+400
+InvalidTagValue
+The tag values are not valid.
+无效的标签值
+400
+OperationUnsupported.ResourceGroupId
+ResourceGroup is not supported in this region.
+资源组功能未打开。
+404
+Forbidden.RegionNotFound
+Specified region is not found during access authentication.
+指定 Region 不存在，请您检查该 Region 是否正确。
+404
+InvalidLockReason.NotFound
+The specified LockReason is not found
+锁定原因未找到。
+访问错误中心查看更多错误码。

@@ -1,0 +1,669 @@
+标题：使用DescribeAddressBook接口批量查询地址簿列表-云防火墙-阿里云-云防火墙(Cloud Firewall)-阿里云帮助中心
+来源：https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describeaddressbook
+抓取日期：2026-10-20
+说明：官方页面正文的本地提取；保留原始 HTML，不代表云 API 实测。
+
+首页
+云防火墙
+云防火墙CFW
+开发参考
+API参考
+API目录
+防护配置
+地址簿
+DescribeAddressBook - 批量查询地址簿列表
+DescribeAddressBook - 批量查询地址簿列表
+更新时间：
+复制 MD 格式
+产品详情
+我的收藏
+批量查询地址簿列表。
+接口说明
+本接口一般用于查询访问控制策略地址簿的详细信息。
+QPS 限制
+本接口的单用户 QPS 限制为 10 次/秒。超过限制，API 调用会被限流，这可能会影响您的业务，请合理调用。
+调试
+您可以在OpenAPI Explorer中直接运行该接口，免去您计算签名的困扰。运行成功后，OpenAPI Explorer可以自动生成SDK代码示例。
+调试
+授权信息
+下表是API对应的授权信息，可以在RAM权限策略语句的Action元素中使用，用来给RAM用户或RAM角色授予调用此API的权限。具体说明如下：
+操作：是指具体的权限点。
+访问级别：是指每个操作的访问级别，取值为写入（Write）、读取（Read）或列出（List）。
+资源类型：是指操作中支持授权的资源类型。具体说明如下：
+对于必选的资源类型，用前面加 * 表示。
+对于不支持资源级授权的操作，用全部资源表示。
+条件关键字：是指云产品自身定义的条件关键字。
+关联操作：是指成功执行操作所需要的其他权限。操作者必须同时具备关联操作的权限，操作才能成功。
+操作
+访问级别
+资源类型
+条件关键字
+关联操作
+yundun-cloudfirewall:DescribeAddressBook
+get
+*AddressBook
+acs:cloudfirewall::{#accountId}:addressbook/{#GroupUuid}
+无
+无
+请求参数
+名称
+类型
+必填
+描述
+示例值
+Lang
+string
+否
+地址簿描述的语言类型。
+枚举值：
+en :
+英文
+zh :
+中文（默认）
+zh
+CurrentPage
+string
+否
+分页查询时，设置当前页面的页码。
+默认值为 1，表示返回第 1 页数据。
+1
+PageSize
+string
+否
+分页查询时，设置每页包含的地址簿的数量。
+默认值为 10，表示每页包含 10 条结果。最大值为 50。
+10
+Query
+string
+否
+搜索条件，输入待查询地址簿信息。
+192.0.XX.XX
+GroupType
+string
+否
+地址簿的类型。
+说明
+不设置该参数表示查询 IP 地址簿和 ECS 标签地址簿。
+枚举值：
+tagPrivate :
+ECS 标签私网地址簿
+backsrcIpv6 :
+IPv6 回源地址簿
+ackLabel :
+ACK 容器组标签地址簿
+ip :
+IPv4 地址簿
+cloud :
+云地址簿
+cloudServiceDomain :
+云服务域名地址簿
+backsrc :
+IPv4 回源地址簿
+cloudDomain :
+云域名地址簿
+port :
+端口地址簿
+ipv6 :
+IPv6 地址簿
+domain :
+域名地址簿
+assetIpv6 :
+IPv6 公网资产地址簿
+ackNamespace :
+ACK 命名空间地址簿
+tag :
+ECS 标签公网地址簿
+threat :
+情报地址簿
+asset :
+IPv4 公网资产地址簿
+ip
+ContainPort
+string
+否
+查询包含指定端口的地址簿。仅当 GroupType 参数的值为 port 时，该参数才会作为本次查询的条件。
+80
+GroupUuid
+string
+否
+地址簿的唯一标识 ID。
+f04ac7ce-628b-4cb7-be61-310222b7****
+AssetMemberUids
+array
+否
+资产地址簿，成员账号列表。
+integer
+否
+成员账号列表。
+13580xxxxxx6271
+返回参数
+名称
+类型
+描述
+示例值
+object
+PageNo
+string
+当前页面的页码。
+1
+PageSize
+string
+每页包含的地址簿的数量。
+10
+RequestId
+string
+结果的请求 ID。
+B36F150A-1E27-43AA-B72C-D2AC712F09DA
+TotalCount
+string
+地址簿的总数量。
+100
+Acls
+array<object>
+地址簿列表。
+array<object>
+地址簿信息。
+AddressListCount
+integer
+地址簿中包含地址的个数。
+2
+GroupUuid
+string
+地址簿的唯一标识 ID。
+f04ac7ce-628b-4cb7-be61-310222b7****
+AutoAddTagEcs
+integer
+是否自动添加新匹配标签的 ECS（新购且完成标签设置的 ECS 或修改标签的 ECS）公网 IP 到地址簿。
+枚举值：
+0 :
+不自动添加
+1 :
+自动添加
+1
+Description
+string
+地址簿的描述信息。
+DEMO
+GroupName
+string
+地址簿的名称。
+demo_address_book
+ReferenceCount
+integer
+地址簿被引用次数。
+3
+GroupType
+string
+地址簿的类型。
+枚举值：
+tagPrivate :
+ECS 标签私网地址簿
+backsrcIpv6 :
+IPv6 回源地址簿
+ackLabel :
+ACK 容器组标签地址簿
+ip :
+IPv4 地址簿
+cloudServiceDomain :
+云服务域名地址簿
+cloud :
+云地址簿
+backsrc :
+IPv4 回源地址簿
+cloudDomain :
+云域名地址簿
+port :
+端口地址簿
+ipv6 :
+IPv6 地址簿
+domain :
+域名地址簿
+assetIpv6 :
+IPv6 公网资产地址簿
+ackNamespace :
+ACK 命名空间地址簿
+tag :
+ECS 标签公网地址簿
+threat :
+情报地址簿
+asset :
+IPv4 公网资产地址簿
+ip
+TagRelation
+string
+多个 ECS 标签间的关系。
+枚举值：
+or :
+多个标签间为“或”关系，即只要匹配一个标签的 ECS 公网 IP 就会被加入地址簿。
+and :
+多个标签间为“与”关系，即同时匹配多个标签的 ECS 公网 IP 才会被加入地址簿。
+and
+TagList
+array<object>
+ECS 标签列表。
+object
+ECS 标签。
+TagValue
+string
+ECS 标签值。
+ALL VALUE
+TagKey
+string
+ECS 标签键。
+company
+AddressList
+array
+地址簿的地址列表。
+string
+地址簿的地址信息。
+[ "192.168.XX.XX/32", "192.168.XX.XX/32" ]
+Addresses
+array<object>
+地址簿的含单地址描述的地址列表。
+object
+地址簿的含单地址描述的地址。
+Address
+string
+地址簿的地址信息。
+192.168.0.1/32
+Note
+string
+单地址描述。
+Single Address Description
+AckClusterConnectorId
+string
+ACK 集群连接器 ID。
+ac-7c1bad6c3cc84c33baab
+AckClusterConnectorName
+string
+ACK 集群连接器名称。
+ack-cluster-connector-name
+AckLabels
+array<object>
+ACK 集群容器组标签列表。
+object
+ACK 集群容器组标签。
+Key
+string
+ACK 集群容器组标签的键。
+app
+Value
+string
+ACK 集群容器组标签的值。
+storage-operator
+AckNamespaces
+array
+ACK 集群容器组命名空间列表。
+string
+ACK 集群容器组命名空间。
+default
+RegionNo
+string
+当 GroupType 是 ACK 地址簿时，地址簿所属的 ACK 集群连接器的地域。
+cn-beijing
+AssetMemberUids
+array
+资产地址簿，成员账号列表。
+integer
+成员账号列表。
+13580xxxxxx6271
+AssetRegionResourceTypes
+array<object>
+资产地址簿，地域和资源类型列表。
+array<object>
+地域和资源类型列表。
+AssetRegionId
+string
+资产地域 ID。
+枚举值：
+all :
+全部地域
+all
+ResourceType
+object
+资产类型。
+Ipv4
+object
+IPv4 资产类型。
+SlbEIP
+boolean
+资产类型：SlbEIP。
+枚举值：
+true :
+开启
+false :
+关闭
+true
+NatPublicIP
+boolean
+资产类型：NatPublicIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+BastionHostIngressIP
+boolean
+资产类型：BastionHostIngressIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+EniEIP
+boolean
+资产类型：EniEIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+NlbEIP
+boolean
+资产类型：NlbEIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+ApiGatewayEIP
+boolean
+资产类型：ApigEIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+EcsPublicIP
+boolean
+资产类型：EcsPublicIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+BastionHostIP
+boolean
+资产类型：BastionHostIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+BastionHostEgressIP
+boolean
+资产类型：BastionHostEgressIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+AlbEIP
+boolean
+资产类型：AlbEIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+GaEIP
+boolean
+资产类型：GaEIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+AiGatewayEIP
+boolean
+资产类型：AIGatewayEIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+EIP
+boolean
+资产类型：EIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+NatEIP
+boolean
+资产类型：NatEIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+SlbPublicIP
+boolean
+资产类型：SlbPublicIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+EcsEIP
+boolean
+资产类型：EcsEIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+HAVIP
+boolean
+资产类型：HAVIP。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+Ipv6
+object
+IPv6 资产类型。
+SlbIPv6
+boolean
+资产类型：SlbIPv6。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+NlbIPv6
+boolean
+资产类型：NlbIPv6。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+EniEIPv6
+boolean
+资产类型：EniEIPv6。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+AlbIPv6
+boolean
+资产类型：AlbIPv6。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+GaEIPv6
+boolean
+资产类型：GaEIPv6。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+AiGatewayEIPv6
+boolean
+资产类型：AIGatewayEIPv6。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+EcsIPv6
+boolean
+资产类型：EcsIPv6。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+ApiGatewayEIPv6
+boolean
+资产类型：ApigEIPv6。
+枚举值：
+true :
+开启
+false :
+关闭
+false
+示例
+正常返回示例
+JSON格式
+{
+"PageNo": "1",
+"PageSize": "10",
+"RequestId": "B36F150A-1E27-43AA-B72C-D2AC712F09DA",
+"TotalCount": "100",
+"Acls": [
+{
+"AddressListCount": 2,
+"GroupUuid": "f04ac7ce-628b-4cb7-be61-310222b7****",
+"AutoAddTagEcs": 1,
+"Description": "DEMO",
+"GroupName": "demo_address_book",
+"ReferenceCount": 3,
+"GroupType": "ip",
+"TagRelation": "and",
+"TagList": [
+{
+"TagValue": "ALL VALUE",
+"TagKey": "company"
+}
+],
+"AddressList": [
+"[ \"192.168.XX.XX/32\", \"192.168.XX.XX/32\" ]"
+],
+"Addresses": [
+{
+"Address": "192.168.0.1/32",
+"Note": "Single Address Description"
+}
+],
+"AckClusterConnectorId": "ac-7c1bad6c3cc84c33baab",
+"AckClusterConnectorName": "ack-cluster-connector-name",
+"AckLabels": [
+{
+"Key": "app",
+"Value": "storage-operator"
+}
+],
+"AckNamespaces": [
+"default"
+],
+"RegionNo": "cn-beijing",
+"AssetMemberUids": [
+0
+],
+"AssetRegionResourceTypes": [
+{
+"AssetRegionId": "all",
+"ResourceType": {
+"Ipv4": {
+"SlbEIP": true,
+"NatPublicIP": false,
+"BastionHostIngressIP": false,
+"EniEIP": false,
+"NlbEIP": false,
+"ApiGatewayEIP": false,
+"EcsPublicIP": false,
+"BastionHostIP": false,
+"BastionHostEgressIP": false,
+"AlbEIP": false,
+"GaEIP": false,
+"AiGatewayEIP": false,
+"EIP": false,
+"NatEIP": false,
+"SlbPublicIP": false,
+"EcsEIP": false,
+"HAVIP": false
+},
+"Ipv6": {
+"SlbIPv6": false,
+"NlbIPv6": false,
+"EniEIPv6": false,
+"AlbIPv6": false,
+"GaEIPv6": false,
+"AiGatewayEIPv6": false,
+"EcsIPv6": false,
+"ApiGatewayEIPv6": false
+}
+}
+}
+]
+}
+]
+}
+错误码
+HTTP status code
+错误码
+错误信息
+描述
+400
+ErrorParametersGroupType
+The group type is invalid.
+无效的group类型
+400
+ErrorParametersUid
+The aliUid parameter is invalid.
+aliUid 不合法
+400
+ErrorParametersPageSizeOrNo
+Either pageSize or pageNo is invalid.
+无效的pageSize或者pageNo
+400
+ErrorDBSelect
+An error occurred while querying database.
+内部错误：数据库查询错误
+访问错误中心查看更多错误码。
+变更历史
+更多信息，参考变更详情。
+上一篇：地址簿下一篇：AddAddressBook - 创建地址簿
+该文章对您有帮助吗？
+反馈
