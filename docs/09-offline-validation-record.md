@@ -31,6 +31,7 @@
 | `bash scripts/eino-offline.sh test -race` | 本实验测试的 Go 竞态检查通过，不推导生产并发安全 |
 | `bash scripts/eino-offline.sh vet` | Go 静态检查通过 |
 | `bash scripts/eino-offline.sh run` | 两个人工样例完成，生成 [示例报告](../experiments/eino-offline/example-report.json) |
+| 模型配置加载与 `config-check` 的本地测试 | 环境优先级、缺失字段、URL/预算格式、脱敏、不执行 shell 与零 HTTP 请求断言通过；不属于服务连通性验证 |
 
 检查只针对本实验及参考资料，不称为正式业务测试、真实模型评测或云平台接入验收。
 
@@ -68,3 +69,9 @@
 - 真实模型的上下文与证据输入需继续按公平实验条件固定，不把脚本样例结果当论文实验结论。
 
 以上均未在本轮执行。不得把密钥写到 Git、聊天公开记录或示例报告中；不能用当前脚本替代真实服务测试。
+
+## 7. 模型配置入口补充
+
+已增加根目录 `.env.local`（私有且忽略）、`.env.example`（空白模板）与 `config-check` 入口。它只读取、校验并输出脱敏摘要，不初始化模型 Provider；测试中本机 HTTP 服务的请求计数保持为零。真实服务和凭据有效性仍未验证。
+
+配置检查结果不显示实际地址、模型名或密钥；错误不拼接原始值。环境变量只在读取时覆盖文件，不修改进程或全局环境。离线样例保持不读取私有模型配置，见 [使用说明](../experiments/eino-offline/README.md)。

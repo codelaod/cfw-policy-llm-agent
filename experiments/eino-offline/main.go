@@ -11,10 +11,15 @@ import (
 
 func main() {
 	scenario := flag.String("scenario", "all", "all, whitelist or missing-whitelist (synthetic fixtures only)")
+	configCheck := flag.Bool("check-model-config", false, "validate private model configuration without sending requests")
+	envFile := flag.String("env-file", ".env.local", "private model config file; only read with -check-model-config")
 	flag.Parse()
 	if flag.NArg() != 0 {
 		fmt.Fprintln(os.Stderr, "unexpected positional arguments")
 		os.Exit(2)
+	}
+	if *configCheck {
+		os.Exit(checkModelConfiguration(*envFile, os.LookupEnv, os.Stdout, os.Stderr))
 	}
 	scenarios := []string{*scenario}
 	if *scenario == "all" {

@@ -20,9 +20,10 @@ export GOPROXY=off
 export GONOPROXY=none
 export GOSUMDB=off
 case "$action" in
+    config-check) go run -mod=readonly . -check-model-config -env-file "$root/.env.local" "$@" ;;
     test) go test -count=1 "$@" ./... ;;
     run) go run -mod=readonly . "$@" ;;
     vet) go vet "$@" ./... ;;
     verify) go mod verify ;;
-    *) echo "Usage: bash scripts/eino-offline.sh {prepare|test|run|vet|verify}" >&2; exit 2 ;;
+    *) echo "Usage: bash scripts/eino-offline.sh {prepare|config-check|test|run|vet|verify}" >&2; exit 2 ;;
 esac

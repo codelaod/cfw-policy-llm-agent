@@ -56,6 +56,17 @@ bash scripts/eino-offline.sh run
 python3 scripts/check_references.py
 ```
 
+## 填写模型服务配置
+
+本地在仓库根目录 `.env.local` 填写 `CFW_MODEL_BASE_URL`、`CFW_MODEL_API_KEY` 和 `CFW_MODEL_NAME`；该文件被 Git 忽略。可分享的空白模板见 [`.env.example`](.env.example)，详细规则见 [实验配置说明](experiments/eino-offline/README.md)。
+
+```bash
+# 仅检查并输出脱敏摘要，不发送模型请求。
+bash scripts/eino-offline.sh config-check
+```
+
+当前配置入口已实现，但真实模型适配器和调用验证尚未完成；填写配置不会使离线样例自动访问付费服务。
+
 已实测 Go 1.26.10、Eino v0.9.22。正式 Web、真实模型和云采集的安装/运行命令尚未实现，不用实验命令代替。
 
 许可证沿用仓库已有的 [Apache License 2.0](LICENSE)。
