@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "archived_date": "2026-10-22",
+  "retrieved_date": "2026-10-22",
+  "description": "依据 MiniMax 官方资料编写的本地核实摘要；不是官方全文或真实模型响应。",
+  "documents": [
+    {
+      "id": "minimax-openai-compatible-notes",
+      "title": "MiniMax OpenAI 兼容接口核实摘要（项目自写）",
+      "url": "https://platform.minimax.io/docs/api-reference/text-openai-api",
+      "retrieved_date": "2026-10-22",
+      "text_file": "openai-compatible-notes.txt",
+      "text_bytes": 1656,
+      "text_sha256": "b1026f430225ecf9c1e14e3aa198e9be8b4122d7114aa7ef5eab508f4c037ebb",
+      "note": "本地摘要，不包含私有端点、实际模型标识或凭据。"
+    }
+  ]
+}

@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "archived_date": "2026-10-22",
+  "retrieved_date": "2026-10-22",
+  "description": "系统设计阶段的一手资料自写核实摘要；非官方全文、非新依赖安装或真实调用。",
+  "documents": [
+    {
+      "id": "go-http",
+      "reference_id": "D-01",
+      "title": "Go net/http（自写摘要）",
+      "url": "https://pkg.go.dev/net/http",
+      "retrieved_date": "2026-10-22",
+      "text_file": "go-http.txt",
+      "text_bytes": 426,
+      "text_sha256": "ffb7542d43963b3e3767ce5d0048d577d33286f92d66d15f429872a294b73d0c"
+    },
+    {
+      "id": "vue",
+      "reference_id": "D-02",
+      "title": "Vue 3 官方指南（自写摘要）",
+      "url": "https://vuejs.org/guide/introduction.html",
+      "retrieved_date": "2026-10-22",
+      "text_file": "vue.txt",
+      "text_bytes": 460,
+      "text_sha256": "d30b78a214799c8175a5dde1ab2583b8da7d1139ae71a3626fddea47999f25f0"
+    },
+    {
+      "id": "vite",
+      "reference_id": "D-03",
+      "title": "Vite 官方指南（自写摘要）",
+      "url": "https://vite.dev/guide/",
+      "retrieved_date": "2026-10-22",
+      "text_file": "vite.txt",
+      "text_bytes": 429,
+      "text_sha256": "3e59ba3d0f8eda8a6965f1f11571ebafdd93a2a80ece16a6e6a49e6bb69ec63e"
+    },
+    {
+      "id": "modernc-sqlite",
+      "reference_id": "D-04",
+      "title": "modernc.org/sqlite 的维护者文档（自写摘要）",
+      "url": "https://pkg.go.dev/modernc.org/sqlite",
+      "retrieved_date": "2026-10-22",
+      "text_file": "modernc-sqlite.txt",
+      "text_bytes": 475,
+      "text_sha256": "68073ec23977c447a5c306507a1e6beff592875a17c5cc4f18c3a658c54396b8"
+    },
+    {
+      "id": "sqlite-isolation",
+      "reference_id": "D-05",
+      "title": "SQLite 事务隔离（自写摘要）",
+      "url": "https://sqlite.org/isolation.html",
+      "retrieved_date": "2026-10-22",
+      "text_file": "sqlite-isolation.txt",
+      "text_bytes": 480,
+      "text_sha256": "137d285774024788aafba8300c2cb0a0bf7c6cb846975a280dd04d0a273e88d3"
+    },
+    {
+      "id": "owasp-rest",
+      "reference_id": "D-06",
+      "title": "OWASP REST Security（自写摘要）",
+      "url": "https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html",
+      "retrieved_date": "2026-10-22",
+      "text_file": "owasp-rest.txt",
+      "text_bytes": 518,
+      "text_sha256": "c1ddd9eae6b25e46daf83c2cebed6c9132116e99b350a7df07c504f5c72cfb21"
+    },
+    {
+      "id": "openai-tool-calling",
+      "reference_id": "M-06",
+      "title": "OpenAI 官方工具调用指南（自写摘要）",
+      "url": "https://developers.openai.com/api/docs/guides/function-calling",
+      "retrieved_date": "2026-10-22",
+      "text_file": "openai-tool-calling.txt",
+      "text_bytes": 502,
+      "text_sha256": "c79464f323d4c8dccb2647d77e8e4af3989a8f2f4ca6a25e2ebe85510cdc227b"
+    },
+    {
+      "id": "eino-agent-design",
+      "reference_id": "F-01",
+      "title": "Eino ChatModelAgent（自写摘要）",
+      "url": "https://www.cloudwego.io/docs/eino/core_modules/eino_adk/agent_implementation/chat_model/",
+      "retrieved_date": "2026-10-22",
+      "text_file": "eino-agent-design.txt",
+      "text_bytes": 538,
+      "text_sha256": "291ac70cf79fc03ef193194af35ab8b57c83a9eb5c8257f0989fc0b8567f45ee"
+    },
+    {
+      "id": "cfw-matching-design",
+      "reference_id": "A-08",
+      "title": "阿里云 CFW 匹配语义复核（自写摘要）",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/how-access-control-policies-work-1",
+      "retrieved_date": "2026-10-22",
+      "text_file": "cfw-matching-design.txt",
+      "text_bytes": 536,
+      "text_sha256": "2064ccae86ed510188b3c057a582d8b438c88eb6d763aa5ead8cb2b8cff700ee"
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Verify committed documentation snapshots without network or third-party packages."""
+"""Verify documentation reference files without network or third-party packages."""
 from __future__ import annotations
 
 import hashlib
@@ -49,7 +49,7 @@ def main() -> int:
     except (OSError, ValueError, KeyError, TypeError) as exc:
         print(f"FAIL: {exc}", file=sys.stderr)
         return 1
-    print(f"PASS: {count} committed reference snapshots; sources, sizes and SHA-256 verified.")
+    print(f"PASS: {count} reference files in working tree; sources, sizes and SHA-256 verified (Git publication is checked separately).")
     return 0
 
 

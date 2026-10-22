@@ -1,0 +1,9 @@
+Google Cloud：Firewall Insights
+资料编号：I-02
+核读日期：2026-10-22
+来源：https://docs.cloud.google.com/network-intelligence-center/docs/firewall-insights/concepts/overview
+类型：项目自写核实摘要，不是原文或官方离线发行包。
+
+产品分析防火墙配置及规则使用情况，提供过度宽泛或未使用等线索。引用其产品方向，不迁移其观测窗口或将零命中自动等同无用。
+
+边界：公开资料核读不代表本账号已开通、接口已实测或本项目已实现。需求和设计仍待用户审核。

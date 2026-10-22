@@ -1,0 +1,9 @@
+modernc.org/sqlite 的维护者文档
+资料编号：D-04
+核读日期：2026-10-22
+来源：https://pkg.go.dev/modernc.org/sqlite
+类型：项目自写核实摘要，不是原文。
+
+核对 CGO-free 的 database/sql 驱动路线。驱动和其 libc 等依赖仍需正确配套、固定版本并验证，不能把不用 CGO 写成没有依赖或已经跨平台编译通过。
+
+状态：设计取舍待 G2 审核；没有据此执行模型／云请求或正式业务构建。

@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<link rel="icon" href="data:,">
+<title>云防火墙审计｜低保真流程评审</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f4f2;color:#242824;font:15px/1.6 system-ui,sans-serif}header,main,footer{max-width:1180px;margin:auto;padding:20px}header{border-bottom:1px solid #bbb}h1{font-size:23px;margin:0}h2{font-size:19px;margin:0 0 16px}h3{font-size:16px;margin:0 0 10px}.muted{color:#626862}.banner{padding:10px 14px;border:1px solid #c9b57c;background:#fff9e9;margin:12px 0}.notice{min-height:44px;padding:10px 14px;border-left:4px solid #737d71;background:#e9ede8}nav,.actions,.row{display:flex;flex-wrap:wrap;gap:9px;margin:14px 0}button,select,input,textarea{font:inherit;border:1px solid #a4aaa2;border-radius:3px;padding:7px 10px;background:white;color:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.45}button.active,button.primary{background:#354e40;color:white;border-color:#354e40}button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid #a1b8a5;outline-offset:2px}label{display:block;margin:8px 0}input[type=text],textarea{width:100%}textarea{min-height:72px}.card{border:1px solid #c9cdc7;background:#fff;padding:18px;margin:12px 0;border-radius:4px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.full{grid-column:1/-1}table{border-collapse:collapse;width:100%;font-size:14px}th,td{border-bottom:1px solid #d7dad4;padding:10px;text-align:left;vertical-align:top}th{background:#f1f2ee}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f6f3;padding:12px;max-height:360px;overflow:auto}.tag{display:inline-block;font-size:12px;border:1px solid #aeb9ac;padding:1px 7px;background:#eef2ed}.roles label{display:inline-flex;align-items:center;gap:5px;margin-right:12px}.evidence{font-size:14px}section[hidden]{display:none}footer{font-size:13px;color:#626862;border-top:1px solid #ccc}@media(max-width:760px){.grid{grid-template-columns:1fr}header,main,footer{padding:14px}table{font-size:12px}}
+</style>
+</head>
+<body>
+<header>
+<h1>云防火墙审计 <span class="tag">低保真需求评审</span></h1>
+<div class="banner">全部为人工样例和模拟交互。无云 API、无模型调用、无服务端保存；刷新即重置。不是已实现的业务系统。</div>
+<div class="actions" aria-label="从这里开始"><strong>可以从这里开始：</strong><button id="guideDemoBtn">从人工样例开始</button><button id="guideFactsBtn">先看看资产信息</button><button id="guideRulesBtn">用途未知，先预览基础检查</button></div>
+<nav aria-label="业务流程">
+<button data-page="data">1 数据与任务</button><button data-page="assets">2 资产与确认</button><button data-page="audit">3 审计过程</button><button data-page="findings">4 发现与建议</button><button data-page="report">5 报告与复审</button>
+</nav>
+<div id="notice" class="notice" role="status" aria-live="polite">先选择一个人工样例，查看自动线索与确认流程。</div>
+</header>
+<main>
+<section data-panel="data">
+<h2>选择数据，而不是先填一遍已知信息</h2>
+<div class="card"><label for="scenario">人工场景</label><select id="scenario"><option value="normal">三台 VM：Web 线索／数据库线索／未知</option><option value="partial">部分上下文：第三台网卡／安全组关联缺失</option><option value="model-error">模型不可用：可手工确认、保留规则结果</option></select>
+<div class="actions"><button id="loadBtn" class="primary">载入人工快照（模拟）</button><button id="resetBtn">重置整个原型</button></div><p class="muted">真实产品可选择离线导入或服务端已配置的只读连接。本原型不接收文件、凭据或真实资产。</p></div>
+<div id="sourceSummary" class="card">尚未载入。无数据不表示无风险。</div>
+</section>
+<section data-panel="assets" hidden>
+<h2>自动证据 → 候选 → 引导补充 → 本地确认</h2>
+<div class="card"><div id="assetTable"></div><label for="assetPicker">当前资产</label><select id="assetPicker"><option value="demo-a">VM-A</option><option value="demo-b">VM-B</option><option value="demo-c">VM-C</option></select></div>
+<div class="grid">
+<div class="card"><h3>自动上下文（固定人工数据）</h3><div id="facts" class="evidence"></div><p class="muted">安全组允许端口只是配置线索，不是监听、可达性或授权证明。没有云安全中心依赖。</p><div class="actions"><button id="inferBtn">生成候选与引导（模拟）</button><button id="rejectBtn">拒绝候选／保留未知</button></div><div id="assistant" class="banner"></div></div>
+<div class="card"><h3>对话／表单共用的确认草稿</h3><p class="muted">此处用表单演示对话生成后的结构化卡片，不实现自然语言模型。</p>
+<div id="profileForm"><div class="roles"><label><input id="role-web" name="roles" type="checkbox" value="web">Web</label><label><input id="role-database" name="roles" type="checkbox" value="database">数据库</label><label><input id="role-worker" name="roles" type="checkbox" value="worker">后台服务</label><label><input id="role-management" name="roles" type="checkbox" value="management">管理入口</label></div>
+<label for="exposure">是否需要公网访问</label><select id="exposure"><option value="unknown">未声明</option><option value="public">业务明确需要公网</option><option value="private">业务明确不需要公网</option></select>
+<label for="ports">业务必要端口（可留空；不会照抄安全组）</label><input id="ports" type="text" placeholder="例如 TCP 443，或暂不确定">
+<label for="sources">业务批准来源／调用方（可留空）</label><input id="sources" type="text" placeholder="例如仅由 VM-A 调用；具体引用仍需核实">
+<label><input id="completeSet" type="checkbox">上述允许集合已经完整声明</label>
+<label for="businessNote">业务补充／草稿说明</label><textarea id="businessNote" placeholder="补充实际用途；不填写密钥"></textarea></div>
+<div class="actions"><button id="previewBtn">预览本地修改</button><button id="confirmBtn" class="primary" disabled>确认保存（模拟）</button></div><pre id="preview">尚未预览；候选不等于已确认。</pre></div>
+</div>
+</section>
+<section data-panel="audit" hidden>
+<h2>绑定输入版本，允许信息不足但不伪造结论</h2>
+<div class="card"><div id="preflight"></div><div class="actions"><button id="startBtn" class="primary">新建审计（模拟）</button><button id="advanceBtn">推进到规则结果（模拟）</button><button id="finishBtn">模拟结束</button><button id="cancelBtn">取消模拟任务</button></div></div>
+<div class="card"><h3>任务与事件</h3><pre id="taskEvents">尚无任务。</pre><p class="muted">这里没有执行真实规则或模型。固定发现只用于审核“结果如何呈现”。角色未知仍可做适用基线；没有无限挂起／恢复会话。</p></div>
+</section>
+<section data-panel="findings" hidden>
+<h2>审阅不是云端执行</h2><button id="guideExplainBtn">解释这条发现（固定示例，不调模型）</button>
+<div id="findingList" class="card">先新建模拟审计。</div>
+<div class="card"><label for="deferReason">暂缓原因</label><input id="deferReason" type="text" placeholder="说明原因；不自动变成风险例外">
+<div class="actions"><button id="planBtn">采纳为本地待办</button><button id="deferBtn">暂缓并保留发现</button><button id="supplementBtn">返回补充资产资料</button></div><p class="muted">不提供自动修复。采纳／暂缓不修改云配置，也不将问题判定为修复。</p></div>
+</section>
+<section data-panel="report" hidden>
+<h2>旧报告保留旧版本，新资料用于新任务</h2>
+<div class="card"><div id="reportVersion"></div><div class="actions"><button id="exportBtn">导出模拟 Markdown</button><button id="reAuditBtn" class="primary">用最新资料新建复审（模拟）</button></div><pre id="reportBody">尚无任务。</pre></div>
+</section>
+</main>
+<footer>需求评审附件。正式数据采集、LLM 推断、授权校验、规则计算、持久化和完整错误处理均未实现；原型不接外部网络。页面可编辑内容仅留在当前浏览器内存。</footer>
+<script>
+'use strict';
+const fixtures = Object.freeze({
+  'demo-a': {name:'VM-A',tags:'app=portal; component=web',os:'Linux',groups:'demo-sg-shared',ports:'入向 accept TCP 80/443 来源全部公网；另有 TCP 22 条目',roles:['web'],question:'标签和入向端口提示 Web 候选，但未证明服务正在运行。是否确实对外服务？实际端口、管理入口与批准来源是什么？'},
+  'demo-b': {name:'VM-B',tags:'app=orders; component=data',os:'Linux',groups:'demo-sg-data',ports:'入向 accept TCP 3306 来源应用网段；TCP 22 来源管理网段',roles:['database'],question:'标签及 TCP 3306 提示数据库候选。实际是什么服务？是否需要公网？哪些应用可访问？安全组现有来源不是业务授权。'},
+  'demo-c': {name:'VM-C',tags:'未提供',os:'Linux',groups:'demo-sg-shared（与 VM-A 共享）',ports:'共享组有 Web 端口，但无法证明本机运行 Web',roles:[],question:'共享组和缺少标签不足以区分业务。可以补充用途、服务或保留未知；基础基线仍可运行。'}
+});
+const roleNames={web:'Web',database:'数据库',worker:'后台服务',management:'管理入口'};
+let state;
+const el=id=>{const v=document.getElementById(id);if(!v)throw new Error('Missing element: '+id);return v;};
+const clone=v=>JSON.parse(JSON.stringify(v));
+const escape=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function emptyDraft(){return {roles:[],exposure:'unknown',ports:'',sources:'',completeSet:false,note:''};}
+function task(){return state.tasks.find(t=>t.id===state.activeTask)||null;}
+function notify(message){state.notice=message;}
+function reset(){state={loaded:false,scenario:'normal',page:'data',asset:'demo-a',profiles:{},drafts:{},profileVersion:0,preview:null,tasks:[],activeTask:null,notice:'先选择人工样例。所有步骤均为模拟。'};render();}
+function go(page){state.page=page;render();}
+function loadScenario(name){reset();state.loaded=true;state.scenario=name;notify('人工快照已载入；元数据和安全组线索为固定样例，没有调用 API。');render();}
+function selectAsset(id){if(!fixtures[id])throw new Error('Unknown asset');state.asset=id;state.preview=null;render();}
+function inferCandidate(id=state.asset){if(!state.loaded){notify('先准备数据。');render();return false;}if(state.scenario==='model-error'){notify('候选生成不可用（模拟）。已有证据可看，可直接手工填写。');render();return false;}const draft=state.drafts[id]||state.profiles[id]||emptyDraft();state.drafts[id]={...clone(draft),roles:[...fixtures[id].roles]};state.preview=null;notify('已生成固定候选。尚未确认，未继承安全组端口或来源为业务授权。');render();return true;}
+function rejectCandidate(){delete state.drafts[state.asset];state.preview=null;notify('候选已拒绝；已有确认版本不受影响，无确认时仍为未知。');render();}
+function normalDraft(raw){return {roles:[...new Set((raw.roles||[]).filter(r=>roleNames[r]))],exposure:['public','private'].includes(raw.exposure)?raw.exposure:'unknown',ports:String(raw.ports||'').trim(),sources:String(raw.sources||'').trim(),completeSet:!!raw.completeSet,note:String(raw.note||'').trim()};}
+function previewProfile(raw){if(!state.loaded){notify('先准备数据。');render();return null;}const draft=normalDraft(raw);state.drafts[state.asset]=draft;state.preview={asset:state.asset,draft:clone(draft),old:clone(state.profiles[state.asset]||null)};notify('请核对确认卡：确认角色不自动确认访问授权。');render();return clone(state.preview);}
+function confirmProfile(){if(!state.preview){notify('草稿需先预览。');render();return false;}const p=state.preview;state.profileVersion+=1;state.profiles[p.asset]={...clone(p.draft),version:state.profileVersion,roleStatus:p.draft.roles.length?'confirmed':'unknown',source:'用户确认（原型模拟）'};state.drafts[p.asset]=clone(p.draft);state.preview=null;notify('已保存本地画像版本 '+state.profileVersion+'（仅当前浏览器内存）。没有回写云标签；旧审计不变。');render();return true;}
+function startAudit(){if(!state.loaded){notify('先载入人工数据。');render();return null;}const t={id:'mock-run-'+(state.tasks.length+1),status:'running',snapshot:'人工快照-'+state.scenario,profileVersion:state.profileVersion,profiles:clone(state.profiles),events:['模拟：绑定人工快照、画像 v'+state.profileVersion+' 与基线示例版本'],findings:[],plan:'待审阅',reason:''};state.tasks.push(t);state.activeTask=t.id;state.page='audit';notify('已新建模拟任务；后续画像修改不会覆盖该任务的输入。');render();return t.id;}
+function advanceRules(){const t=task();if(!t||t.status!=='running')return false;if(!t.findings.length){t.findings=[{id:'mock-finding-1',asset:'demo-a',rule:'CHK-07',status:'不符合（固定示例）',severity:'高（示例）',text:'人工 CFW 样例中存在公网管理端口开放；这不是对安全组或真实服务的检测结果。'}];t.events.push('模拟：固定规则发现已就绪；未运行正式规则引擎');}render();return true;}
+function finishAudit(){const t=task();if(!t||t.status!=='running')return false;advanceRules();t.status=state.scenario==='normal'?'completed':'partial';t.events.push(state.scenario==='model-error'?'模拟：模型失败，规则结果保留；部分完成':state.scenario==='partial'?'模拟：第三台关联不完整，仅报告部分覆盖':'模拟：工具／模型过程用固定文本代替；完成');state.page='findings';notify('模拟结果就绪。固定样例不是模型调用或审计效果证据。');render();return true;}
+function cancelAudit(){const t=task();if(!t||t.status!=='running')return false;t.status='cancelled';t.events.push('模拟：取消后不再推进；保留已得示例结果');notify('模拟任务已取消，已有结果不抹掉。');render();return true;}
+function reviewPlan(plan,reason=''){const t=task();if(!t||!t.findings.length)return false;if(!['本地待办','暂缓'].includes(plan))return false;t.plan=plan;t.reason=String(reason);notify('只更新本地处理计划；风险状态不变，也没有执行云端修改。');render();return true;}
+function buildReport(){const t=task();if(!t)return '尚无任务。';return ['# 人工样例报告（仅原型，非真实审计）','任务：'+t.id+'；状态：'+t.status,'来源：'+t.snapshot,'任务绑定画像版本：'+t.profileVersion,'当前画像版本：'+state.profileVersion,'任务内画像（冻结）：'+JSON.stringify(t.profiles,null,2),'发现：'+JSON.stringify(t.findings,null,2),'本地处理：'+t.plan+'；原因：'+t.reason,'限制：未调用云 API／模型，未执行正式规则；标签／安全组端口不是运行服务或授权证明。资料变化应新建审计，不能改写旧报告。'].join('\n\n');}
+function formDraft(){return {roles:Object.keys(roleNames).filter(r=>el('role-'+r).checked),exposure:el('exposure').value,ports:el('ports').value,sources:el('sources').value,completeSet:el('completeSet').checked,note:el('businessNote').value};}
+function applyGuidance(id){
+ if(id==='GDE-01'){loadScenario('normal');state.lastGuidance={id,catalogVersion:'guidance_v1',intent:'open_sample'};notify('已载入本地人工样例，没有调用云／模型。');}
+ else if(id==='GDE-02'||id==='GDE-04'){if(!state.loaded){notify('尚无数据，请先选择人工样例／离线输入；不会自动采集账号。');}else{state.page=id==='GDE-02'?'assets':'audit';state.lastGuidance={id,catalogVersion:'guidance_v1',intent:id==='GDE-02'?'view_facts':'preview_rule_audit'};notify('仅打开资料／计划预览，没有自动创建任务或发起外部请求。');}}
+ else if(id==='GDE-05'){state.lastGuidance={id,catalogVersion:'guidance_v1',intent:'explain_finding'};notify('固定示例说明：发现依据为人工 CFW 配置，不是安全组端口证明真实监听；尚需按已确认业务要求审阅。没有调用模型。');}
+ else{notify('未知建议不执行。');}
+ render();
+}
+function render(){
+ el('notice').textContent=state.notice;document.querySelectorAll('[data-panel]').forEach(n=>n.hidden=n.dataset.panel!==state.page);document.querySelectorAll('[data-page]').forEach(n=>n.classList.toggle('active',n.dataset.page===state.page));
+ el('sourceSummary').textContent=state.loaded?'来源：人工离线样例；3 台 VM；场景：'+state.scenario+'；画像 v'+state.profileVersion+'。'+(state.scenario==='partial'?'第三台关联不完整。':'元数据为固定样例，不代表真实接口验收。'):'尚无数据。';
+ el('assetTable').innerHTML='<table><thead><tr><th>资产</th><th>自动线索</th><th>画像状态</th></tr></thead><tbody>'+Object.entries(fixtures).map(([id,f])=>'<tr><td>'+escape(f.name)+'</td><td>'+escape(f.tags)+'</td><td>'+escape(state.profiles[id]?(state.profiles[id].roles.map(r=>roleNames[r]).join('／')||'未知')+' · v'+state.profiles[id].version:'未确认')+'</td></tr>').join('')+'</tbody></table>';
+ el('assetPicker').value=state.asset;const f=fixtures[state.asset];el('facts').innerHTML='<p>资产：'+escape(f.name)+' · '+escape(f.os)+'</p><p>标签：'+escape(f.tags)+'</p><p>组关联：'+escape(state.scenario==='partial'&&state.asset==='demo-c'?'缺失／未核实':f.groups)+'</p><p>'+escape(state.scenario==='partial'&&state.asset==='demo-c'?'因网卡／组关联未核实，不能将其他安全组的端口归为该资产。':f.ports)+'</p><p>公开依据：DescribeInstances／DescribeSecurityGroupAttribute；必要网卡补查。当前是人工样例。</p>';
+ el('assistant').textContent=state.loaded?(state.scenario==='partial'&&state.asset==='demo-c'?'网卡／安全组关联未核实，候选保持未知；可以手工补充或继续适用基线。':f.question):'先选择数据。';const d=state.drafts[state.asset]||state.profiles[state.asset]||emptyDraft();Object.keys(roleNames).forEach(r=>el('role-'+r).checked=d.roles.includes(r));el('exposure').value=d.exposure;el('ports').value=d.ports;el('sources').value=d.sources;el('completeSet').checked=d.completeSet;el('businessNote').value=d.note;
+ el('preview').textContent=state.preview?JSON.stringify(state.preview,null,2):'尚未预览；候选不等于已确认。';el('confirmBtn').disabled=!state.preview;
+ const t=task();el('preflight').textContent='范围：人工 3 台 VM；当前画像 v'+state.profileVersion+'。未知画像不阻止适用基线；不完整信息不能作为通过。';el('taskEvents').textContent=t?t.id+' · '+t.status+' · 绑定画像 v'+t.profileVersion+'\n'+t.events.join('\n'):'尚无任务。';for(const id of ['advanceBtn','finishBtn','cancelBtn'])el(id).disabled=!t||t.status!=='running';
+ el('findingList').innerHTML=t?'<h3>'+escape(t.id)+' · '+escape(t.status)+'</h3>'+t.findings.map(x=>'<p><strong>'+escape(x.rule+' · '+x.status)+'</strong><br>'+escape(x.text)+'</p>').join('')+'<p>未知／未确认的服务仍需补充，不能当作无风险。</p><p>本地处理：'+escape(t.plan)+'</p>':'尚无任务。';el('reportVersion').textContent=t?'任务绑定 v'+t.profileVersion+'，当前画像 v'+state.profileVersion+(t.profileVersion!==state.profileVersion?'；资料已更新，请新建审计／复审。':'。'):'尚无任务。';el('reportBody').textContent=buildReport();
+ if(!state.loaded){el('assetTable').textContent='尚无资产，请先返回数据页载入人工样例。';el('facts').textContent='尚未载入实例／安全组上下文。';}
+}
+document.querySelectorAll('[data-page]').forEach(n=>n.addEventListener('click',()=>go(n.dataset.page)));
+for(const [button,id] of [['guideDemoBtn','GDE-01'],['guideFactsBtn','GDE-02'],['guideRulesBtn','GDE-04'],['guideExplainBtn','GDE-05']])el(button).addEventListener('click',()=>applyGuidance(id));
+el('loadBtn').addEventListener('click',()=>loadScenario(el('scenario').value));el('resetBtn').addEventListener('click',reset);el('assetPicker').addEventListener('change',()=>selectAsset(el('assetPicker').value));el('inferBtn').addEventListener('click',()=>inferCandidate());el('rejectBtn').addEventListener('click',rejectCandidate);el('previewBtn').addEventListener('click',()=>previewProfile(formDraft()));el('confirmBtn').addEventListener('click',confirmProfile);
+el('profileForm').addEventListener('input',()=>{state.drafts[state.asset]=normalDraft(formDraft());state.preview=null;el('confirmBtn').disabled=true;el('preview').textContent='草稿已修改，请重新预览。';});
+el('startBtn').addEventListener('click',startAudit);el('advanceBtn').addEventListener('click',advanceRules);el('finishBtn').addEventListener('click',finishAudit);el('cancelBtn').addEventListener('click',cancelAudit);el('planBtn').addEventListener('click',()=>reviewPlan('本地待办'));el('deferBtn').addEventListener('click',()=>reviewPlan('暂缓',el('deferReason').value));el('supplementBtn').addEventListener('click',()=>go('assets'));el('reAuditBtn').addEventListener('click',startAudit);
+el('exportBtn').addEventListener('click',()=>{if(!task())return;const url=URL.createObjectURL(new Blob([buildReport()],{type:'text/markdown;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download='mock-audit-report.md';a.click();setTimeout(()=>URL.revokeObjectURL(url),0);});
+window.mockAuditPrototype={reset,go,applyGuidance,loadScenario,selectAsset,inferCandidate,rejectCandidate,previewProfile,confirmProfile,startAudit,advanceRules,finishAudit,cancelAudit,reviewPlan,buildReport,getState:()=>clone(state)};
+reset();
+</script>
+</body>
+</html>

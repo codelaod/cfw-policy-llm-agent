@@ -1,0 +1,15 @@
+标题：MiniMax OpenAI 兼容接口核实摘要（项目自写，非官方原文全文）
+来源：https://platform.minimax.io/docs/api-reference/text-openai-api
+核实日期：2026-10-22
+
+本摘要只记录本项目接入涉及的契约，不替代服务商最新文档或具体账号验证。
+
+1. 接入使用服务商 Base URL 与标准消息结构，工具调用信息放在 assistant 消息中，工具结果通过对应 tool_call_id 回传。
+2. 官方提醒，多轮函数调用应保留完整 assistant 响应；不同模型可能通过 content 或 reasoning_content 携带思考相关内容。本项目采用组件在内存中维护必要消息连续性，不记录完整内部思考。
+3. reasoning_split 为格式开关；启用时可将思考放在独立字段，不代表禁用思考或减少计费。
+4. 官方将 max_tokens 列为旧长度限制，推荐新接入使用 max_completion_tokens；长度限制需要考虑思考消耗，过小时可能因 length 终止而没有完整正文。本项目不在截断时自动提高预算。
+5. 本项目当前只实现非流式 Chat Completions 适配。Responses 配置仍只可登记、不能执行；这不是声称厂商不支持 Responses。
+6. 本次最终 JSON 依靠提示约束和本地结构/证据校验，没有以 response_format 或原生 JSON Schema 模式开展实测。
+7. 支持某个地址和模型的样例调用，不等于所有服务、所有版本、全部工具协议都兼容；案例结果见 docs/11-live-model-validation.md。
+
+未复制官方模型列表、价格或效果宣传。本次使用用户已经配置的模型，不替换为文档展示的其他模型。

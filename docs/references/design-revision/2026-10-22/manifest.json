@@ -1,0 +1,108 @@
+{
+  "schema_version": 1,
+  "archived_date": "2026-10-22",
+  "retrieved_date": "2026-10-22",
+  "description": "系统设计 v0.2：框架／纯 Go 存储、业务会话、时延与凭据的公开一手资料自写摘要；非全文，未安装依赖或调用服务。",
+  "documents": [
+    {
+      "id": "gin-http-layer",
+      "reference_id": "D-07",
+      "title": "Gin 官方文档（自写摘要）",
+      "url": "https://gin-gonic.com/en/docs/",
+      "retrieved_date": "2026-10-22",
+      "text_file": "gin-http-layer.txt",
+      "text_bytes": 468,
+      "text_sha256": "c7fb1b0c474d1c8b4585b552c3a579442505151c1bb24c48ba4d072fbcf8cd43"
+    },
+    {
+      "id": "gorm-connections",
+      "reference_id": "D-08",
+      "title": "GORM 数据库连接文档（自写摘要）",
+      "url": "https://gorm.io/docs/connecting_to_the_database.html",
+      "retrieved_date": "2026-10-22",
+      "text_file": "gorm-connections.txt",
+      "text_bytes": 498,
+      "text_sha256": "6a317622120972617aba4b3bd477f7669ef3a5846ed8da70c748f9d4f7dbc399"
+    },
+    {
+      "id": "gorm-purego-sqlite",
+      "reference_id": "D-09",
+      "title": "libtnb/sqlite 维护者文档（自写摘要）",
+      "url": "https://github.com/libtnb/sqlite",
+      "retrieved_date": "2026-10-22",
+      "text_file": "gorm-purego-sqlite.txt",
+      "text_bytes": 482,
+      "text_sha256": "cbdc6127d6b562f409d45fc5c43f156cc8031b9369d248c1aedc1418a4bd8802"
+    },
+    {
+      "id": "gorm-update-semantics",
+      "reference_id": "D-10",
+      "title": "GORM 更新语义（自写摘要）",
+      "url": "https://gorm.io/docs/update.html",
+      "retrieved_date": "2026-10-22",
+      "text_file": "gorm-update-semantics.txt",
+      "text_bytes": 475,
+      "text_sha256": "86d2eac4f0580493eee373bd98490d765c3ef496087a7c07e3e1dd0096fadb88"
+    },
+    {
+      "id": "eino-conversation-store",
+      "reference_id": "F-08",
+      "title": "Eino 持久化会话示例（自写摘要）",
+      "url": "https://www.cloudwego.io/docs/eino/quick_start/chapter_03_memory_and_session/",
+      "retrieved_date": "2026-10-22",
+      "text_file": "eino-conversation-store.txt",
+      "text_bytes": 550,
+      "text_sha256": "5a7ba0470f2c54b2f935e89554151ad0b21773b59f0d75e6f584d11624966626"
+    },
+    {
+      "id": "eino-runner-checkpoint",
+      "reference_id": "F-09",
+      "title": "Eino Runner 与 CheckPointStore（自写摘要）",
+      "url": "https://www.cloudwego.io/docs/eino/core_modules/eino_adk/agent_extension/",
+      "retrieved_date": "2026-10-22",
+      "text_file": "eino-runner-checkpoint.txt",
+      "text_bytes": 554,
+      "text_sha256": "a91536d5747a9450059cd13334e2ceb3d87c0e65406726aad51ba145aa5f6d8b"
+    },
+    {
+      "id": "aliyun-go-credentials",
+      "reference_id": "A-28",
+      "title": "阿里云 Go SDK 凭据配置（自写摘要）",
+      "url": "https://help.aliyun.com/zh/sdk/developer-reference/v2-manage-go-access-credentials",
+      "retrieved_date": "2026-10-22",
+      "text_file": "aliyun-go-credentials.txt",
+      "text_bytes": 539,
+      "text_sha256": "af05f51575cc1c5a2ff348b316572c51f2bfbe5c23dfe68104aa4c0dc19d8afb"
+    },
+    {
+      "id": "aliyun-credentials-go",
+      "reference_id": "A-29",
+      "title": "阿里云 credentials-go 官方仓库（自写摘要）",
+      "url": "https://github.com/aliyun/credentials-go",
+      "retrieved_date": "2026-10-22",
+      "text_file": "aliyun-credentials-go.txt",
+      "text_bytes": 516,
+      "text_sha256": "9b908b9907ea65589658d273256d867c9bfb66c5c8965b9cf0530870d204387d"
+    },
+    {
+      "id": "aliyun-caller-identity",
+      "reference_id": "A-30",
+      "title": "GetCallerIdentity 官方文档（自写摘要）",
+      "url": "https://help.aliyun.com/zh/ram/developer-reference/api-sts-2015-04-01-getcalleridentity",
+      "retrieved_date": "2026-10-22",
+      "text_file": "aliyun-caller-identity.txt",
+      "text_bytes": 560,
+      "text_sha256": "81f283a91974123a59f31aa59baec465c16a514529ad27e2f1d3d280c1766ad1"
+    },
+    {
+      "id": "mcp-authorization",
+      "reference_id": "X-01",
+      "title": "MCP 2025-11-25 授权规范（自写摘要）",
+      "url": "https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization",
+      "retrieved_date": "2026-10-22",
+      "text_file": "mcp-authorization.txt",
+      "text_bytes": 539,
+      "text_sha256": "649b06f31ddbfcc11fbc9163db510525f82fe39d879d649237e59a41f9c0dbdc"
+    }
+  ]
+}

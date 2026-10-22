@@ -1,0 +1,9 @@
+OpenAI 官方工具调用指南
+资料编号：M-06
+核读日期：2026-10-22
+来源：https://developers.openai.com/api/docs/guides/function-calling
+类型：项目自写核实摘要，不是原文。
+
+核对模型请求工具、应用执行工具、回传结果后继续请求的分工。Chat Completions 和 Responses 协议字段不能混用；第三方兼容性仍以所选服务与实测为准。
+
+状态：设计取舍待 G2 审核；没有据此执行模型／云请求或正式业务构建。

@@ -1,5 +1,5 @@
-// This experiment exercises Eino with synthetic fixtures and a scripted model.
-// It is not a real-model compatibility or firewall correctness evaluation.
+// This experiment exercises Eino with synthetic fixtures in scripted or explicit live mode.
+// It is not a full protocol, production-audit or firewall-correctness evaluation.
 package main
 
 import (
@@ -14,6 +14,7 @@ import (
 	"sync"
 
 	"github.com/cloudwego/eino/adk"
+	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/components/tool/utils"
 	"github.com/cloudwego/eino/compose"
@@ -55,17 +56,29 @@ type Event struct {
 	CallID   string `json:"call_id,omitempty"`
 }
 
+type ReportedTokenUsage struct {
+	PromptTokens       int `json:"prompt_tokens"`
+	CompletionTokens   int `json:"completion_tokens"`
+	TotalTokens        int `json:"total_tokens"`
+	ResponsesWithUsage int `json:"responses_with_usage"`
+}
+
 type Report struct {
-	Mode               string    `json:"mode"`
-	Scenario           string    `json:"scenario"`
-	Status             string    `json:"status"`
-	ModelCalls         int       `json:"model_calls"`
-	ToolCalls          int       `json:"tool_calls"`
-	ToolResultChecks   int       `json:"tool_result_roundtrips"`
-	Decision           *Decision `json:"decision,omitempty"`
-	Events             []Event   `json:"events"`
-	Error              string    `json:"error,omitempty"`
-	ValidationBoundary string    `json:"validation_boundary"`
+	Mode               string              `json:"mode"`
+	NetworkRequests    int                 `json:"network_request_attempts,omitempty"`
+	HTTPStatus         int                 `json:"last_http_status,omitempty"`
+	ErrorCode          string              `json:"error_code,omitempty"`
+	FinishReasons      []string            `json:"finish_reasons,omitempty"`
+	TokenUsage         *ReportedTokenUsage `json:"reported_token_usage,omitempty"`
+	Scenario           string              `json:"scenario"`
+	Status             string              `json:"status"`
+	ModelCalls         int                 `json:"model_calls"`
+	ToolCalls          int                 `json:"tool_calls"`
+	ToolResultChecks   int                 `json:"tool_result_roundtrips"`
+	Decision           *Decision           `json:"decision,omitempty"`
+	Events             []Event             `json:"events"`
+	Error              string              `json:"error,omitempty"`
+	ValidationBoundary string              `json:"validation_boundary"`
 }
 
 type lookupRequest struct {
@@ -82,12 +95,14 @@ type lookupResult struct {
 }
 
 type runState struct {
-	mu        sync.Mutex
-	opts      Options
-	report    Report
-	evidence  map[string]string // Only successfully returned tool evidence.
-	pendingID string
-	pending   string
+	mu          sync.Mutex
+	opts        Options
+	report      Report
+	evidence    map[string]string // Only successfully returned tool evidence.
+	pendingID   string
+	pending     string
+	livePending map[string]string
+	liveCallIDs map[string]bool
 }
 
 func (s *runState) recordLocked(kind, name, callID string) {
@@ -108,7 +123,10 @@ func (t *domainTool) InvokableRun(ctx context.Context, arguments string, _ ...to
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.report.ToolCalls++
-	callID := s.pendingID
+	callID := compose.GetToolCallID(ctx)
+	if callID == "" {
+		callID = s.pendingID
+	}
 	s.recordLocked("tool_started", t.name, callID)
 	defer func() {
 		kind := "tool_succeeded"
@@ -221,6 +239,10 @@ func validateDecision(text string, s *runState) (*Decision, error) {
 }
 
 func runProbe(ctx context.Context, opts Options) (Report, error) {
+	return runProbeWithFactory(ctx, opts, "scripted_model", func(s *runState) model.BaseChatModel { return &fixtureModel{state: s} })
+}
+
+func runProbeWithFactory(ctx context.Context, opts Options, mode string, factory func(*runState) model.BaseChatModel) (Report, error) {
 	if opts.Scenario != "whitelist" && opts.Scenario != "missing-whitelist" {
 		return Report{}, errors.New("unknown scenario")
 	}
@@ -228,12 +250,22 @@ func runProbe(ctx context.Context, opts Options) (Report, error) {
 		return Report{}, errors.New("all execution limits must be positive")
 	}
 	s := &runState{opts: opts, evidence: make(map[string]string), report: Report{
-		Mode: "scripted_model", Scenario: opts.Scenario, Status: "running",
+		Mode: mode, Scenario: opts.Scenario, Status: "running",
 		ValidationBoundary: "synthetic Eino integration only; not real-model compatibility, autonomous decision quality, cloud API or firewall correctness validation",
 	}}
+	if mode == "live_model" {
+		s.report.ValidationBoundary = "live model with synthetic fixtures only; non-streaming; prompt-constrained JSON with local validation; no cloud, production audit or reachability verification"
+	}
 	fail := func(err error) (Report, error) {
 		s.report.Status = "failed"
-		s.report.Error = err.Error()
+		if mode == "live_model" {
+			safe := sanitizedLiveError(err)
+			s.report.ErrorCode = safe.code
+			s.report.Error = safe.Error()
+			err = safe
+		} else {
+			s.report.Error = err.Error()
+		}
 		return s.report, err
 	}
 	var tools []tool.BaseTool
@@ -246,8 +278,8 @@ func runProbe(ctx context.Context, opts Options) (Report, error) {
 	}
 	agent, err := adk.NewChatModelAgent(ctx, &adk.ChatModelAgentConfig{
 		Name: "offline_audit_probe", Description: "scripted-model framework integration probe",
-		Instruction: "Read authorized fixtures only. Cite evidence. Missing intent stays unconfirmed. Configuration is not proof of reachability.",
-		Model:       &fixtureModel{state: s}, MaxIterations: opts.MaxIterations,
+		Instruction: probeInstruction(mode),
+		Model:       factory(s), MaxIterations: opts.MaxIterations,
 		ToolsConfig: adk.ToolsConfig{ToolsNodeConfig: compose.ToolsNodeConfig{Tools: tools}},
 	})
 	if err != nil {
@@ -279,6 +311,9 @@ func runProbe(ctx context.Context, opts Options) (Report, error) {
 	if err = ctx.Err(); err != nil {
 		return fail(err)
 	}
+	if mode == "live_model" {
+		final = finalContentWithoutThinking(final)
+	}
 	decision, err := validateDecision(final, s)
 	if err != nil {
 		return fail(err)
@@ -295,4 +330,19 @@ func evidenceIDs(s *runState) []string {
 	}
 	sort.Strings(ids)
 	return ids
+}
+
+func probeInstruction(mode string) string {
+	if mode != "live_model" {
+		return "Read authorized fixtures only. Cite evidence. Missing intent stays unconfirmed. Configuration is not proof of reachability."
+	}
+	return `You are testing a read-only audit tool protocol using synthetic data, not production assets.
+The only authorized asset is demo-web-001. Obtain business intent through tools; never invent sources or evidence.
+Use at most one tool per assistant turn; only query information necessary for the task. Do not emit narration or thinking in the final answer.
+Final answer must be one bare JSON object with exactly these fields:
+{"status":"conditional_recommendation or needs_confirmation","asset_id":"demo-web-001","evidence_ids":["IDs actually returned by successful tools"],"admin_sources":["exact declared CIDRs, or empty if missing"],"conditions":["short prerequisite/impact statement"]}
+If a management whitelist is present, verify the asset's purpose too, cite both asset and intent evidence, and recommend only the exact declared sources.
+If no whitelist is provided, stop with needs_confirmation and empty admin_sources; cite intent evidence and ask for the missing business requirement.
+Do not claim that shrinking an allow rule blocks other sources or proves reachability; rule order, remaining paths and default behavior still need checking.
+No other tools, external data, cloud writes or arbitrary network actions are available.`
 }

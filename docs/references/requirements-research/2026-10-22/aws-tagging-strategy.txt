@@ -1,0 +1,9 @@
+AWS：资源标签策略
+资料编号：I-01
+核读日期：2026-10-22
+来源：https://docs.aws.amazon.com/whitepapers/latest/tagging-best-practices/building-your-tagging-strategy.html
+类型：项目自写核实摘要，不是原文或官方离线发行包。
+
+标签策略宜从实际用例逐步建立，并明确维护责任。项目建议用少量受控角色、环境和负责人信息辅助审计；字段名与确认规则属于本项目提案。
+
+边界：公开资料核读不代表本账号已开通、接口已实测或本项目已实现。需求和设计仍待用户审核。

@@ -1,0 +1,9 @@
+Eino 持久化会话示例
+资料编号：F-08
+核读日期：2026-10-22
+来源：https://www.cloudwego.io/docs/eino/quick_start/chapter_03_memory_and_session/
+类型：项目自写核实摘要，不是官方全文。
+
+官方说明业务层决定 Session／Memory／Store 如何保存历史，并组装消息交给 Runner。并非框架指定某个数据库／ORM，也不意味着示例 JSONL 就是本项目生产存储要求。
+
+状态：仅用于需求／设计修订；G2 尚未通过，不代表已实现、已认证或已发起真实调用。

@@ -1,0 +1,218 @@
+{
+  "schema_version": 1,
+  "archived_date": "2026-10-22",
+  "retrieved_date": "2026-10-22",
+  "description": "当前需求调研的项目自写摘要；已按用户要求移除云安全中心资料与依赖，补充 ECS／安全组／必要网卡接口的角色线索核对。不是官方全文或真实接口返回。",
+  "documents": [
+    {
+      "id": "aliyun-security-agent",
+      "reference_id": "A-10",
+      "title": "阿里云：安全运营 Agent 的策略建议（自写摘要）",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/configure-access-control-policies-through-security-operation-agent",
+      "retrieved_date": "2026-10-22",
+      "text_file": "aliyun-security-agent.txt",
+      "text_bytes": 649,
+      "text_sha256": "a15bc78468683e2983dac3b10eabaa2b388f564e26846fc88a40ba54feed5fbc",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "aliyun-internet-firewall",
+      "reference_id": "A-17",
+      "title": "阿里云：互联网边界防火墙（自写摘要）",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/internet-firewall",
+      "retrieved_date": "2026-10-22",
+      "text_file": "aliyun-internet-firewall.txt",
+      "text_bytes": 561,
+      "text_sha256": "4afd2c6ba54d615e92f17b29d69b07527449f2329204dc2a5f34cf591b561ef2",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "aliyun-ips",
+      "reference_id": "A-18",
+      "title": "阿里云：入侵防御配置（自写摘要）",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/prevention-configuration",
+      "retrieved_date": "2026-10-22",
+      "text_file": "aliyun-ips.txt",
+      "text_bytes": 604,
+      "text_sha256": "8499021535e3ff1c6d1ea5abb4ff9cf516ae15b4386fac873f2e9038fb940209",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "aliyun-cfw-log-fields",
+      "reference_id": "A-19",
+      "title": "阿里云：云防火墙日志字段（自写摘要）",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/log-fields",
+      "retrieved_date": "2026-10-22",
+      "text_file": "aliyun-cfw-log-fields.txt",
+      "text_bytes": 603,
+      "text_sha256": "d5ae5cb429f5292ae59f6a398b8138ddfe2d5e80f279458012dbc9e95231cdad",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "aliyun-log-audit",
+      "reference_id": "A-20",
+      "title": "阿里云：日志审计与日志分析的边界（自写摘要）",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/log-audit",
+      "retrieved_date": "2026-10-22",
+      "text_file": "aliyun-log-audit.txt",
+      "text_bytes": 661,
+      "text_sha256": "8851f29aa6c81488bcb4295f9113448dc8f0bbdc1d078351e0e7e9dea068ae5a",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "aliyun-security-check",
+      "reference_id": "A-22",
+      "title": "阿里云：安全组检查（自写摘要）",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/check-security-group-rules",
+      "retrieved_date": "2026-10-22",
+      "text_file": "aliyun-security-check.txt",
+      "text_bytes": 622,
+      "text_sha256": "dc0443948d2e1f24ca3f45a6bfa4be2dfb673bfa353ffd79e65b13f2505fb518",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "aliyun-asset-groups",
+      "reference_id": "A-24",
+      "title": "阿里云：业务可视中的自定义分组（自写摘要）",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/user-guide/custom-groups",
+      "retrieved_date": "2026-10-22",
+      "text_file": "aliyun-asset-groups.txt",
+      "text_bytes": 639,
+      "text_sha256": "611b1cd8f8f06e287645b170ec76c5c71924bec25796d5fc770c302d6a3e6832",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "aliyun-waf-overview",
+      "reference_id": "A-25",
+      "title": "阿里云：Web 应用防火墙 3.0（自写摘要）",
+      "url": "https://help.aliyun.com/zh/waf/web-application-firewall-3-0/product-overview/what-is-waf",
+      "retrieved_date": "2026-10-22",
+      "text_file": "aliyun-waf-overview.txt",
+      "text_bytes": 592,
+      "text_sha256": "802b51530219148d53a36c6b4812a79a3bd8d7c7ec7334f85e4e549bd3cccb88",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "nist-firewall-guidelines",
+      "reference_id": "B-01",
+      "title": "NIST SP 800-41 Rev.1：防火墙及策略指南（自写摘要）",
+      "url": "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-41r1.pdf",
+      "retrieved_date": "2026-10-22",
+      "text_file": "nist-firewall-guidelines.txt",
+      "text_bytes": 622,
+      "text_sha256": "534ffe65f6f4281978b515694124ccfd9f74293be211aac3f675163e2c73fb14",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "nist-zero-trust",
+      "reference_id": "B-02",
+      "title": "NIST SP 800-207：零信任架构（自写摘要）",
+      "url": "https://csrc.nist.gov/pubs/sp/800/207/final",
+      "retrieved_date": "2026-10-22",
+      "text_file": "nist-zero-trust.txt",
+      "text_bytes": 533,
+      "text_sha256": "9fef91e9dd71c7a6c4f3711331311a6c155306e91849159f3fc49635207f9110",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "aws-ec2-controls",
+      "reference_id": "B-03",
+      "title": "AWS Security Hub CSPM：EC2 控制项（自写摘要）",
+      "url": "https://docs.aws.amazon.com/securityhub/latest/userguide/ec2-controls.html",
+      "retrieved_date": "2026-10-22",
+      "text_file": "aws-ec2-controls.txt",
+      "text_bytes": 627,
+      "text_sha256": "eb9e0df6f679c0a54ebd3c33082e3f1366d16cddd48d2630aff3db350a735051",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "aliyun-ecs-security-practices",
+      "reference_id": "B-04",
+      "title": "阿里云：ECS 安全性与最佳实践（自写摘要）",
+      "url": "https://help.aliyun.com/zh/ecs/user-guide/best-security-practices",
+      "retrieved_date": "2026-10-22",
+      "text_file": "aliyun-ecs-security-practices.txt",
+      "text_bytes": 632,
+      "text_sha256": "e69555995453b16c808a131bfa7892a9ec58945d165ac686413e121eae0b1ae2",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "aws-tagging-strategy",
+      "reference_id": "I-01",
+      "title": "AWS：资源标签策略（自写摘要）",
+      "url": "https://docs.aws.amazon.com/whitepapers/latest/tagging-best-practices/building-your-tagging-strategy.html",
+      "retrieved_date": "2026-10-22",
+      "text_file": "aws-tagging-strategy.txt",
+      "text_bytes": 590,
+      "text_sha256": "7c2ad1975c6acb7bb8c4a3a60c448015d9a76e1d7bae8817d26da74a85c4bd18",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "google-firewall-insights",
+      "reference_id": "I-02",
+      "title": "Google Cloud：Firewall Insights（自写摘要）",
+      "url": "https://docs.cloud.google.com/network-intelligence-center/docs/firewall-insights/concepts/overview",
+      "retrieved_date": "2026-10-22",
+      "text_file": "google-firewall-insights.txt",
+      "text_bytes": 576,
+      "text_sha256": "e627c239e6e80ae8ed513c56548281f71a3f9b56192364d1862dd28817820458",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "azure-security-copilot",
+      "reference_id": "I-03",
+      "title": "Microsoft：使用安全 Copilot 理解安全建议（自写摘要）",
+      "url": "https://learn.microsoft.com/en-us/azure/defender-for-cloud/summarize-with-copilot",
+      "retrieved_date": "2026-10-22",
+      "text_file": "azure-security-copilot.txt",
+      "text_bytes": 633,
+      "text_sha256": "e74365154e6da01eea0478fa3218253579f31c3ed8149d9e1f3b74c7145775aa",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "react-paper",
+      "reference_id": "P-08",
+      "title": "ReAct：推理与行动结合的方法论文（自写摘要）",
+      "url": "https://arxiv.org/abs/2210.03629",
+      "retrieved_date": "2026-10-22",
+      "text_file": "react-paper.txt",
+      "text_bytes": 567,
+      "text_sha256": "e75efeded5222a5afb8698519d632d1a4a1a169fa1860216f387c2f9b38218e1",
+      "note": "项目自写摘要；保留一手来源，不重新分发原文。"
+    },
+    {
+      "id": "ecs-profile-context",
+      "reference_id": "A-11",
+      "title": "ECS DescribeInstances 的画像上下文（自写摘要）",
+      "url": "https://help.aliyun.com/zh/ecs/developer-reference/api-ecs-2014-05-26-describeinstances",
+      "retrieved_date": "2026-10-22",
+      "text_file": "ecs-profile-context.txt",
+      "text_bytes": 699,
+      "text_sha256": "245b921e6a89448ec3e0aace67e9c3357f0aa9c9dea9d49f19ca270cf5a3a690",
+      "note": "公开 API 文档核对，不是账号实测；不依赖云安全中心。"
+    },
+    {
+      "id": "security-group-role-clues",
+      "reference_id": "A-12",
+      "title": "安全组配置作为候选角色线索（自写摘要）",
+      "url": "https://help.aliyun.com/zh/ecs/developer-reference/api-ecs-2014-05-26-describesecuritygroupattribute",
+      "retrieved_date": "2026-10-22",
+      "text_file": "security-group-role-clues.txt",
+      "text_bytes": 741,
+      "text_sha256": "254e490d92f4548cab41c8e08cd5a0a66d43b48c9dd07dc8bac192d3228f22b6",
+      "note": "公开 API 文档核对，不是账号实测；不依赖云安全中心。"
+    },
+    {
+      "id": "eni-security-group-context",
+      "reference_id": "A-27",
+      "title": "DescribeNetworkInterfaces 的补充关联（自写摘要）",
+      "url": "https://help.aliyun.com/zh/ecs/developer-reference/api-ecs-2014-05-26-describenetworkinterfaces",
+      "retrieved_date": "2026-10-22",
+      "text_file": "eni-security-group-context.txt",
+      "text_bytes": 696,
+      "text_sha256": "6718340d7614e3c594a61f756e180539054846eb26a3260ba95dac2fa88d7477",
+      "note": "公开 API 文档核对，不是账号实测；不依赖云安全中心。"
+    }
+  ],
+  "verification_note": "2026-10-22 需求 v0.3：移除 A-23 候选摘要且不复用编号；新增 A-11／A-12 的本轮核读摘要与 A-27。旧版正文缓存保留原日期。公开文档可得性不等于真实账号验收。"
+}

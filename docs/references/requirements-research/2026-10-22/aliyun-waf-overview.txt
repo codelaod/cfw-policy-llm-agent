@@ -1,0 +1,9 @@
+阿里云：Web 应用防火墙 3.0
+资料编号：A-25
+核读日期：2026-10-22
+来源：https://help.aliyun.com/zh/waf/web-application-firewall-3-0/product-overview/what-is-waf
+类型：项目自写核实摘要，不是原文或官方离线发行包。
+
+WAF 面向 Web 应用的 HTTP/HTTPS 防护。项目只对已确认的公网 Web 服务给适用性核查，考虑前置入口／回源；不套用于数据库，不认为能替代全部网络控制。
+
+边界：公开资料核读不代表本账号已开通、接口已实测或本项目已实现。需求和设计仍待用户审核。

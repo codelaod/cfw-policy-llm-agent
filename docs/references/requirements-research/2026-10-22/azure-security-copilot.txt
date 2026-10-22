@@ -1,0 +1,9 @@
+Microsoft：使用安全 Copilot 理解安全建议
+资料编号：I-03
+核读日期：2026-10-22
+来源：https://learn.microsoft.com/en-us/azure/defender-for-cloud/summarize-with-copilot
+类型：项目自写核实摘要，不是原文或官方离线发行包。
+
+官方说明 Defender for Cloud 可通过 Copilot 将安全建议汇总为自然语言，辅助理解风险与决定整改方式；有产品和 SCU 等前提。不将其宣传效益或更广泛功能记作本项目已具备能力。
+
+边界：公开资料核读不代表本账号已开通、接口已实测或本项目已实现。需求和设计仍待用户审核。

@@ -1,0 +1,9 @@
+AWS Security Hub CSPM：EC2 控制项
+资料编号：B-03
+核读日期：2026-10-22
+来源：https://docs.aws.amazon.com/securityhub/latest/userguide/ec2-controls.html
+类型：项目自写核实摘要，不是原文或官方离线发行包。
+
+EC2.13/14 涉及 SSH/RDP 公网来源，EC2.18 区分授权端口，EC2.19 涉及高风险端口。其资源与判定语义属于 AWS；本项目仅借鉴风险主题，按阿里云顺序和默认行为重新定义，不能继承其合规认证。
+
+边界：公开资料核读不代表本账号已开通、接口已实测或本项目已实现。需求和设计仍待用户审核。

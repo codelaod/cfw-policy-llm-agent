@@ -1,0 +1,9 @@
+OWASP REST Security
+资料编号：D-06
+核读日期：2026-10-22
+来源：https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html
+类型：项目自写核实摘要，不是原文。
+
+核对端点访问控制、服务端工作流状态验证、输入／方法限制及敏感信息处理原则。项目的最小本地保护不是公网生产安全认证，外部部署须另评审 TLS 和认证。
+
+状态：设计取舍待 G2 审核；没有据此执行模型／云请求或正式业务构建。

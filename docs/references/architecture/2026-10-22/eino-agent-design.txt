@@ -1,0 +1,9 @@
+Eino ChatModelAgent
+资料编号：F-01
+核读日期：2026-10-22
+来源：https://www.cloudwego.io/docs/eino/core_modules/eino_adk/agent_implementation/chat_model/
+类型：项目自写核实摘要，不是原文。
+
+核对模型与工具循环、迭代限制和配置分工。正式设计复用已实测版本，不直接假定在线最新文档的所有 middleware API 均适用于固定依赖；权限与预算由应用外层约束。
+
+状态：设计取舍待 G2 审核；没有据此执行模型／云请求或正式业务构建。

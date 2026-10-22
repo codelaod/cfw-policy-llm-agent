@@ -1,0 +1,9 @@
+Eino Runner 与 CheckPointStore
+资料编号：F-09
+核读日期：2026-10-22
+来源：https://www.cloudwego.io/docs/eino/core_modules/eino_adk/agent_extension/
+类型：项目自写核实摘要，不是官方全文。
+
+CheckPointStore 是中断恢复的可选接入；运行状态可能含输入与消息历史，与业务会话历史不同。本轮另只读核对缓存 v0.9.22 的 RunnerConfig 和 Run，未编译或改变依赖。
+
+状态：仅用于需求／设计修订；G2 尚未通过，不代表已实现、已认证或已发起真实调用。

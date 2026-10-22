@@ -1,0 +1,9 @@
+阿里云：安全运营 Agent 的策略建议
+资料编号：A-10
+核读日期：2026-10-22
+来源：https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/configure-access-control-policies-through-security-operation-agent
+类型：项目自写核实摘要，不是原文或官方离线发行包。
+
+官方以近期业务流量辅助 ACL 建议，要求开启日志分析并有至少七天历史流量，建议不会自动生效。仅用作产品背景，不将其能力或宣传效果直接归属于本系统。
+
+边界：公开资料核读不代表本账号已开通、接口已实测或本项目已实现。需求和设计仍待用户审核。

@@ -1,0 +1,238 @@
+{
+  "schema_version": 1,
+  "observed_date": "2026-10-22",
+  "provider_label": "用户提供的 MiniMax 服务配置",
+  "data_origin": "人工构造资产与业务意图",
+  "privacy": "精确端点、模型标识、凭据与内部思考内容不公开；工具调用 ID 已归一化，模型生成的自由文本仅记录数量，原始脱敏运行记录保留在忽略的 runtime 目录。",
+  "session_limits": {
+    "total_http_request_attempts": 4,
+    "request_timeout_seconds": 30,
+    "requested_max_completion_tokens_per_request": 512
+  },
+  "observed_http_request_attempts": 4,
+  "provider_reported_usage_aggregate": {
+    "prompt_tokens": 3372,
+    "completion_tokens": 760,
+    "total_tokens": 4132,
+    "responses_with_usage": 4
+  },
+  "observation_boundary": {
+    "non_streaming_chat_completions_observed": true,
+    "parallel_tool_batch_and_result_return_observed": true,
+    "consecutive_tool_query_batches_observed": false,
+    "native_json_schema_output_verified": false,
+    "streaming_verified": false,
+    "cloud_api_called": false,
+    "formal_paper_evaluation": false
+  },
+  "cases": [
+    {
+      "scenario": "whitelist",
+      "data_origin": "人工构造，不是生产数据",
+      "expected_status": "conditional_recommendation",
+      "assistant_tool_batches": 1,
+      "report": {
+        "mode": "live_model",
+        "network_request_attempts": 2,
+        "last_http_status": 200,
+        "finish_reasons": [
+          "tool_calls",
+          "stop"
+        ],
+        "reported_token_usage": {
+          "prompt_tokens": 1684,
+          "completion_tokens": 391,
+          "total_tokens": 2075,
+          "responses_with_usage": 2
+        },
+        "scenario": "whitelist",
+        "status": "completed",
+        "model_calls": 2,
+        "tool_calls": 2,
+        "tool_result_roundtrips": 2,
+        "decision": {
+          "status": "conditional_recommendation",
+          "asset_id": "demo-web-001",
+          "evidence_ids": [
+            "ev-asset",
+            "ev-intent"
+          ],
+          "admin_sources": [
+            "198.51.100.10/32"
+          ],
+          "conditions_count": 4,
+          "conditions_publication": "自然语言内容不公开，仅记录数量；本文件是受限公开投影，不是可直接回放的原始输出。"
+        },
+        "events": [
+          {
+            "sequence": 1,
+            "kind": "model_requested",
+            "name": "configured_model"
+          },
+          {
+            "sequence": 2,
+            "kind": "tool_requested",
+            "name": "get_asset",
+            "call_id": "call-1"
+          },
+          {
+            "sequence": 3,
+            "kind": "tool_requested",
+            "name": "get_business_intent",
+            "call_id": "call-2"
+          },
+          {
+            "sequence": 4,
+            "kind": "tool_started",
+            "name": "get_asset",
+            "call_id": "call-1"
+          },
+          {
+            "sequence": 5,
+            "kind": "tool_succeeded",
+            "name": "get_asset",
+            "call_id": "call-1"
+          },
+          {
+            "sequence": 6,
+            "kind": "tool_started",
+            "name": "get_business_intent",
+            "call_id": "call-2"
+          },
+          {
+            "sequence": 7,
+            "kind": "tool_succeeded",
+            "name": "get_business_intent",
+            "call_id": "call-2"
+          },
+          {
+            "sequence": 8,
+            "kind": "tool_result_received",
+            "name": "get_asset",
+            "call_id": "call-1"
+          },
+          {
+            "sequence": 9,
+            "kind": "tool_result_received",
+            "name": "get_business_intent",
+            "call_id": "call-2"
+          },
+          {
+            "sequence": 10,
+            "kind": "model_requested",
+            "name": "configured_model"
+          },
+          {
+            "sequence": 11,
+            "kind": "model_completed",
+            "name": "configured_model"
+          }
+        ],
+        "validation_boundary": "live model with synthetic fixtures only; non-streaming; prompt-constrained JSON with local validation; no cloud, production audit or reachability verification"
+      }
+    },
+    {
+      "scenario": "missing-whitelist",
+      "data_origin": "人工构造，不是生产数据",
+      "expected_status": "needs_confirmation",
+      "assistant_tool_batches": 1,
+      "report": {
+        "mode": "live_model",
+        "network_request_attempts": 2,
+        "last_http_status": 200,
+        "finish_reasons": [
+          "tool_calls",
+          "stop"
+        ],
+        "reported_token_usage": {
+          "prompt_tokens": 1688,
+          "completion_tokens": 369,
+          "total_tokens": 2057,
+          "responses_with_usage": 2
+        },
+        "scenario": "missing-whitelist",
+        "status": "completed",
+        "model_calls": 2,
+        "tool_calls": 2,
+        "tool_result_roundtrips": 2,
+        "decision": {
+          "status": "needs_confirmation",
+          "asset_id": "demo-web-001",
+          "evidence_ids": [
+            "ev-asset",
+            "ev-intent"
+          ],
+          "admin_sources": [],
+          "conditions_count": 4,
+          "conditions_publication": "自然语言内容不公开，仅记录数量；本文件是受限公开投影，不是可直接回放的原始输出。"
+        },
+        "events": [
+          {
+            "sequence": 1,
+            "kind": "model_requested",
+            "name": "configured_model"
+          },
+          {
+            "sequence": 2,
+            "kind": "tool_requested",
+            "name": "get_asset",
+            "call_id": "call-1"
+          },
+          {
+            "sequence": 3,
+            "kind": "tool_requested",
+            "name": "get_business_intent",
+            "call_id": "call-2"
+          },
+          {
+            "sequence": 4,
+            "kind": "tool_started",
+            "name": "get_asset",
+            "call_id": "call-1"
+          },
+          {
+            "sequence": 5,
+            "kind": "tool_succeeded",
+            "name": "get_asset",
+            "call_id": "call-1"
+          },
+          {
+            "sequence": 6,
+            "kind": "tool_started",
+            "name": "get_business_intent",
+            "call_id": "call-2"
+          },
+          {
+            "sequence": 7,
+            "kind": "tool_succeeded",
+            "name": "get_business_intent",
+            "call_id": "call-2"
+          },
+          {
+            "sequence": 8,
+            "kind": "tool_result_received",
+            "name": "get_asset",
+            "call_id": "call-1"
+          },
+          {
+            "sequence": 9,
+            "kind": "tool_result_received",
+            "name": "get_business_intent",
+            "call_id": "call-2"
+          },
+          {
+            "sequence": 10,
+            "kind": "model_requested",
+            "name": "configured_model"
+          },
+          {
+            "sequence": 11,
+            "kind": "model_completed",
+            "name": "configured_model"
+          }
+        ],
+        "validation_boundary": "live model with synthetic fixtures only; non-streaming; prompt-constrained JSON with local validation; no cloud, production audit or reachability verification"
+      }
+    }
+  ]
+}
