@@ -17,3 +17,7 @@
 # 项目内依赖/构建缓存与实验可执行文件
 /.cache/
 /experiments/eino-offline/eino-offline
+
+# 开题报告的本地排版导出；Markdown源稿与文献题录正常版本管理
+/docs/thesis-proposal/*.docx
+/docs/thesis-proposal/*.pdf

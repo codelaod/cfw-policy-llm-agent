@@ -25,6 +25,7 @@
 | 文档 | 用途 |
 | --- | --- |
 | [项目定位与论文主线](docs/01-project-overview.md) | 研究问题、双主线关系、论文结构与贡献边界 |
+| [论文开题报告与文献资料](docs/thesis-proposal/README.md) | Markdown源稿、15篇文献导读与审阅记录；排版导出仅保留本地 |
 | [系统需求规格说明书 v0.5](docs/02-requirements-and-scope.md) | B1 设计输入：范围、用例、功能／质量需求与验收，具体设计待 G2 |
 | [审计领域需求 v0.5](docs/12-audit-domain-requirements.md) | B1 领域输入：语义、支持矩阵、判据、案例及数据缺口 |
 | [业务价值与资产画像](docs/13-business-value-and-asset-profiles.md) | 行业与 AI 背景、人工／标签／指纹方案、角色与组件的条件建议 |

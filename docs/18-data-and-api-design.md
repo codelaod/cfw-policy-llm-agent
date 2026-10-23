@@ -47,6 +47,8 @@
 
 SQLite 单连接下，仓储必须在序列化／网络响应前关闭行游标，事务内不再通过 DB 另开查询连接；事务对象显式贯穿同一原子操作。网络、模型、规范化大计算在事务外完成，写入／状态更新短事务化；有界等待超时返回明确错误，不无限卡住轮询。
 
+事务是业务原子提交边界，WAL 是独立的日志模式选择。本文件沿用[架构设计](03-architecture-discussion.md)的“短事务、单连接，暂不用 WAL”；不将暂不用 WAL 解释为不使用事务，也不因此关闭数据库日志。
+
 仓储建议 GORM＋纯 Go libtnb/sqlite／modernc，尚未构建。Updates(struct) 可能跳过零值，确认必须显式列字段／map；false／空集合不能省略。禁用通用 Save 覆盖不可变版本，以修订 WHERE＋RowsAffected 检查竞争，使用同一 Tx，不把网络／模型等待放事务里。不在启动时隐式 AutoMigrate；SQL 日志不输出历史正文／参数。
 
 纯 Go 是硬约束：G2 后验证 CGO_ENABLED=0、驱动／JSON／bool、外键、事务和重启；不为 ORM 回退 CGO。适配不满足则通过仓储接口回退直接 modernc，不改变业务历史。
