@@ -112,7 +112,7 @@ s = app.getState();
 assert.equal(s.tasks[2].boundary.plane, 'internet');
 assert.equal(s.tasks[2].boundary.direction, 'out');
 assert.equal(s.tasks[2].findings[0].kind, 'confirmation');
-assert.match(app.buildReport(), /未批准/);
+assert.match(app.buildReport(), /B2 需求／规则设计待 G2/);
 app.setScope('nat');
 app.startAudit(); app.finishAudit();
 s = app.getState();
