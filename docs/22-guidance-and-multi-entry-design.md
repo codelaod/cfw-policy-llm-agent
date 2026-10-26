@@ -1,5 +1,7 @@
 # 跨入口推荐短语、空态与下一步引导设计
 
+> 2026-10-26 [CR-1 待审影响](24-scope-expansion-and-prototype-review.md)：新增边界如获采纳，Web 及已交付入口须共享范围预览、缺口说明与显式执行约束；推荐词不自动发起采集或付费调用。
+
 版本：v0.1。日期：2026-10-22。对应需求 v0.5／设计 v0.2，**待 G2；不是已实现的产品 CLI／TUI 或提示词接口**。
 
 关联：[总需求](02-requirements-and-scope.md)、[PRD](16-product-requirements-and-user-flows.md)、[会话／时序](20-session-history-and-data-freshness.md)、[凭据／工具](21-credentials-and-tool-auth-design.md)。用户要求 Web、CLI／TUI 都要有推荐短语和使用引导；表现不必相同，但语义、前提、权限和确认边界必须一致。

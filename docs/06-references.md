@@ -168,3 +168,10 @@
 | X-01 | [MCP 授权规范 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization) | HTTP／stdio 与 token 受众边界，非首版必需、非云身份替代 |
 
 用户使用流程、时效与跨入口引导是本项目需求／设计选择；源码／文档存在不证明产品已交付。见 [20](20-session-history-and-data-freshness.md)、[21](21-credentials-and-tool-auth-design.md)、[22](22-guidance-and-multi-entry-design.md)。
+
+
+## 12. 2026-10-26：出向／NAT 范围与原型工具
+
+新增 [8 份自写摘要与来源校验](references/scope-and-prototype/2026-10-26/manifest.json)，关联 [CR-1 复审](24-scope-expansion-and-prototype-review.md)。S-01 为互联网策略方向，S-02 为 NAT 边界 ACL，S-03～S-08 为设计技能、界面审查、Codex 技能、Figma、Stitch 和浏览器验证。
+
+来源支持产品或工具的公开能力，不证明本项目已实现。技能仓库关注量不等于单项技能评分；Stitch 的 Google Labs 仓库说明不属于 Google 正式支持产品。没有进行云调用、模型调用、Figma／Stitch 登录或项目上传。

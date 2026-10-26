@@ -61,3 +61,8 @@ python3 scripts/check_references.py
 ## 设计 v0.2 修订资料
 
 [新增 10 份摘要清单](design-revision/2026-10-22/manifest.json) 涵盖 Gin、GORM／纯 Go 适配／更新语义、Eino 会话与 Checkpoint、阿里云凭据与身份、MCP 授权；均是项目自写核读摘要，不是官方全文或项目构建／认证结果。当前共 50 个校验文件：原 40 项＋本轮 10 项；旧记录的 31／40 是当时实际数量。是否提交仍由 Git 状态证明，哈希检查本身不证明已推送。
+
+
+## 2026-10-26：范围复审与原型辅助工具
+
+[scope-and-prototype/2026-10-26/manifest.json](scope-and-prototype/2026-10-26/manifest.json) 包含 8 份自写摘要：互联网出向字段、NAT ACL、设计／界面／浏览器技能与 Figma／Stitch 接入前提。不保存第三方全文、私有数据或账号凭据；关注量不是单技能使用人数。

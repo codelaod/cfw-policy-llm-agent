@@ -1,5 +1,7 @@
 # 专用工具、外部凭据与认证授权设计
 
+> 2026-10-26 [CR-1 待审影响](24-scope-expansion-and-prototype-review.md)：新增 NAT 查询如获采纳，需单独评审只读权限与期望账号，不扩用通用默认凭据，不增加云写工具。
+
 版本：v0.1。日期：2026-10-22。对应需求 v0.5／设计 v0.2，**待 G2；新配置字段和连接能力尚未实现**。
 
 关联：[系统设计](03-architecture-discussion.md)、[数据／API](18-data-and-api-design.md)、[会话与时序](20-session-history-and-data-freshness.md)。本项目是专用审计应用，不是能连接任意工具／账号的通用 Agent；默认直接通过官方 SDK，不要求外部 MCP。

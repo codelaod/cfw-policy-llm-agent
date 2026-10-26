@@ -2,7 +2,9 @@
 
 本仓库用于论文研究与系统实现。系统以云防火墙策略审计为业务主线，以大模型 Agent 为实现方法，围绕云资产、访问控制策略和业务访问需求，完成风险识别、证据补查、配置推荐与审计报告生成。
 
-当前处于 **P2 系统设计阶段，设计 v0.2 待用户 G2 审核**。按用户“交叉审核无关键问题后进入设计”的条件授权，需求 v0.5／B1 已作为设计输入；不是用户沉默或技术验证代替批准。正式业务系统仍未实现。已有 Go + Eino 与两个 MiniMax 小样例仅为前期证据，不证明完整协议、审计效果或云端接入。
+当前处于 **P2 系统设计阶段：本轮复审需求范围，设计 v0.2 仍待用户 G2 审核**。按用户“交叉审核无关键问题后进入设计”的条件授权，需求 v0.5／B1 已作为设计输入；不是用户沉默或技术验证代替批准。正式业务系统仍未实现。已有 Go + Eino 与两个 MiniMax 小样例仅为前期证据，不证明完整协议、审计效果或云端接入。
+
+本轮（2026-10-26）新增 [出向／NAT 范围复审与原型 v0.2](docs/24-scope-expansion-and-prototype-review.md)：需求 v0.6／PRD v0.4 为复审稿；**原 B1 不自动扩大，新增范围与视觉方向待用户确认**。
 
 ## 已确认的方向
 
@@ -14,9 +16,9 @@
 - 模型接入优先兼容 OpenAI 接口规范；当前设计建议非流式 Chat Completions 与已有模型配置，正式协议／框架采用仍待 G2。
 - 云防火墙业务与 Agent 工程并行设计。用审计结果体现系统价值，用工具选择、证据补查和执行记录体现 Agent 的实际作用。
 
-## 建议的首版范围，待后续讨论确认
+## 原 B1 范围与本轮待审修订
 
-以阿里云互联网边界的入向访问控制为首个闭环：读取公网资产和防护状态 → 关联访问控制策略与业务意图 → 执行规则检查和 Agent 补查 → 生成有依据的推荐与报告 → 人工修改后重新审计。
+原 B1 以阿里云互联网边界入向为首个闭环；CR-1 建议补充有限互联网出向和 NAT ACL，完整取舍仍待确认。原流程为：读取公网资产和防护状态 → 关联访问控制策略与业务意图 → 执行规则检查和 Agent 补查 → 生成有依据的推荐与报告 → 人工修改后重新审计。
 
 同时支持离线快照和真实只读采集。离线模式用于开发和重复实验，真实模式用于验证云平台接入；实际字段、产品版本和账号能力在后续真实只读验收核实，不阻止当前设计文档。
 
@@ -26,20 +28,21 @@
 | --- | --- |
 | [项目定位与论文主线](docs/01-project-overview.md) | 研究问题、双主线关系、论文结构与贡献边界 |
 | [论文开题报告与文献资料](docs/thesis-proposal/README.md) | Markdown正文、15篇文献导读与审阅记录；不维护Word／PDF副本 |
-| [系统需求规格说明书 v0.5](docs/02-requirements-and-scope.md) | B1 设计输入：范围、用例、功能／质量需求与验收，具体设计待 G2 |
-| [审计领域需求 v0.5](docs/12-audit-domain-requirements.md) | B1 领域输入：语义、支持矩阵、判据、案例及数据缺口 |
+| [系统需求规格说明书 v0.6 复审稿](docs/02-requirements-and-scope.md) | 保留 v0.5／B1，新增 CR-1 出向／NAT 提案；范围与具体设计待审 |
+| [审计领域需求 v0.6 复审附件](docs/12-audit-domain-requirements.md) | 保留 B1 语义，补充 CR-1 分边界判据与资料缺口要求 |
 | [业务价值与资产画像](docs/13-business-value-and-asset-profiles.md) | 行业与 AI 背景、人工／标签／指纹方案、角色与组件的条件建议 |
 | [安全基线与规则目录](docs/14-security-baselines-and-rule-catalog.md) | NIST／厂商主题映射、CHK-01～12、优先级、日志边界和新增验收案例 |
 | [v0.3 历史自审](docs/15-requirements-self-review.md) | 自审发现、文档修正、离线检查与仍待用户审核事项；不是批准或业务测试 |
-| [产品 PRD 与使用流程](docs/16-product-requirements-and-user-flows.md) | 五个轻量视图、自动证据与对话确认、审阅复审、失败分支和验收追溯 |
+| [产品 PRD v0.4 与使用流程](docs/16-product-requirements-and-user-flows.md) | 五个轻量视图、自动证据与对话确认、审阅复审、失败分支和验收追溯 |
 | [交叉审核与 B0](docs/17-requirements-cross-review-and-design-baseline.md) | 22 项问题／风险处置、设计默认与条件授权边界 |
 | [数据与 API 设计](docs/18-data-and-api-design.md) | 版本、确认事务、任务幂等、私有数据、错误及报告契约 |
 | [规则与 Agent 设计](docs/19-audit-and-agent-design.md) | 三值匹配／区间计算、工具与输出边界、预算和验证矩阵 |
 | [会话历史与数据时序](docs/20-session-history-and-data-freshness.md) | 持续对话、框架恢复边界、缓存／刷新、累计耗时与分层反馈 |
 | [凭据与专用工具认证](docs/21-credentials-and-tool-auth-design.md) | 启动／环境／STS／角色、期望账号、SDK 与 MCP 边界 |
 | [跨入口推荐引导](docs/22-guidance-and-multi-entry-design.md) | Web／CLI／TUI 共用短语、空态／续聊／失败下一步和副作用 |
+| [出向／NAT 范围复审与原型改进](docs/24-scope-expansion-and-prototype-review.md) | CR-1 待审范围、联动文档、设计辅助工具、原型方向与验证边界 |
 | [v0.2 Review 与发布核对](docs/23-design-v02-review-and-publication.md) | 迭代检查、修复、回归、隐私／署名和发布授权边界 |
-| [离线低保真流程原型](docs/prototypes/audit-workflow/index.html) | 人工数据交互演示，不接 API／模型，不是正式前端；[说明](docs/prototypes/audit-workflow/README.md) |
+| [离线交互原型 v0.2](docs/prototypes/audit-workflow/index.html) | 人工数据交互演示，不接 API／模型，不是正式前端；[说明](docs/prototypes/audit-workflow/README.md) |
 | [系统设计说明书 v0.2](docs/03-architecture-discussion.md) | G2 待审：技术取舍、4+1 视图、模块、部署、安全和追溯 |
 | [实验与演示方案](docs/04-evaluation-and-demo.md) | 对照实验、标注、真实云环境验证与费用管理 |
 | [阶段计划与决策记录](docs/05-roadmap-and-decisions.md) | 已确认事项、未定问题、实施顺序与下一次讨论重点 |
@@ -49,13 +52,13 @@
 | [离线验证记录](docs/09-offline-validation-record.md) | 固定依赖、实际通过的检查及未验证范围 |
 | [换环境开发交接](docs/10-environment-handoff.md) | 当前进度、迁移边界、新环境恢复步骤与下一任务 |
 | [MiniMax 真实模型初测](docs/11-live-model-validation.md) | 4 次真实请求、两个案例、保护措施与未验证范围 |
-| [离线参考资料](docs/references/README.md) | 11 篇官方正文＋1 模型／19 需求／9 初版设计／10 修订摘要，附来源与校验清单 |
+| [离线参考资料](docs/references/README.md) | 11 篇官方正文＋1 模型／19 需求／9 初版设计／10 修订／8 范围及原型摘要，附来源与校验清单 |
 
 ## 开始实现前
 
 仓库协作约定见 [AGENTS.md](AGENTS.md)。
 
-按用户要求执行两道审核门槛：**需求主文档＋必要领域需求 → 用户确认需求基线（G1）→ 系统设计 → 用户审核设计（G2）→ 正式业务实现**。本轮已完成交叉审核并按条件授权进入设计；下一步审阅系统设计 v0.2（G2），不是业务编码或追加真实调用；此前系统设计修订获准审核后提交推送；本次开题稿修订按用户授权进行本地提交。
+按用户要求执行两道审核门槛：**需求主文档＋必要领域需求 → 用户确认需求基线（G1）→ 系统设计 → 用户审核设计（G2）→ 正式业务实现**。本轮已完成交叉审核并按条件授权进入设计；本轮先审 CR-1 范围与原型，再按取舍联动系统设计 v0.2（G2），不是业务编码或追加真实调用；此前系统设计修订获准审核后提交推送，开题稿修订按当时授权仅做本地提交。
 
 公开文档和前期验证已支撑 B0 与设计稿；真实云联调是否纳入最终验收与接入深度仍列为待审项，不要求现在调用。资料缺口及需要用户确认的业务范围见两份需求文档。当前不自动追加模型或云 API 请求。
 

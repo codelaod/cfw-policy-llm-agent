@@ -1,5 +1,7 @@
 # 确定性规则与受限 Agent 设计
 
+> CR-1 待审影响（2026-10-26）：出向／NAT 需要独立规则分组、业务目标、默认行为与关联证据，不能把入向来源比较简单反转。范围通过后同步工具白名单、补查前提、预算与测试矩阵；本轮不新增可执行工具或正式规则。见 [范围复审](24-scope-expansion-and-prototype-review.md)。
+
 版本：v0.2。日期：2026-10-22。状态：**设计稿，待 G2 审核；下述算法／工具／测试均未作为正式业务系统实现**。
 
 关联：[系统设计](03-architecture-discussion.md)、[数据／API](18-data-and-api-design.md)、[规则目录](14-security-baselines-and-rule-catalog.md)、[B0／B1](17-requirements-cross-review-and-design-baseline.md)，历史与时序见 [20](20-session-history-and-data-freshness.md)、凭据见 [21](21-credentials-and-tool-auth-design.md)、跨入口推荐见 [22](22-guidance-and-multi-entry-design.md)。本设计说明如何落实领域判据，不新增算法创新、完整可达性或自动修复承诺。

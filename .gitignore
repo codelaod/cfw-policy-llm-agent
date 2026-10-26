@@ -21,3 +21,8 @@
 # 开题报告的本地排版导出；Markdown源稿与文献题录正常版本管理
 /docs/thesis-proposal/*.docx
 /docs/thesis-proposal/*.pdf
+
+# 离线原型浏览器检查产物（不含正式业务实现）
+/output/playwright/
+/.playwright/
+/.playwright-cli/

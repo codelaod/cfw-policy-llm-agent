@@ -1,5 +1,7 @@
 # 系统设计说明书（架构与总体方案）
 
+> 2026-10-26 复审提示：现有设计 v0.2 对应原 B1。用户提出有限出向／NAT 和原型重设计，见 [CR-1](24-scope-expansion-and-prototype-review.md)；新增范围尚未确认，本设计不能自动视为已覆盖或已通过 G2。
+
 版本：v0.2。日期：2026-10-22。状态：**P2 设计稿，待用户 G2 审核；正式业务工程未创建**。
 
 设计输入为 [系统需求 v0.5](02-requirements-and-scope.md)、[领域需求 v0.5](12-audit-domain-requirements.md)、[PRD](16-product-requirements-and-user-flows.md) 和 [交叉审核／B0](17-requirements-cross-review-and-design-baseline.md)。本文件取代早期架构讨论；前期候选依据保留在 [技术选型背景](07-technical-background-and-options.md) 与实测记录。B1 补充连续历史、累计时延、统一认证和跨入口引导。细节见 [数据与接口](18-data-and-api-design.md)、[规则与 Agent](19-audit-and-agent-design.md)、[会话／时序](20-session-history-and-data-freshness.md)、[认证](21-credentials-and-tool-auth-design.md)、[推荐引导](22-guidance-and-multi-entry-design.md)。

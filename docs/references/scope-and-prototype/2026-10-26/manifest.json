@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "description": "CR-1 范围与原型工具的一手资料自写摘要；非业务验收",
+  "documents": [
+    {
+      "id": "S-01",
+      "title": "互联网策略的出向字段",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describecontrolpolicy",
+      "retrieved_date": "2026-10-26",
+      "text_file": "s-01.md",
+      "text_bytes": 586,
+      "text_sha256": "ef8ba0c356ba930dd6ff6db49fee8c7d21c8058836e68507458f898f2e8992a0"
+    },
+    {
+      "id": "S-02",
+      "title": "NAT 边界 ACL 与网关上下文",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/nat-firewall",
+      "retrieved_date": "2026-10-26",
+      "text_file": "s-02.md",
+      "text_bytes": 615,
+      "text_sha256": "c4d7b7301be5ca6581cd7308ef2f8250a975863a9864f50db11db47511d5d3a2"
+    },
+    {
+      "id": "S-03",
+      "title": "Anthropic frontend-design 方法",
+      "url": "https://raw.githubusercontent.com/anthropics/skills/dbd4588f9e1033efb41dad4bef2f7947c8993d44/skills/frontend-design/SKILL.md",
+      "retrieved_date": "2026-10-26",
+      "text_file": "s-03.md",
+      "text_bytes": 696,
+      "text_sha256": "f270b1ce5f71fb21922b397d76a9c73a23bdf119ec8bbb07fc1d1bdaf0d3f924"
+    },
+    {
+      "id": "S-04",
+      "title": "Vercel Web Interface Guidelines",
+      "url": "https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md",
+      "retrieved_date": "2026-10-26",
+      "text_file": "s-04.md",
+      "text_bytes": 657,
+      "text_sha256": "14c7649721d693fd4f62348022213ffae004a58792b0d9540456134f268d29a9"
+    },
+    {
+      "id": "S-05",
+      "title": "OpenAI 技能的作用与边界",
+      "url": "https://developers.openai.com/codex/skills/",
+      "retrieved_date": "2026-10-26",
+      "text_file": "s-05.md",
+      "text_bytes": 536,
+      "text_sha256": "9e0d280b05a970e2af09218e6ec70658f7d971a8522ee2604a6087adf5248e6b"
+    },
+    {
+      "id": "S-06",
+      "title": "Figma MCP 当前能力",
+      "url": "https://developers.figma.com/docs/figma-mcp-server/",
+      "retrieved_date": "2026-10-26",
+      "text_file": "s-06.md",
+      "text_bytes": 562,
+      "text_sha256": "598e001d955451e3bd3402e6af7ef7cd6da27e2967e8c556b0c233eedfd99392"
+    },
+    {
+      "id": "S-07",
+      "title": "Google Labs Stitch 技能与接入前提",
+      "url": "https://github.com/google-labs-code/stitch-skills",
+      "retrieved_date": "2026-10-26",
+      "text_file": "s-07.md",
+      "text_bytes": 579,
+      "text_sha256": "0678f324f24cce60a28b597225c7e531649fa63c25152569dbb6b37a93310852"
+    },
+    {
+      "id": "S-08",
+      "title": "Playwright 浏览器核对工作流",
+      "url": "https://raw.githubusercontent.com/openai/skills/49f948faa9258a0c61caceaf225e179651397431/skills/.curated/playwright/SKILL.md",
+      "retrieved_date": "2026-10-26",
+      "text_file": "s-08.md",
+      "text_bytes": 634,
+      "text_sha256": "ccc74258afc38fe5ae904e1acc54989501cfa83ece7afa385d47e57077d0ba93"
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 # 连续会话、历史记录、数据新鲜度与执行时序设计
 
+> 2026-10-26 [CR-1 待审影响](24-scope-expansion-and-prototype-review.md)：新增出向／NAT 如获采纳，应作为独立数据族记录时点与完整性；旧会话／任务仍固定原范围，不能用刷新悄悄改变历史。
+
 版本：v0.1。日期：2026-10-22。对应需求 v0.5／设计 v0.2，**待 G2，尚未实现**。
 
 关联：[总体设计](03-architecture-discussion.md)、[数据／API](18-data-and-api-design.md)、[规则／Agent](19-audit-and-agent-design.md)、[凭据设计](21-credentials-and-tool-auth-design.md)、[PRD](16-product-requirements-and-user-flows.md)。本文落实“不能每次从零开始”和累计调用时间要求，不引入通用 Agent、多租户或额外安全产品。

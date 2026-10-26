@@ -1,5 +1,7 @@
 # 数据、任务状态与 Web API 设计
 
+> CR-1 待审影响（2026-10-26）：现有 B1 契约不能直接用于出向／NAT。范围采纳后需增加方向／防护平面／规则集或网关身份、外部依赖要求、映射来源／观察点、各族完整性与报告比较键；不是本轮已确定的新数据库或接口。见 [范围复审](24-scope-expansion-and-prototype-review.md)。
+
 版本：v0.2。日期：2026-10-22。状态：**G2 待审设计契约，不是已实现 API、数据库或可运行 schema**。
 
 上位设计见 [系统设计](03-architecture-discussion.md)，输入与范围见 [B0](17-requirements-cross-review-and-design-baseline.md)，计算与模型边界见 [规则与 Agent](19-audit-and-agent-design.md)，会话／时序见 [20](20-session-history-and-data-freshness.md)，认证见 [21](21-credentials-and-tool-auth-design.md)，引导见 [22](22-guidance-and-multi-entry-design.md)。以下标识均为说明用的人工占位，不是真实云资源、凭据或接口返回。
