@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "design_version": "0.6",
+  "requirement_baseline": "B2",
+  "documentation_only": true,
+  "g2_status": "approved_with_addenda",
+  "formal_business_implementation": false,
+  "formal_concurrency_tested": false,
+  "formal_api_generated": false,
+  "real_cloud_or_model_called": false,
+  "execution": {
+    "processes": 1,
+    "worker_slots": 3,
+    "per_conversation_unfinished": 1,
+    "queued_limit": 10,
+    "global_model_http_concurrency": 3,
+    "per_job_model_http_concurrency": 1,
+    "global_cloud_and_credential_http_concurrency": 2,
+    "resource_wait_in_root_budget": true,
+    "atomic_shared_attempt_reservation": true,
+    "per_job_mutable_runner_state": true,
+    "disconnect_cancels_job": false,
+    "restart_replays_external_calls": false
+  },
+  "sqlite": {
+    "cgo_enabled": false,
+    "journal_mode": "WAL",
+    "pooling": "single_shared_database_sql_pool",
+    "force_single_writer_connection": false,
+    "force_separate_read_write_pools": false,
+    "custom_write_queue": false,
+    "custom_checkpoint_scheduler": false,
+    "tx_across_network": false
+  },
+  "api_docs": {
+    "generator": "swaggo/swag",
+    "specification": "Swagger 2.0",
+    "pin_generator_version": true,
+    "artifacts": [
+      "docs/api/swagger.json",
+      "docs/api/swagger.yaml"
+    ],
+    "artifacts_tracked_after_generation": true,
+    "route_spec_parity": true,
+    "separate_sse_schema": true,
+    "docs_auth_same_as_api": true,
+    "public_try_it_out": false,
+    "generation_verified": false
+  },
+  "verification": {
+    "must_observe_three_requests_before_any_completion": true,
+    "fourth_job_starts_when_any_slot_frees": true,
+    "same_conversation_conflict": 409,
+    "regular_business_integration_only": true,
+    "sqlite_specialized_sla": false
+  },
+  "planned_check_ids": [
+    "V6-01",
+    "V6-02",
+    "V6-03",
+    "V6-04",
+    "V6-05",
+    "V6-06",
+    "V6-07",
+    "V6-08"
+  ]
+}

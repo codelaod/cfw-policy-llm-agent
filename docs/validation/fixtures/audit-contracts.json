@@ -1,0 +1,714 @@
+{
+  "schema_version": 1,
+  "design_version": "0.6",
+  "requirement_baseline": "B2",
+  "documentation_only": true,
+  "source_kind": "synthetic",
+  "formal_business_implementation": false,
+  "semantics_evaluated": false,
+  "description": "人工设计契约示例；静态校验仅核对结构、引用、范围和预算，不执行审计规则或接口。",
+  "limits": {
+    "queue_seconds": 120,
+    "execution_seconds": 240,
+    "total_seconds": 360,
+    "phases_seconds": {
+      "collection": 90,
+      "rules": 20,
+      "model": 120,
+      "finalize": 10
+    },
+    "cloud_http_attempts": 100,
+    "model_http_attempts": 6,
+    "model_tool_calls": 12,
+    "model_single_call_seconds": 30,
+    "assets_per_task": 50,
+    "policies_per_partition": 1000,
+    "nat_gateways_per_task": 1,
+    "query_cells": 50000,
+    "plan_ttl_seconds": 300,
+    "collection_sweeps_max": 2
+  },
+  "policy_scopes": [
+    {
+      "id": "scope_demo_internet_in",
+      "connection_revision": "connection_demo_v1",
+      "key": {
+        "provider": "aliyun",
+        "account_ref": "account_demo",
+        "control_plane_ref": "control_plane_demo",
+        "ip_family": "ipv4",
+        "boundary": "internet",
+        "direction": "in",
+        "policy_set_ref": "internet_policy_set_demo"
+      }
+    },
+    {
+      "id": "scope_demo_internet_out",
+      "connection_revision": "connection_demo_v1",
+      "key": {
+        "provider": "aliyun",
+        "account_ref": "account_demo",
+        "control_plane_ref": "control_plane_demo",
+        "ip_family": "ipv4",
+        "boundary": "internet",
+        "direction": "out",
+        "policy_set_ref": "internet_policy_set_demo"
+      }
+    },
+    {
+      "id": "scope_demo_nat_a",
+      "connection_revision": "connection_demo_v1",
+      "key": {
+        "provider": "aliyun",
+        "account_ref": "account_demo",
+        "control_plane_ref": "control_plane_demo",
+        "ip_family": "ipv4",
+        "boundary": "nat",
+        "direction": "out",
+        "policy_set_ref": "gateway_demo_a"
+      }
+    },
+    {
+      "id": "scope_demo_nat_b",
+      "connection_revision": "connection_demo_v1",
+      "key": {
+        "provider": "aliyun",
+        "account_ref": "account_demo",
+        "control_plane_ref": "control_plane_demo",
+        "ip_family": "ipv4",
+        "boundary": "nat",
+        "direction": "out",
+        "policy_set_ref": "gateway_demo_b"
+      }
+    }
+  ],
+  "snapshot_sections": [
+    {
+      "id": "section_demo_nat_config",
+      "policy_scope_ref": "scope_demo_nat_a",
+      "kind": "cfw_policy_bundle",
+      "source_kind": "synthetic",
+      "enumeration_complete": true,
+      "observation_consistency": "fixed_artifact",
+      "started_at": "2026-10-26T10:00:00+08:00",
+      "finished_at": "2026-10-26T10:00:20+08:00",
+      "config_sweeps": 0,
+      "limitations": [
+        "人工固定制品，不是实际云接口采集",
+        "完整性为构造案例设定，不证明真实账号配置完整"
+      ]
+    },
+    {
+      "id": "section_demo_out_config",
+      "policy_scope_ref": "scope_demo_internet_out",
+      "kind": "cfw_policy_bundle",
+      "source_kind": "synthetic",
+      "enumeration_complete": true,
+      "observation_consistency": "fixed_artifact",
+      "started_at": "2026-10-26T10:00:00+08:00",
+      "finished_at": "2026-10-26T10:00:20+08:00",
+      "config_sweeps": 0,
+      "limitations": [
+        "人工固定制品，不是实际云接口采集",
+        "完整性为构造案例设定，不证明真实账号配置完整"
+      ]
+    }
+  ],
+  "snapshots": [
+    {
+      "id": "snapshot_demo_nat",
+      "policy_scope_ref": "scope_demo_nat_a",
+      "section_refs": [
+        "section_demo_nat_config"
+      ]
+    },
+    {
+      "id": "snapshot_demo_out",
+      "policy_scope_ref": "scope_demo_internet_out",
+      "section_refs": [
+        "section_demo_out_config"
+      ]
+    }
+  ],
+  "plan_requests": [
+    {
+      "id": "request_demo_nat",
+      "conversation_id": "conversation_demo",
+      "data_source_id": "source_demo",
+      "policy_scope_ref": "scope_demo_nat_a",
+      "selection": {
+        "kind": "gateway_policy",
+        "gateway_ref": "gateway_demo_a",
+        "asset_ids": []
+      },
+      "data_policy": {
+        "mode": "pinned_snapshot",
+        "snapshot_id": "snapshot_demo_nat",
+        "allow_stale_fallback": false
+      },
+      "mode": "rules_only",
+      "intent_version_ids": [],
+      "baseline_version_id": "baseline_b2_demo",
+      "kind": "audit"
+    },
+    {
+      "id": "request_demo_out",
+      "conversation_id": "conversation_demo",
+      "data_source_id": "source_demo",
+      "policy_scope_ref": "scope_demo_internet_out",
+      "selection": {
+        "kind": "assets",
+        "asset_ids": [
+          "asset_demo_a"
+        ]
+      },
+      "data_policy": {
+        "mode": "prefer_fresh",
+        "allow_stale_fallback": false
+      },
+      "mode": "rules_and_agent",
+      "intent_version_ids": [
+        "intent_demo_out_v1"
+      ],
+      "baseline_version_id": "baseline_b2_demo",
+      "disclosure_policy_id": "projection_demo_minimal",
+      "kind": "audit"
+    }
+  ],
+  "start_requests": [
+    {
+      "headers": {
+        "Idempotency-Key": "idempotency_demo_nat"
+      },
+      "body": {
+        "plan_id": "plan_demo_nat"
+      }
+    },
+    {
+      "headers": {
+        "Idempotency-Key": "idempotency_demo_out"
+      },
+      "body": {
+        "plan_id": "plan_demo_out"
+      }
+    }
+  ],
+  "resolved_input_manifests": [
+    {
+      "id": "input_demo_nat",
+      "plan_id": "plan_demo_nat",
+      "policy_scope_ref": "scope_demo_nat_a",
+      "snapshot_id": "snapshot_demo_nat",
+      "section_refs": [
+        "section_demo_nat_config"
+      ],
+      "evaluation_at": "2026-10-26T10:00:21+08:00",
+      "normalizer_version": "normalizer_demo_v1",
+      "provider_semantics_id": "semantics_demo_nat_l4",
+      "rule_version": "rules_b2_demo",
+      "input_state": "sealed_example_not_executed"
+    }
+  ],
+  "identity_examples": [
+    {
+      "snapshot_id": "snapshot_demo_identity",
+      "policy_scope_ref": "scope_demo_internet_in",
+      "provider_acl_id": "acl_demo_same",
+      "canonical_ref": "policy_demo_scope_demo_internet_in"
+    },
+    {
+      "snapshot_id": "snapshot_demo_identity",
+      "policy_scope_ref": "scope_demo_internet_out",
+      "provider_acl_id": "acl_demo_same",
+      "canonical_ref": "policy_demo_scope_demo_internet_out"
+    },
+    {
+      "snapshot_id": "snapshot_demo_identity",
+      "policy_scope_ref": "scope_demo_nat_a",
+      "provider_acl_id": "acl_demo_same",
+      "canonical_ref": "policy_demo_scope_demo_nat_a"
+    },
+    {
+      "snapshot_id": "snapshot_demo_identity",
+      "policy_scope_ref": "scope_demo_nat_b",
+      "provider_acl_id": "acl_demo_same",
+      "canonical_ref": "policy_demo_scope_demo_nat_b"
+    }
+  ],
+  "business_intent_example": {
+    "id": "intent_demo_out_v1",
+    "policy_scope_ref": "scope_demo_internet_out",
+    "initiator_asset_ref": "asset_demo_a",
+    "kind": "outbound_dependency",
+    "confirmed": true,
+    "allowed_set_complete": true,
+    "deny_all": false,
+    "allowed_access": [
+      {
+        "protocol": "tcp",
+        "destination": "198.51.100.0/25",
+        "destination_ports": [
+          443,
+          443
+        ]
+      }
+    ],
+    "required_access": [
+      {
+        "protocol": "tcp",
+        "destination": "198.51.100.10/32",
+        "destination_ports": [
+          443,
+          443
+        ]
+      }
+    ],
+    "source": "人工明确声明，不由角色或日志推导"
+  },
+  "nat_association_example": {
+    "id": "association_demo_a",
+    "policy_scope_ref": "scope_demo_nat_a",
+    "gateway_ref": "gateway_demo_a",
+    "asset_ref": "asset_demo_a",
+    "association_state": "candidate",
+    "observation_point": "unknown",
+    "evidence_kind": "same_vpc_only",
+    "can_claim_actual_path": false,
+    "can_run_asset_business_comparison": false
+  },
+  "semantic_example": {
+    "case_id": "B2-04",
+    "preconditions": "人工假定有效允许范围为下述集合，且分区／引用／默认语义完整；不是规则运行结果",
+    "allow_destination": "198.51.100.0/24",
+    "confirmed_complete_upper_bound": "198.51.100.0/25",
+    "expected_difference": "198.51.100.128/25",
+    "expected_status": "fail",
+    "evaluated_by_this_repository": false
+  },
+  "negative_contract_cases": [
+    {
+      "case_id": "B2-03",
+      "description": "assets 模式为空不能视为全账号",
+      "expected_error": "INPUT_INVALID"
+    },
+    {
+      "case_id": "B2-11",
+      "description": "internet/in 快照不可作为 internet/out 输入",
+      "expected_error": "SNAPSHOT_SCOPE_MISMATCH"
+    },
+    {
+      "case_id": "B2-15",
+      "description": "计划过期或请求／配置改变",
+      "expected_error": "PLAN_STALE"
+    },
+    {
+      "case_id": "B2-15",
+      "description": "已消费计划用新的幂等键再次启动",
+      "expected_error": "PLAN_CONSUMED"
+    }
+  ],
+  "trace_matrix_case_ids": [
+    "B2-01",
+    "B2-02",
+    "B2-03",
+    "B2-04",
+    "B2-05",
+    "B2-06",
+    "B2-07",
+    "B2-08",
+    "B2-09",
+    "B2-10",
+    "B2-11",
+    "B2-12",
+    "B2-13",
+    "B2-14",
+    "B2-15",
+    "B2-16",
+    "B2-17",
+    "B2-18"
+  ],
+  "conversation_messages_example": [
+    {
+      "id": "message_demo_in",
+      "policy_scope_ref": "scope_demo_internet_in",
+      "source_kind": "synthetic",
+      "body": "人工入向历史，不进入出向上下文"
+    },
+    {
+      "id": "message_demo_out",
+      "policy_scope_ref": "scope_demo_internet_out",
+      "source_kind": "synthetic",
+      "body": "人工出向历史，可用于当前出向轮次"
+    },
+    {
+      "id": "message_demo_nat",
+      "policy_scope_ref": "scope_demo_nat_a",
+      "source_kind": "synthetic",
+      "body": "人工网关历史，不进入互联网出向上下文"
+    }
+  ],
+  "model_context_examples": [
+    {
+      "plan_id": "plan_demo_out",
+      "policy_scope_ref": "scope_demo_internet_out",
+      "message_refs": [
+        "message_demo_out"
+      ],
+      "excluded_message_refs": [
+        "message_demo_in",
+        "message_demo_nat"
+      ],
+      "summary_policy_scope_ref": "scope_demo_internet_out",
+      "not_an_actual_model_request": true
+    }
+  ],
+  "execution_plans": [
+    {
+      "id": "plan_demo_nat",
+      "request_id": "request_demo_nat",
+      "policy_scope_ref": "scope_demo_nat_a",
+      "connection_revision": "connection_demo_v1",
+      "created_at": "2026-10-26T10:00:00+08:00",
+      "expires_at": "2026-10-26T10:05:00+08:00",
+      "effect_ceiling": {
+        "allow_cloud_reads": false,
+        "allow_model_requests": false
+      },
+      "limits": {
+        "queue_seconds": 120,
+        "execution_seconds": 240,
+        "total_seconds": 360,
+        "phases_seconds": {
+          "collection": 90,
+          "rules": 20,
+          "model": 120,
+          "finalize": 10
+        },
+        "cloud_http_attempts": 0,
+        "model_http_attempts": 0,
+        "model_tool_calls": 0,
+        "model_single_call_seconds": 30,
+        "assets_per_task": 50,
+        "policies_per_partition": 1000,
+        "nat_gateways_per_task": 1,
+        "query_cells": 50000,
+        "plan_ttl_seconds": 300,
+        "collection_sweeps_max": 2
+      },
+      "is_executed": false,
+      "kind": "audit",
+      "confirmation_mode": "plan_acceptance"
+    },
+    {
+      "id": "plan_demo_out",
+      "request_id": "request_demo_out",
+      "policy_scope_ref": "scope_demo_internet_out",
+      "connection_revision": "connection_demo_v1",
+      "created_at": "2026-10-26T10:00:00+08:00",
+      "expires_at": "2026-10-26T10:05:00+08:00",
+      "effect_ceiling": {
+        "allow_cloud_reads": true,
+        "allow_model_requests": true
+      },
+      "limits": {
+        "queue_seconds": 120,
+        "execution_seconds": 240,
+        "total_seconds": 360,
+        "phases_seconds": {
+          "collection": 90,
+          "rules": 20,
+          "model": 120,
+          "finalize": 10
+        },
+        "cloud_http_attempts": 100,
+        "model_http_attempts": 6,
+        "model_tool_calls": 12,
+        "model_single_call_seconds": 30,
+        "assets_per_task": 50,
+        "policies_per_partition": 1000,
+        "nat_gateways_per_task": 1,
+        "query_cells": 50000,
+        "plan_ttl_seconds": 300,
+        "collection_sweeps_max": 2
+      },
+      "is_executed": false,
+      "notice": "设计示例：可能刷新；这里只表示拟议计划上限，不是本轮付费或真实调用授权",
+      "kind": "audit",
+      "confirmation_mode": "plan_acceptance"
+    }
+  ],
+  "http_note": "start_requests 是人工 HTTP 契约示意；应用鉴权头省略；没有发送请求。kind 只能来自服务端计划。",
+  "admission_policy_examples": [
+    {
+      "kind": "audit",
+      "all_requests_use_admission": true,
+      "confirmation_mode": "plan_acceptance",
+      "cloud_policy": "from_data_policy",
+      "model_policy": "from_audit_mode"
+    },
+    {
+      "kind": "collect",
+      "all_requests_use_admission": true,
+      "confirmation_mode": "plan_acceptance",
+      "cloud_policy": "bounded_readonly",
+      "model_attempt_limit": 0
+    },
+    {
+      "kind": "connection_check",
+      "all_requests_use_admission": true,
+      "confirmation_mode": "plan_acceptance",
+      "cloud_policy": "bounded_identity_and_readonly",
+      "model_attempt_limit": 0,
+      "cloud_attempt_limit": 6,
+      "proves_all_api_permissions": false
+    },
+    {
+      "kind": "assistant_turn",
+      "all_requests_use_admission": true,
+      "confirmation_mode": "explicit_model_send",
+      "cloud_attempt_limit": 0,
+      "model_use_accepted_required": true,
+      "requires_frozen_local_context": true
+    }
+  ],
+  "review_persistence_example": {
+    "documentation_only": true,
+    "finding_id": "finding_demo_a",
+    "initial_review_revision": 2,
+    "request": {
+      "expected_review_revision": 2,
+      "kind": "comment",
+      "note": "人工意见示例，不是业务授权"
+    },
+    "idempotency_header": "review_key_demo_1",
+    "response_after_commit": {
+      "saved": true,
+      "action_id": "review_demo_1",
+      "review_revision": 3
+    },
+    "storage_failure": {
+      "saved": false,
+      "keep_draft": true,
+      "retry_same_key": true
+    },
+    "old_revision_error": {
+      "http_status": 409,
+      "code": "REVIEW_VERSION_CONFLICT"
+    },
+    "finding_verdict_before": "fail",
+    "finding_verdict_after": "fail",
+    "free_text_public_by_default": false,
+    "free_text_to_model_by_default": false,
+    "replay_idempotency_before_revision_check": true
+  },
+  "basis_contract_examples": [
+    {
+      "id": "basis_demo_import_complete",
+      "illustrative_only": true,
+      "input_source_kind": "imported",
+      "declared_complete": true,
+      "references_closed": true,
+      "known_gap": false,
+      "expected_basis": "imported_assumption",
+      "expected_verdict": "pass",
+      "qualification_required": true,
+      "claims_real_cloud_safety": false,
+      "semantics_supported": true,
+      "scope_consistent": true,
+      "declaration_present": true
+    },
+    {
+      "id": "basis_demo_import_gap",
+      "illustrative_only": true,
+      "input_source_kind": "imported",
+      "declared_complete": true,
+      "references_closed": false,
+      "known_gap": true,
+      "expected_basis": "imported_assumption",
+      "expected_verdict": "insufficient_data",
+      "qualification_required": true,
+      "claims_real_cloud_safety": false,
+      "semantics_supported": true,
+      "scope_consistent": true,
+      "declaration_present": true
+    },
+    {
+      "id": "basis_demo_synthetic",
+      "illustrative_only": true,
+      "input_source_kind": "synthetic",
+      "declared_complete": true,
+      "references_closed": true,
+      "known_gap": false,
+      "expected_basis": "synthetic_assumption",
+      "expected_verdict": "fail",
+      "qualification_required": true,
+      "claims_real_cloud_safety": false,
+      "semantics_supported": true,
+      "scope_consistent": true,
+      "declaration_present": true
+    }
+  ],
+  "recommendation_contract_examples": [
+    {
+      "kind": "policy_change",
+      "policy_scope_ref": "scope_demo_internet_out",
+      "target_kind": "existing_policy",
+      "target_ref": "policy_demo_scope_demo_internet_out",
+      "finding_ref": "finding_demo_out",
+      "evidence_refs": [
+        "evidence_demo_policy"
+      ],
+      "conditions": [
+        "仅在已确认依赖与配套策略条件成立时人工评估"
+      ],
+      "has_cloud_write_action": false
+    },
+    {
+      "kind": "coverage_followup",
+      "policy_scope_ref": "scope_demo_nat_a",
+      "target_kind": "protection_scope",
+      "target_ref": "scope_demo_nat_a",
+      "finding_ref": "finding_demo_coverage",
+      "evidence_refs": [
+        "evidence_demo_protection"
+      ],
+      "conditions": [
+        "仅描述当前层已知状态"
+      ],
+      "has_cloud_write_action": false
+    },
+    {
+      "kind": "component_consideration",
+      "policy_scope_ref": "scope_demo_internet_in",
+      "target_kind": "asset_service",
+      "target_ref": "service_demo_web",
+      "finding_ref": null,
+      "component_topic": "web_application_protection",
+      "basis_kind": "applicability_assessment",
+      "component_state": "unknown",
+      "evidence_refs": [
+        "evidence_demo_confirmed_role"
+      ],
+      "conditions": [
+        "如果确认公网 Web 场景适用，人工核对现有能力"
+      ],
+      "has_cloud_write_action": false
+    },
+    {
+      "kind": "confirm_information",
+      "policy_scope_ref": "scope_demo_internet_out",
+      "target_kind": "business_intent",
+      "target_ref": "intent_demo_out_v1",
+      "finding_ref": null,
+      "evidence_refs": [
+        "evidence_demo_missing_intent"
+      ],
+      "conditions": [
+        "未确认前不生成目标白名单"
+      ],
+      "has_cloud_write_action": false
+    }
+  ],
+  "evaluation_design": {
+    "documentation_only": true,
+    "formal_dataset_created": false,
+    "formal_runs_executed": 0,
+    "min_independent_cases": 20,
+    "max_independent_cases": 30,
+    "independent_count_excludes": [
+      "repetitions",
+      "debug",
+      "real_supplement",
+      "rename_only"
+    ],
+    "shared_input_ref": "input_evaluation_demo",
+    "shared_rule_result_ref": "rules_evaluation_demo",
+    "arms": [
+      {
+        "id": "rules_only",
+        "uses_model": false,
+        "input_ref": "input_evaluation_demo",
+        "rules_ref": "rules_evaluation_demo",
+        "model_http_calls": 0
+      },
+      {
+        "id": "fixed_model_pipeline",
+        "uses_model": true,
+        "input_ref": "input_evaluation_demo",
+        "rules_ref": "rules_evaluation_demo",
+        "model_config_ref": "model_config_demo",
+        "sampling_ref": "sampling_demo",
+        "initial_information_ref": "brief_demo",
+        "tools_ref": "tools_demo",
+        "projection_ref": "projection_demo",
+        "budget_ref": "budget_demo"
+      },
+      {
+        "id": "agent_tool_selection",
+        "uses_model": true,
+        "input_ref": "input_evaluation_demo",
+        "rules_ref": "rules_evaluation_demo",
+        "model_config_ref": "model_config_demo",
+        "sampling_ref": "sampling_demo",
+        "initial_information_ref": "brief_demo",
+        "tools_ref": "tools_demo",
+        "projection_ref": "projection_demo",
+        "budget_ref": "budget_demo"
+      }
+    ],
+    "separate_output_metrics": [
+      "rule_facts",
+      "model_hypotheses",
+      "recommendations"
+    ],
+    "run_status_denominator": "all_formal_runs",
+    "zero_denominator": "not_applicable",
+    "labels_visible_to_model": false,
+    "minimum_real_rechecks": 1,
+    "actual_real_rechecks": 0,
+    "prefer_single_ecs_serial_reuse": true,
+    "resource_count_is_case_count": false,
+    "cleanup_actor": "human_operator",
+    "system_cloud_writes": false
+  },
+  "model_capability_design": {
+    "ordinary_text_success_implies_tool_compatibility": false,
+    "evidence_kinds": [
+      "multi_turn_association",
+      "dependent_tool_selection",
+      "structured_output",
+      "failure_behavior"
+    ],
+    "new_real_model_requests": 0,
+    "current_profile_verified_by_this_review": false
+  },
+  "performance_design": {
+    "documentation_only": true,
+    "measured_by_this_review": false,
+    "backend_cpu_quota": 2,
+    "backend_memory_gib": 4,
+    "requires_new_cloud_ecs": false,
+    "local_get_samples": 100,
+    "local_write_samples": 20,
+    "local_p95_target_seconds": 1,
+    "standard_rule_stage_target_seconds": 5,
+    "standard_assets": 1,
+    "standard_policies": 100,
+    "standard_total_cells_max": 1000,
+    "stress_assets": 10,
+    "stress_policies": 200,
+    "stress_total_cells_max": 10000,
+    "stress_rule_stage_deadline_seconds": 20,
+    "backend_peak_rss_target_mib": 512,
+    "truncation_counts_as_performance_pass": false
+  },
+  "terminal_lifecycle_design": {
+    "documentation_only": true,
+    "queued_cancel_is_immediate": true,
+    "running_cancel_response_state": "cancelling",
+    "late_success_can_overwrite_terminal": false,
+    "restart_replays_calls": false,
+    "exclusive_lock_before_recovery": true,
+    "precount_before_physical_attempt": true
+  }
+}

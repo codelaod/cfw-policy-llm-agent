@@ -1,82 +1,219 @@
-# 离线参考资料
+# 一手资料与核读索引
 
-本目录用于按用户要求保存适合纳入版本管理的选定资料，方便换机器后继续查阅；新增文件是否已提交以 Git 状态为准。阿里云正文于 2026-10-21 归档、2026-10-20 抓取；另于 2026-10-22 加入 MiniMax 协议自写核实摘要，两者均明确标注来源与日期。
+本文统一维护资料编号、来源与离线清单；保存核读日期和未验证范围，不代表当前产品价格／接口已实测。正文／摘要不作为依赖安装或真实调用授权。`python3 scripts/check_references.py`校验各清单文件的来源、大小与SHA-256。
 
-## 范围与来源
+## 1. 云平台资料
 
-- 包含 11 篇阿里云公开官方文档正文，见 [归档清单](aliyun/2026-10-20/manifest.json)；另有 1 份 [MiniMax 项目自写核实摘要](minimax/2026-10-22/openai-compatible-notes.txt) 和 [清单](minimax/2026-10-22/manifest.json)，不是 MiniMax 官方全文。
-- 保留提取正文，不保存网页导航、脚本和大段页面渲染数据。原始 HTML 仍可保留在忽略目录 `data/reference-cache/`，不是跨机器查阅的前提。
-- 正文中的地址或资源标识可能是官方接口示例，不是本项目采集的生产数据。
-- 第三方资料保留其原有来源与版权归属；仓库的 Apache License 2.0 不自动重新授权这些原文。不把本目录表述为阿里云官方离线发行包，也不扩大成整站镜像。
-- 这是特定日期的快照，不保证代表最新能力；EIP 入口较旧，已在清单标记。真实产品版本、账号权限和 API 返回仍须验证。
-- 后续增加第三方全文前核对来源条款；没有成功获取或尚未确认可保存的论文只保留引用，不混写成已有离线全文。
+| 编号 | 官方资料 | 本次用途与边界 |
+| --- | --- | --- |
+| A-01 | [阿里云云防火墙文档](https://help.aliyun.com/zh/cloud-firewall/) | 确认产品能力类别与资料入口 |
+| A-02 | [DescribeAssetList：查询资产列表](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describeassetlist) | 资产查询的候选接口；后续需验证公网资产与保护状态字段，不预设完整替代 ECS 资产 API |
+| A-03 | [DescribeControlPolicy：查询访问控制策略](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describecontrolpolicy) | 互联网边界策略读取的候选入口；方向、分页、引用对象和返回字段须实测 |
+| A-04 | [云防火墙按量付费 2.0](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/product-overview/pay-as-you-go) | 核对实例费、处理流量费、功能费与释放规则；账号若使用旧版则查对应说明 |
+| A-05 | [配置互联网边界访问控制策略](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/create-inbound-and-outbound-access-control-policies-for-the-internet-firewall) | 官方描述默认放行、策略顺序、观察动作与智能推荐；规则及建议必须考虑实际匹配语义 |
 
-## 本地校验
+初始阶段仅确认官方文档入口，不代表已调用接口。本轮补充了云防火墙地址簿、ECS、安全组等文档与字段映射，并下载相关公开页面；真实账号权限、返回数据、分页、计数窗口与产品版本能力仍待最小验证。详见 [云平台接入与能力映射](../research/cloud-capabilities.md)。
 
-从仓库根目录运行：
+产品自身已有“智能策略推荐”（A-05），其输入、可用版本和使用方式，与本论文拟实现系统的范围需要分别核对；文档入口的存在不能作为两者效果相同或本系统更优的证据。
 
-```bash
-python3 scripts/check_references.py
-```
+## 2. 模型与工具资料
 
-仅使用 Python 标准库，不联网、不安装包、不读取云或模型凭据。校验文件大小、SHA-256、来源信息和重复编号。
+| 编号 | 官方资料 | 本次用途与边界 |
+| --- | --- | --- |
+| M-01 | [OpenAI Chat Completions 接口](https://platform.openai.com/docs/api-reference/chat/create) | 建议作为首个兼容目标，待技术方案阶段确认；重点核对消息、工具定义、工具调用及结果回传，第三方服务的兼容程度须单独测试 |
+| M-02 | [Claude Code 概述](https://code.claude.com/docs/en/overview) | 明确 Claude Code 所在的编码 Agent 工具层次，后续与直接模型 API 适配分别讨论 |
 
-## 正文索引
+不在本阶段固定具体模型名或以某款编码工具代替系统自身的 Agent 设计。若增加 Anthropic 模型 API 适配，应补充官方 API 文档、认证方式、消息与工具协议的实际验证记录。
 
-| 快照 | 官方页面标题 |
-| --- | --- |
-| [cfw-api-overview](aliyun/2026-10-20/cfw-api-overview.txt) | 全部可调用接口功能参考大全-云防火墙-阿里云-云防火墙(Cloud Firewall)-阿里云帮助中心 |
-| [cfw-describe-asset-list](aliyun/2026-10-20/cfw-describe-asset-list.txt) | 使用DescribeAssetList查询资产列表-云防火墙-阿里云-云防火墙(Cloud Firewall)-阿里云帮助中心 |
-| [cfw-describe-control-policy](aliyun/2026-10-20/cfw-describe-control-policy.txt) | 使用DescribeControlPolicy查询访问控制策略-云防火墙-阿里云-云防火墙(Cloud Firewall)-阿里云帮助中心 |
-| [cfw-describe-address-book](aliyun/2026-10-20/cfw-describe-address-book.txt) | 使用DescribeAddressBook接口批量查询地址簿列表-云防火墙-阿里云-云防火墙(Cloud Firewall)-阿里云帮助中心 |
-| [cfw-internet-policy-guide](aliyun/2026-10-20/cfw-internet-policy-guide.txt) | 配置资产和互联网之间的双向流量的访问控制策略-云防火墙(Cloud Firewall)-阿里云帮助中心 |
-| [cfw-policy-matching](aliyun/2026-10-20/cfw-policy-matching.txt) | 访问控制策略的流量匹配原理-云防火墙(Cloud Firewall)-阿里云帮助中心 |
-| [cfw-strict-mode](aliyun/2026-10-20/cfw-strict-mode.txt) | 配置访问控制严格和宽松引擎模式-云防火墙(Cloud Firewall)-阿里云帮助中心 |
-| [cfw-native-security-agent](aliyun/2026-10-20/cfw-native-security-agent.txt) | 通过安全运营Agent配置访问控制策略-云防火墙(Cloud Firewall)-阿里云帮助中心 |
-| [ecs-describe-instances](aliyun/2026-10-20/ecs-describe-instances.txt) | 调用DescribeInstances API查询实例的详细信息列表-云服务器 ECS-阿里云-云服务器 ECS(ECS)-阿里云帮助中心 |
-| [ecs-describe-security-group-attribute](aliyun/2026-10-20/ecs-describe-security-group-attribute.txt) | 使用DescribeSecurityGroupAttribute查询指定安全组的属性及规则-云服务器 ECS-阿里云-云服务器 ECS(ECS)-阿里云帮助中心 |
-| [eip-describe-eip-addresses](aliyun/2026-10-20/eip-describe-eip-addresses.txt) | 调用DescribeEipAddresses接口查询指定地域已创建的EIP-阿里云帮助中心 |
+## 3. 后续需补齐的证据
 
-## 更新约定
+- 真实账号可用的云防火墙版本、防护边界、只读权限和完整采集字段。
+- 云防火墙与 ECS 的资产关联方式，及保护状态的含义。
+- 所选模型服务的工具调用兼容性、输出稳定性、上下文限制和费用。
+- 安全基线采用范围与例外仍需审核：本轮已核读 NIST 指南和厂商控制主题，细化映射见规则目录；监管规范或整体合规认证尚未选择。
+- 最终技术框架的官方资料和最小验证结论。
+- 与课题直接相关的论文和产品资料。开题时另做检索，当前不编造参考文献。
 
-新抓取资料放到新的日期目录，保留旧快照，避免静默覆盖实验依赖的资料。记录真实抓取日期、原始来源和校验值；不要因为文件在 Git 中就认为可以省略来源核实。
+## 4. 本轮云平台补充资料
+
+以下为 2026-10-20 的技术背景调研入口。A-02、A-03 与下列相关页面已进行正文缓存；下载不代表账号接入成功。EIP 入口较旧，实施前须核对当前 OpenAPI/SDK。
+
+| 编号 | 一手资料 | 本轮用途与核实边界 |
+| --- | --- | --- |
+| A-06 | [云防火墙 API 概览](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-overview) | 区分互联网、NAT、VPC 等边界能力，不把接口类别混用 |
+| A-07 | [DescribeAddressBook](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describeaddressbook) | 地址簿类型、成员和动态引用信息，展开结果仍须实测 |
+| A-08 | [云防火墙访问控制策略原理](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/how-access-control-policies-work-1) | 顺序、未命中默认放行、应用/域名等匹配语义 |
+| A-09 | [配置严格和宽松引擎模式](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/configure-the-strict-mode-of-the-internet-firewall) | 解释应用/域名识别与引擎模式的影响；只读采集路径尚未验证 |
+| A-10 | [通过安全运营 Agent 配置访问控制策略](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/configure-access-control-policies-through-security-operation-agent) | 核实原生大模型策略建议能力的存在和日志前提，不接受宣传效果为本项目实验结论 |
+| A-11 | [DescribeInstances](https://help.aliyun.com/zh/ecs/developer-reference/api-ecs-2014-05-26-describeinstances) | 2026-10-22 补核名称／标签／OS／地址／安全组／网卡上下文；可作自动线索，不证明运行服务、角色或业务授权，账号尚未实测 |
+| A-12 | [DescribeSecurityGroupAttribute](https://help.aliyun.com/zh/ecs/developer-reference/api-ecs-2014-05-26-describesecuritygroupattribute) | 2026-10-22 补核方向／协议／端口／动作／优先级与引用；允许入向配置可推断候选，实际组关联、分页与范围另验收 |
+| A-13 | [DescribeEipAddresses：旧版官方入口](https://help.aliyun.com/en/vpc/api-describeeipaddresses) | EIP 绑定线索与可下载性；不作为当前 SDK 兼容性证明 |
+| A-14 | [阿里云官方 Go 云防火墙 SDK](https://github.com/alibabacloud-go/cloudfw-20171207) | 核实官方仓库存在且未归档；未安装编译或冻结版本 |
+| A-15 | [阿里云官方 Go ECS SDK](https://github.com/alibabacloud-go/ecs-20140526) | 核实 Go 的 ECS 接入路线，不因此开放 SDK 的写方法 |
+| A-16 | [阿里云官方 Python SDK](https://github.com/aliyun/alibabacloud-python-sdk) | Python 候选路线；未在本项目验证具体服务包 |
+
+## 5. 语言、Agent 框架与终端入口
+
+均为项目官方文档或源码。除 Eino 及本轮固定的 OpenAI 兼容组件已有模拟/受限真实测试外，其余只核对接口与设计；不声称所有框架都已安装、兼容或完成许可审查。
+
+| 编号 | 一手资料 | 用途 |
+| --- | --- | --- |
+| M-03 | [OpenAI Agents SDK](https://developers.openai.com/api/docs/guides/agents-sdk/) | Python/TypeScript Agent SDK 候选，和模型 API SDK 分层看待 |
+| M-04 | [OpenAI 官方 API SDK](https://developers.openai.com/api/docs/libraries/) | 核实包括 Go 在内的模型 API 接入路线；不等于官方 Go Agent 框架 |
+| M-05 | [MiniMax 官方 OpenAI 兼容接口](https://platform.minimax.io/docs/api-reference/text-openai-api) | 本轮真实接入核实消息回传、思考字段与长度限制；有项目自写摘要，不能视为所有模型已兼容 |
+| F-01 | [Eino ChatModelAgent](https://www.cloudwego.io/docs/eino/core_modules/eino_adk/agent_implementation/chat_model/) | Go 模型—工具循环与配置入口 |
+| F-02 | [Eino ADK ChatModelAgent 源码](https://github.com/cloudwego/eino/blob/main/adk/chatmodel.go) | 核对迭代上限等实际配置；源码会变化，最终选型时再固定版本 |
+| F-03 | [Eino OpenAI 组件源码](https://github.com/cloudwego/eino-ext/blob/main/components/model/openai/chatmodel.go) | 核对 BaseURL、超时/HTTP 客户端配置，不据此宣称任意服务兼容 |
+| F-04 | [PydanticAI Agents](https://ai.pydantic.dev/agents/) | 类型化依赖、工具、输出和用量限制 |
+| F-05 | [LangGraph Overview](https://docs.langchain.com/oss/python/langgraph/overview) | 有状态编排、持久执行、流式与人工参与的适用场景 |
+| F-06 | [Google ADK Go 快速开始](https://google.github.io/adk-docs/get-started/go/) | Go Agent 的另一条候选路线；未在本项目验证实际模型适配 |
+| F-07 | [Eino OpenAI 兼容模型组件 v0.1.13](https://pkg.go.dev/github.com/cloudwego/eino-ext/components/model/openai@v0.1.13) | 本轮固定依赖的组件；结合 Eino v0.9.22 完成模拟与受限 MiniMax 实测 |
+| T-01 | [Bubble Tea](https://github.com/charmbracelet/bubbletea) | Go 终端 UI 候选 |
+| T-02 | [Textual](https://textual.textualize.io/) | Python 终端 UI 候选 |
+| T-03 | [Ink](https://github.com/vadimdemedes/ink) | React/JavaScript 终端 UI 候选 |
+
+## 6. 代表性论文与项目
+
+这是选型相关的初步检索，不是完整文献综述。只陈述本轮实际读取的资料和可借鉴方法，不转用外部实验数值，不声称已复现。
+
+| 编号 | 原始资料 | 本轮核实范围 |
+| --- | --- | --- |
+| P-01 | [Prowler 阿里云接入](https://docs.prowler.com/user-guide/providers/alibabacloud/getting-started-alibabacloud) | 官方文档中的云 API 只读采集路线 |
+| P-02 | [Prowler ECS 服务源码](https://github.com/prowler-cloud/prowler/blob/master/prowler/providers/alibabacloud/services/ecs/ecs_service.py) | 实际读取实例、安全组及规则的实现；未运行检查 |
+| P-03 | [NetConfEval: Can LLMs Facilitate Network Configuration? 作者公开论文](https://dejankosticgithub.github.io/documents/publications/netconfeval-conext24.pdf) | CoNEXT 2024 论文，核对任务分解和评估思路；[DOI](https://doi.org/10.1145/3656296) |
+| P-04 | [NetConfEval 作者仓库入口](https://github.com/sferlin/NetConfEval) | 查看说明与实验组织，未安装运行或复现 |
+| P-05 | [Natural Language Interface for Firewall Configuration](https://arxiv.org/abs/2512.10789) | 2025 年 arXiv 预印本；查看摘要和正文中的中间表示、解析/生成分层，不作已同行评审或阿里云适配声明 |
+| P-06 | [Batfish 官方快照差异与可达性文档](https://batfish.readthedocs.io/en/latest/notebooks/differentialQuestions.html) | 网络配置验证与分析的职责边界；未核实原生阿里云云防火墙支持 |
+| P-07 | [GOLLUM: A Framework for Automated Firewall Configuration Using Large Language Models](https://www.scitepress.org/Papers/2025/132219/132219.pdf) | 仅确认出版商检索条目；本轮全文获取未成功，待核读，不用于具体技术结论 |
+
+## 7. Git 中的离线副本与使用约定
+
+- 根据用户 2026-10-21 的要求，选定的 11 篇阿里云正文已归档到 [离线参考资料](README.md)，随 Git 保存，换机不必重新寻找。
+- 来源、真实抓取日期、正文大小与 SHA-256 见 `docs/references/aliyun/2026-10-20/manifest.json`；可运行 `python3 scripts/check_references.py` 离线校验。
+- 原始 HTML 仍在忽略目录 `data/reference-cache/2026-10-20/`，不是查阅正文的前提。自动提取文本不是官方 Markdown 导出，也不是官方离线发行包。
+- 第三方资料保留来源与原版权归属，不因纳入本仓库而重新授权。只归档已选定的公开资料，不扩大为全站镜像；论文与框架未下载全文的仍仅提供索引。
+- 按索引与关键词读取相关段落，不在每次模型请求中发送全部资料；缓存不保证零 token 或零费用。
+- Go + Eino 的独立离线集成验证见 [实验说明](../../experiments/eino-offline/README.md)；依赖由该 module 的 `go.mod`/`go.sum` 固定，不能把模拟模型实验当成真实模型或云接口验证。
 
 
-## 当前需求调研摘要（2026-10-22，需求 v0.3）
+## 8. 需求与架构文档方法参考
 
-当前 [清单](requirements-research/2026-10-22/manifest.json) 共 **19 份自写摘要**：v0.2 的 17 份中移除云安全中心候选摘要，补充 ECS／安全组／必要网卡的 3 份 API 核读摘要。A-23 编号停用，不在当前依赖或可选方案中；并未删除原有 11 篇官方正文。
+| 编号 | 一手资料 | 核实用途与边界 |
+| --- | --- | --- |
+| S-01 | [Philippe Kruchten：Architectural Blueprints—The “4+1” View Model of Software Architecture，作者稿](https://arxiv.org/abs/2006.04975) | 1995 年 IEEE Software 论文，作者于 2020 年归档；2026-10-22 核读。逻辑、进程、开发、物理视图与场景用于覆盖架构问题，不规定本项目必须拆成五份文档；本项目的组织建议见架构讨论第 8 节 |
 
-资料涉及阿里云防护／日志／ECS 元数据、NIST 指南、AWS 控制与标签、Google 规则分析、Microsoft 安全辅助及 ReAct。每份保留一手 URL、日期、范围、字节数和 SHA-256，**不是 19 篇新增官方全文**。11 篇原正文＋1 份 MiniMax 摘要＋19 份需求摘要，共 31 个当前校验条目；是否已提交以 Git 状态为准。
-
-产品使用方法见 [PRD](../16-product-requirements-and-user-flows.md)、[资产画像](../13-business-value-and-asset-profiles.md) 和 [规则目录](../14-security-baselines-and-rule-catalog.md)。接口字段已核读不等于账号权限／返回验收，不把配置端口当服务或授权证明。
-
-
-## 系统设计摘要（2026-10-22）
-
-新增 [9 份设计资料自写摘要及清单](architecture/2026-10-22/manifest.json)，包括 Go HTTP、Vue／Vite、SQLite／驱动、OWASP、工具协议、Eino 与 CFW 语义复核。保留原 URL、日期、范围与哈希，不是官方全文，不等于新依赖已安装或构建。
-
-当前共有 40 个文件校验条目：11 篇原正文＋1 份 MiniMax 摘要＋19 份需求摘要＋9 份设计摘要；不等于 40 个不同网站或全部已提交。历史自审中的 31 是当时实际数量。设计与未验证点见 [系统设计](../03-architecture-discussion.md) 和 [B0](../17-requirements-cross-review-and-design-baseline.md)。
+本次仅保存来源索引与项目自写的设计交付说明，未将论文全文下载或重新分发。需求依据与缺口见 [领域需求](../requirements/audit-domain.md)；当前没有选择或声称符合某个完整需求／架构标准。
 
 
-## 设计 v0.2 修订资料
+## 9. 业务价值、安全指南、角色与日志资料（2026-10-22）
 
-[新增 10 份摘要清单](design-revision/2026-10-22/manifest.json) 涵盖 Gin、GORM／纯 Go 适配／更新语义、Eino 会话与 Checkpoint、阿里云凭据与身份、MCP 授权；均是项目自写核读摘要，不是官方全文或项目构建／认证结果。当前共 50 个校验文件：原 40 项＋本轮 10 项；旧记录的 31／40 是当时实际数量。是否提交仍由 Git 状态证明，哈希检查本身不证明已推送。
+以下均为官方厂商、标准机构或作者公开资料。A-10 的当前入口已复核；原有 2026-10-20 快照保持原来源和日期，不冒称重新抓取。本轮归档 **19 份当前项目自写摘要**，含 A-10 复核，见 [清单](requirements-research/2026-10-22/manifest.json)；不是新增 19 篇官方全文，未下载／重分发整份标准、指南或论文。
+
+| 编号 | 一手资料 | 使用范围及限制 |
+| --- | --- | --- |
+| A-17 | [阿里云：互联网边界防火墙](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/internet-firewall) | 防护开关／范围；只说明该层当前状态，不证明历史或全层防护。 |
+| A-18 | [阿里云：入侵防御配置](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/prevention-configuration) | IPS 模式、误拦截与保护目标；实际只读获取路径未验证。 |
+| A-19 | [阿里云：云防火墙日志字段](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/log-fields) | 当前字段手册针对日志分析采集的数据。访问流量中的 acl_rule_id 与 IPS 日志的 rule_id、uuid 等含义不同，不能混用。需保留日志类别、动作、时间及关联，零记录不证明无访问。 |
+| A-20 | [阿里云：日志审计与日志分析的边界](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/log-audit) | 当前手册说明日志审计可查看最近七天；延长保存或导出原始数据需日志分析。可查询审计页面不等于具备原始导出能力。七天是该产品说明，不是本项目或 NIST 的统一观察／保留阈值；费用与账号条件另核实。 |
+| A-22 | [阿里云：安全组检查](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/check-security-group-rules) | 该功能针对 ECS 安全组的静态风险，包含远程管理和数据库等公网开放主题。项目只借鉴风险主题；不能把安全组检查结果或其阈值原样用于 CFW ACL，也不能把所有检查当通用强制规范。 |
+| A-24 | [阿里云：业务可视中的自定义分组](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/user-guide/custom-groups) | 官方东西向业务可视以业务区、应用组与应用组织访问关系，并可按端口区分同一 ECS 的不同应用。文档及版本适用性需区分；仅借鉴组织方法，不声称首版账号支持或调用分组写接口。 |
+| A-25 | [阿里云：Web 应用防火墙 3.0](https://help.aliyun.com/zh/waf/web-application-firewall-3-0/product-overview/what-is-waf) | WAF 面向 Web 应用的 HTTP/HTTPS 防护。项目只对已确认的公网 Web 服务给适用性核查，考虑前置入口／回源；不套用于数据库，不认为能替代全部网络控制。 |
+| B-01 | [NIST SP 800-41 Rev.1：防火墙及策略指南](https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-41r1.pdf) | 2009 年最终版，重点 §4 与 §5.2.3；原则依据，不伪造条文阈值。 |
+| B-02 | [NIST SP 800-207：零信任架构](https://csrc.nist.gov/pubs/sp/800/207/final) | 2020 年最终版，资源／上下文视角，不声称完成零信任系统。 |
+| B-03 | [AWS Security Hub CSPM：EC2 控制项](https://docs.aws.amazon.com/securityhub/latest/userguide/ec2-controls.html) | EC2.13／14／18／19 风险主题；不迁移 AWS 隐式拒绝及合规结论。 |
+| B-04 | [阿里云：ECS 安全性与最佳实践](https://help.aliyun.com/zh/ecs/user-guide/best-security-practices) | 官方要求识别、定义和分类信息资产，明确被保护数据及访问目的；给出网络隔离、标签管理和配置审计等方向。用作资产画像与最小暴露依据，不继承页面全部能力、历史调查数值或产品效果。 |
+| I-01 | [AWS：资源标签策略](https://docs.aws.amazon.com/whitepapers/latest/tagging-best-practices/building-your-tagging-strategy.html) | 标签策略与维护责任；具体画像字段及信任映射由本项目提议。 |
+| I-02 | [Google Cloud：Firewall Insights](https://docs.cloud.google.com/network-intelligence-center/docs/firewall-insights/concepts/overview) | 配置与使用分析的产品参考，不迁移厂商窗口或自动删规则。 |
+| I-03 | [Microsoft：使用安全 Copilot 理解安全建议](https://learn.microsoft.com/en-us/azure/defender-for-cloud/summarize-with-copilot) | 官方说明 Defender for Cloud 可通过 Copilot 将安全建议汇总为自然语言，辅助理解风险与决定整改方式；有产品和 SCU 等前提。不将其宣传效益或更广泛功能记作本项目已具备能力。 |
+| A-27 | [DescribeNetworkInterfaces](https://help.aliyun.com/zh/ecs/developer-reference/api-ecs-2014-05-26-describenetworkinterfaces) | 必要时补实例／网卡／安全组关系，限制所选资产与地域，不默认做全网络拓扑；只核读文档，未调用账号 |
+| P-08 | [ReAct：推理与行动结合的方法论文](https://arxiv.org/abs/2210.03629) | 模型与工具反馈的方法参考，不是安全基线或本项目效果证明。 |
+
+规则的产品语义、安全原则、厂商控制主题、项目政策及业务授权须分别记录。出处存在不代表本项目符合全部标准；采用范围、角色确认和 M1 日志增强仍需用户审核。映射与判据见 [规则目录](../requirements/rule-catalog.md)，行业与资产角色方案见 [研究说明](../requirements/business-context.md)。
+
+需求 v0.3 已按用户要求移除云安全中心资料及接入／客户端依赖；A-23 编号停用、不复用。新增 A-11／A-12 的本轮自写核读摘要及 A-27，当前需求研究清单共 19 份。旧官方正文日期不变，真实接口与费用／账号能力不由文档存在性证明。
 
 
-## 2026-10-26：范围复审与原型辅助工具
+## 10. 系统设计一手资料（2026-10-22）
 
-[scope-and-prototype/2026-10-26/manifest.json](scope-and-prototype/2026-10-26/manifest.json) 包含 8 份自写摘要：互联网出向字段、NAT ACL、设计／界面／浏览器技能与 Figma／Stitch 接入前提。不保存第三方全文、私有数据或账号凭据；关注量不是单技能使用人数。
+[设计摘要清单](architecture/2026-10-22/manifest.json) 保存 9 份自写核读摘要：下列 7 个新索引及已有 F-01／A-08 的本轮设计复核；不是官方全文，也不代表新增依赖已安装／构建。
+
+| 编号 | 一手资料 | 本项目使用边界 |
+| --- | --- | --- |
+| D-01 | [Go net/http](https://pkg.go.dev/net/http) | 标准 HTTP／上下文与请求边界；不等于业务服务已实现 |
+| D-02 | [Vue 3 官方指南](https://vuejs.org/guide/introduction.html) | 已批准Vue／TypeScript方案的依据；正式构建未验收 |
+| D-03 | [Vite 官方指南](https://vite.dev/guide/) | 前端开发／静态构建路线；实施时固定兼容版本／锁文件 |
+| D-04 | [modernc.org/sqlite 维护者文档](https://pkg.go.dev/modernc.org/sqlite) | CGO-free 驱动路线；依赖配套与平台构建未验证 |
+| D-05 | [SQLite Isolation](https://sqlite.org/isolation.html) | 单写事务、日志模式与隔离边界；小规模单机不默认 WAL／共享盘 |
+| D-06 | [OWASP REST Security Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/REST_Security_Cheat_Sheet.html) | 访问／状态／输入控制依据，不等于安全认证 |
+| M-06 | [OpenAI 官方工具调用指南](https://developers.openai.com/api/docs/guides/function-calling) | 应用执行工具与结果回传；第三方及协议字段兼容需单独验证 |
+
+方案、版本和未验证点见 [系统设计](../design/architecture.md)、[数据接口](../design/data-and-api.md) 与 [规则／Agent](../design/audit-and-agent.md)。MiniMax 的协议限制继续使用 M-05 与真实记录，不因 OpenAI 官方文档存在而推导任意兼容。
 
 
-## 2026-10-26：B2 技术设计
+## 11. 设计 v0.2：框架、会话与外部认证资料
 
-[b2-technical-design/2026-10-26/manifest.json](b2-technical-design/2026-10-26/manifest.json) 包含 12 份自写摘要：当前 NAT API／来源核验、固定官方 SDK 类型与 context、CFW 匹配、正式前端组件／路由、SQLite／GORM／纯 Go 适配及工具调用边界。不是 SDK 构建、云端接入或业务效果验证。
+本轮新增 [10 份自写摘要及清单](design-revision/2026-10-22/manifest.json)，不复制官方全文，不等于已安装依赖／认证成功。Eino 另只读核对已缓存固定 v0.9.22 的 RunnerConfig／Run，业务存储与恢复能力分开。
+
+| 编号 | 一手资料 | 使用边界 |
+| --- | --- | --- |
+| D-07 | [Gin 文档](https://gin-gonic.com/en/docs/) | Web API／中间件，非 Agent；不能照抄默认监听／日志 |
+| D-08 | [GORM 连接](https://gorm.io/docs/connecting_to_the_database.html) | 默认 CGO 与社区纯 Go 路线区分，正式适配尚未构建 |
+| D-09 | [libtnb/sqlite 维护者仓库](https://github.com/libtnb/sqlite) | 基于 modernc 的社区 GORM 适配，不是官方驱动／本项目已验证 |
+| D-10 | [GORM 更新](https://gorm.io/docs/update.html) | 零值、显式字段与条件更新，不直接 Save 历史 |
+| F-08 | [Eino 会话／存储示例](https://www.cloudwego.io/docs/eino/quick_start/chapter_03_memory_and_session/) | 业务 Store 管会话／消息，不规定数据库或 ORM |
+| F-09 | [Eino Runner 与恢复](https://www.cloudwego.io/docs/eino/core_modules/eino_adk/agent_extension/) | CheckPointStore 可选，执行状态不等于产品历史 |
+| A-28 | [Go SDK 凭据配置](https://help.aliyun.com/zh/sdk/developer-reference/v2-manage-go-access-credentials) | 显式身份／STS／角色路线，静态 token 不自动续期 |
+| A-29 | [credentials-go 官方仓库](https://github.com/aliyun/credentials-go) | 选定 Provider 与链路，不复制打印密钥的示例或无条件默认链 |
+| A-30 | [GetCallerIdentity](https://help.aliyun.com/zh/ram/developer-reference/api-sts-2015-04-01-getcalleridentity) | 核对调用身份／账号；不编造页面未透出的最小授权信息 |
+| X-01 | [MCP 授权规范 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization) | HTTP／stdio 与 token 受众边界，非首版必需、非云身份替代 |
+
+用户使用流程、时效与跨入口引导是本项目需求／设计选择；源码／文档存在不证明产品已交付。见 [20](../design/session-and-execution.md)、[21](../design/credentials-and-permissions.md)、[22](../design/guidance-and-entrypoints.md)。
 
 
-## 2026-10-27：整体设计复核
+## 12. 2026-10-26：出向／NAT 范围与原型工具
 
-[design-review/2026-10-27/manifest.json](design-review/2026-10-27/manifest.json) 为一份 HTTP 条件请求／业务修订契约的自写摘要。既有资料历史不重写，设计规则和真实集成验收继续分开。
+新增 [8 份自写摘要与来源校验](scope-and-prototype/2026-10-26/manifest.json)，关联 [CR-1 复审](../requirements/system.md)。S-01 为互联网策略方向，S-02 为 NAT 边界 ACL，S-03～S-08 为设计技能、界面审查、Codex 技能、Figma、Stitch 和浏览器验证。
 
-## 2026-10-27：UI／SSE 设计 v0.5
+来源支持产品或工具的公开能力，不证明本项目已实现。技能仓库关注量不等于单项技能评分；Stitch 的 Google Labs 仓库说明不属于 Google 正式支持产品。没有进行云调用、模型调用、Figma／Stitch 登录或项目上传。
 
-[ui-and-sse/2026-10-27/manifest.json](ui-and-sse/2026-10-27/manifest.json) 新增 7 份自写摘要：Nuxt UI v4 的 Vue/Vite、组件定位与消息展示、SSE 格式、Gin 示例、Tailwind 浏览器边界与 fetch 流式读取。旧 Element Plus 资料作为历史保留。哈希检查不证明实际框架构建、互操作或已发布。
+
+## 13. 2026-10-26：B2 技术设计 v0.3
+
+新增 [12 份一手资料自写摘要及校验清单](b2-technical-design/2026-10-26/manifest.json)，不复制厂商全文或将 SDK 源文件纳入仓库。
+
+| 编号 | 资料范围 | 核实用途与限制 |
+| --- | --- | --- |
+| T-01／02 | 当前 NAT 策略与防火墙查询 | 方法／分页／状态／RAM 动作；不是实际账号验收 |
+| T-03／04 | API 概览／固定 SDK 来源 | 核对操作与控制面；不按猜测名称推断存在／新旧或废弃 |
+| T-05 | 官方 Go SDK 固定源码提交 | 请求／响应类型与 WithContext 路线；未编译、未验证实际取消／重试 |
+| T-06 | CFW 匹配原则 | 优先级、默认、模式与高级条件；必须绑定适用分区 |
+| T-07／08 | Element Plus、Vue Router | 正式前端组件与路由建议；未安装／构建 |
+| T-09／10／11 | SQLite、GORM、社区纯 Go 适配 | 外键／零值／版本约束与驱动门槛；不宣称项目集成通过 |
+| T-12 | OpenAI 工具调用 | 应用执行／回传边界；不推导第三方完整兼容 |
+
+设计入口见 [03](../design/architecture.md)、[25](../design/aliyun-collector.md) 和 [26](../validation/verification-plan.md)。本轮没有真实云／模型调用或新增正式依赖。
+
+
+## 14. 2026-10-27：整体技术设计复核
+
+[D4-01 自写摘要及校验](design-review/2026-10-27/manifest.json) 记录 RFC 9110 条件请求与应用修订 CAS 的区别；v0.4 选择显式 expected_revision 动作契约，不假装实现了 ETag／If-Match。既有 T-09 的 SQLite 每连接外键要求也重新核对；这不是数据库或 HTTP 服务测试。
+
+## UI／SSE 设计 v0.5 核实（2026-10-27）
+
+用户已确认前端组件与事件传输方向。以下一手资料只证明接口／组件入口，不代表本项目已经构建或通过真实 SSE 验收。旧 Element Plus 来源保留为历史方案依据，不继续作为当前采用的 UI 栈。
+
+| 编号 | 来源摘要 | 本轮用途 |
+| --- | --- | --- |
+| D5-01 | [Nuxt UI v4 Vue/Vite](ui-and-sse/2026-10-27/d5-01.md) | 不依赖 Nuxt 框架；路由与图标构建集成 |
+| D5-02 | [Nuxt UI 定位](ui-and-sse/2026-10-27/d5-02.md) | 单组件体系与工作区／聊天候选 |
+| D5-03 | [ChatMessages](ui-and-sse/2026-10-27/d5-03.md) | 消息／状态映射，不引入示例后端 |
+| D5-04 | [WHATWG SSE](ui-and-sse/2026-10-27/d5-04.md) | 线格式、原生 EventSource 参数与鉴权差异 |
+| D5-05 | [Gin SSE](ui-and-sse/2026-10-27/d5-05.md) | 流式发送入口，不等于生产方案 |
+| D5-06 | [Tailwind v4 兼容](ui-and-sse/2026-10-27/d5-06.md) | 现代浏览器基线 |
+| D5-07 | [Fetch 流式读取](ui-and-sse/2026-10-27/d5-07.md) | 请求头、响应流、中止与应用级恢复 |
+
+完整设计与待验收边界见 [29](../design/frontend-and-events.md)，[清单](ui-and-sse/2026-10-27/manifest.json)记录摘要哈希；没有下载 Nuxt UI、Tailwind 或解析库依赖。
+
+## 小并发、接口文档与DFX核读（2026-10-27）
+
+[D6摘要清单](dfx-and-api/2026-10-27/manifest.json)保存4份官方一手资料核读：SQLite WAL、Swag生成规范、SQLite备份和Go连接池。仅为普通SQLite／接口设计依据，不代表构建／并发／生成器验收，也不据此新增存储专项框架。对应设计见[31](../design/architecture.md)。

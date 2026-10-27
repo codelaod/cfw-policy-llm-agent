@@ -1,119 +1,45 @@
 # 基于大模型智能体的云防火墙策略审计与推荐系统设计与实现
 
-本仓库用于论文研究与系统实现。系统以云防火墙策略审计为业务主线，以大模型 Agent 为实现方法，围绕云资产、访问控制策略和业务访问需求，完成风险识别、证据补查、配置推荐与审计报告生成。
+以云防火墙策略审计为业务主线，以受限大模型Agent完成工具选择、证据补查、解释与条件推荐；结果由人审阅并在云端手动整改。
 
-当前处于 **P2 系统设计阶段：需求 v0.6／B2 已于 2026-10-26 获用户确认，系统设计已按稳定 B2 及补充验收整体复核为 v0.5，待用户 G2**。按用户“交叉审核无关键问题后进入设计”的条件授权，需求 v0.5／B1 此前作为设计输入；本轮用户明确“需求算过了”，据此采用 B2，不是用户沉默或技术验证代替批准。正式业务系统仍未实现。已有 Go + Eino 与两个 MiniMax 小样例仅为前期证据，不证明完整协议、审计效果或云端接入。
+**当前进度：需求v0.6／B2与整体设计v0.6均已审核通过，正式业务系统尚未实现，下一阶段为E0依赖与契约验证。** 已有Go＋Eino实验和离线原型只是前期证据，不代表正式后端、前端或真实云接入验收。
 
-2026-10-27 按用户授权完成开题对应的需求补漏，沿用 B2：明确模型能力验收、审阅记录保存、20～30 个人工评价案例与单台 ECS 串行复用、对照统计及最低真实复审。改动与 review 过程见 [对齐记录](docs/25-proposal-requirements-alignment-review.md)；本轮没有调整系统设计、业务范围或开题正文。
+## 文档入口
 
-本轮（2026-10-26）新增 [出向／NAT 范围复审与原型 v0.2](docs/24-scope-expansion-and-prototype-review.md)：用户已确认需求 v0.6／PRD v0.4，**将 CR-1 的有限出向／NAT ACL 纳入 B2；正式视觉／组件、架构与技术取舍仍待 G2**。
+完整分类与阅读顺序见 **[项目文档导航](docs/README.md)**。
 
-## 已确认的方向
-
-- 论文面向本科毕业或一般硕士工程实践的工作量，重视完整实现与可验证结果，不追求复杂算法创新。
-- 首个适配云平台为阿里云，演示使用云防火墙和 ECS；真实环境计划集中开通、集中验证。
-- 首版只读取配置、开展审计和提供推荐；由人确认并在云平台手动应用策略。
-- 不接入云安全中心、不依赖其客户端或采集；轻量标注结合 ECS／安全组自动线索、候选推断和用户确认。
-- 优先实现前后端分离的 Web 系统；CLI 作为可选后续入口。
-- 模型接入优先兼容 OpenAI 接口规范；当前设计建议非流式 Chat Completions 与已有模型配置，正式协议／框架采用仍待 G2。
-- 云防火墙业务与 Agent 工程并行设计。用审计结果体现系统价值，用工具选择、证据补查和执行记录体现 Agent 的实际作用。
-
-## 已确认的首版需求范围（B2）
-
-B2 保留互联网入向闭环，并纳入有限互联网出向和 NAT 边界 ACL；不扩展为完整 SNAT／DNAT 转换审计、跨云／跨 VPC 可达矩阵。统一流程为：读取公网资产和防护状态 → 关联访问控制策略与业务意图 → 执行规则检查和 Agent 补查 → 生成有依据的推荐与报告 → 人工修改后重新审计。
-
-同时支持离线快照和真实只读采集。离线模式用于开发和重复实验，真实模式用于验证云平台接入；实际字段、产品版本和账号能力在后续真实只读验收核实，不阻止当前设计文档。
-
-## 文档导航
-
-| 文档 | 用途 |
+| 目的 | 入口 |
 | --- | --- |
-| [项目定位与论文主线](docs/01-project-overview.md) | 研究问题、双主线关系、论文结构与贡献边界 |
-| [论文开题报告与文献资料](docs/thesis-proposal/README.md) | Markdown正文、15篇文献导读与审阅记录；不维护Word／PDF副本 |
-| [系统需求规格说明书 v0.6／B2](docs/02-requirements-and-scope.md) | 需求已确认；继承 B1 并纳入有限出向／NAT，设计待 G2 |
-| [审计领域需求 v0.6／B2 附件](docs/12-audit-domain-requirements.md) | 保留 B1 语义，补充 CR-1 分边界判据与资料缺口要求 |
-| [业务价值与资产画像](docs/13-business-value-and-asset-profiles.md) | 行业与 AI 背景、人工／标签／指纹方案、角色与组件的条件建议 |
-| [安全基线与规则目录](docs/14-security-baselines-and-rule-catalog.md) | NIST／厂商主题映射、CHK-01～12、优先级、日志边界和新增验收案例 |
-| [v0.3 历史自审](docs/15-requirements-self-review.md) | 自审发现、文档修正、离线检查与仍待用户审核事项；不是批准或业务测试 |
-| [产品 PRD v0.4 与使用流程](docs/16-product-requirements-and-user-flows.md) | 五个轻量视图、自动证据与对话确认、审阅复审、失败分支和验收追溯 |
-| [交叉审核与 B0](docs/17-requirements-cross-review-and-design-baseline.md) | 22 项问题／风险处置、设计默认与条件授权边界 |
-| [数据与 API 设计](docs/18-data-and-api-design.md) | 版本、确认事务、任务幂等、私有数据、错误及报告契约 |
-| [规则与 Agent 设计](docs/19-audit-and-agent-design.md) | 三值匹配／区间计算、工具与输出边界、预算和验证矩阵 |
-| [会话历史与数据时序](docs/20-session-history-and-data-freshness.md) | 持续对话、框架恢复边界、缓存／刷新、累计耗时与分层反馈 |
-| [凭据与专用工具认证](docs/21-credentials-and-tool-auth-design.md) | 启动／环境／STS／角色、期望账号、SDK 与 MCP 边界 |
-| [跨入口推荐引导](docs/22-guidance-and-multi-entry-design.md) | Web／CLI／TUI 共用短语、空态／续聊／失败下一步和副作用 |
-| [B2 边界与阿里云采集设计](docs/25-boundary-and-aliyun-collector-design.md) | 当前 NAT API／来源核验、分区身份、分页／模式／缓存与取消设计 |
-| [G2 整体系统设计审核包](docs/30-g2-system-design-review-package.md) | 用户审核主入口：阶段状态、逐项决策、阻塞项、待实测项、研发分期与可直接回复的确认清单 |
-| [整体架构与技术复核 v0.5](docs/27-architecture-and-technical-design-review.md) | 稳定 B2 的问题修订、完整需求追溯、G2 门槛与检查结果 |
-| [前端组件与 SSE 设计](docs/29-frontend-and-sse-design.md) | 用户已确认 Nuxt UI v4＋Tailwind 方向；带鉴权事件流、恢复、兜底与原型边界 |
-| [评价执行与真实整改复审设计](docs/28-evaluation-and-real-validation-design.md) | 三组公平对照、20～30 独立人工案例、串行复用及最低真实闭环 |
-| [历史 v0.3 审查与实施计划](docs/26-design-v03-review-and-implementation-plan.md) | 保留上一版取舍与 B2 验证计划；当前 G2 入口见 27 |
-| [出向／NAT 范围复审与原型改进](docs/24-scope-expansion-and-prototype-review.md) | CR-1／B2 确认记录、联动文档、设计工具与原型验证边界 |
-| [开题与需求对齐复核](docs/25-proposal-requirements-alignment-review.md) | B2 补漏、资源复用约束、改动记录与两轮 review |
-| [v0.2 Review 与发布核对](docs/23-design-v02-review-and-publication.md) | 迭代检查、修复、回归、隐私／署名和发布授权边界 |
-| [离线交互原型 v0.3](docs/prototypes/audit-workflow/index.html) | 人工数据交互演示，不接 API／模型，不是正式前端；[说明](docs/prototypes/audit-workflow/README.md) |
-| [系统设计说明书 v0.5](docs/03-architecture-discussion.md) | G2 待审：B2 分区／前端／采集方案、模块、安全与追溯 |
-| [实验与演示方案](docs/04-evaluation-and-demo.md) | 对照实验、标注、真实云环境验证与费用管理 |
-| [阶段计划与决策记录](docs/05-roadmap-and-decisions.md) | 已确认事项、未定问题、实施顺序与下一次讨论重点 |
-| [官方资料与核实记录](docs/06-references.md) | 接口及产品资料来源、核实边界 |
-| [技术背景与选型评估](docs/07-technical-background-and-options.md) | Go/Python/TS、Agent 框架、未来 TUI 与代表性论文/项目 |
-| [云平台接入与能力映射](docs/08-cloud-integration-and-capability-map.md) | 分层只读 API、实际字段、支持边界与离线资料缓存 |
-| [离线验证记录](docs/09-offline-validation-record.md) | 固定依赖、实际通过的检查及未验证范围 |
-| [换环境开发交接](docs/10-environment-handoff.md) | 当前进度、迁移边界、新环境恢复步骤与下一任务 |
-| [MiniMax 真实模型初测](docs/11-live-model-validation.md) | 4 次真实请求、两个案例、保护措施与未验证范围 |
-| [离线参考资料](docs/references/README.md) | 11 篇官方正文＋1 模型／19 需求／9 初版设计／10 修订／8 范围及原型／12 B2 技术／1 整体复核／7 UI 与 SSE 摘要，附来源与校验清单 |
+| 看业务定位和当前决定 | [项目定位](docs/project/overview.md)／[批准决策](docs/project/decisions.md) |
+| 看已确认需求与产品流程 | [系统需求](docs/requirements/system.md)／[PRD](docs/requirements/product.md) |
+| 看整体方案与详细契约 | [系统架构](docs/design/architecture.md)／[数据与API](docs/design/data-and-api.md) |
+| 开始下一阶段研发 | [实施计划](docs/development/implementation-plan.md)／[开发交接](docs/development/handoff.md) |
+| 看验证要求和已有证据 | [验证计划](docs/validation/verification-plan.md)／[评价计划](docs/validation/evaluation-plan.md) |
+| 查来源与论文材料 | [一手资料](docs/references/README.md)／[开题文稿](docs/thesis-proposal/README.md) |
 
-## 开始实现前
+## 已批准的边界
 
-仓库协作约定见 [AGENTS.md](AGENTS.md)。
+- 阿里云优先：互联网入向、有限出向、NAT边界ACL；单账号、显式有限地域／资产。不扩多云、复杂路径矩阵或完整SNAT／DNAT转换审计。
+- 云端只读；人工确认业务资料、手动应用策略，再重新采集／复审。不接云安全中心，不做自动下发、多Agent协作或微服务平台。
+- 单Go服务支持3个不同会话同时推进，同会话1个活动任务；纯Go SQLite WAL＋普通连接池，不为小数据量自研写调度或强制读写分池。
+- Go／Gin／Eino；Vue／TS／Vite／Router／Nuxt UI v4／Tailwind；带应用访问头的fetch SSE＋轮询兜底。上游模型暂为非流式Chat Completions兼容适配。
+- 20～30独立人工案例不等于VM数量；真实验证优先同一台ECS／同一套防火墙串行复用，至少一次真实人工整改复审不能用离线替代。
 
-按用户要求执行两道审核门槛：**需求主文档＋必要领域需求 → 用户确认需求基线（G1）→ 系统设计 → 用户审核设计（G2）→ 正式业务实现**。本轮已完成交叉审核并按条件授权进入设计；本轮已确认需求 B2，设计 v0.5 已完成整体复核与修订，下一步审核 G2，不是业务编码或追加真实调用。此前一次普通推送授权已执行完毕；用户现已授权本轮累计设计／原型和 G2 审核包的一次本地提交，不包含推送，不重复消费本次或旧授权。
+设计通过不等于实际功能或真实接口已验收，也不自动产生付费请求、云写、采购或后续提交推送授权。协作规则见[AGENTS](AGENTS.md)。
 
-最终验收包含真实只读采集、资产关联和至少一次人工整改后重新采集／审计的闭环；优先复用同一台 ECS 和同一套云防火墙串行验证，不按人工案例数量创建实例。具体版本、字段、权限、必要关联资源和预算在设计／集成阶段核实，离线结果不替代真实验收；当前不自动追加模型或云 API 请求。
+## 现有可运行内容
 
-本轮补充了技术背景调研：结合 Go 高于 Python、高于 Node.js 的熟悉度与未来 TUI 需求，建议先验证 Go + Eino，Python + PydanticAI 作为备选；云接入建议以云防火墙为核心，有限补充 ECS/安全组。上述仍是候选建议，未完成选型或实际接口验证。
+- [Go＋Eino独立实验](experiments/eino-offline/README.md)：模拟模式、受限真实模型适配、私有配置规则及实际验证边界。
+- [离线交互原型](docs/prototypes/audit-workflow/README.md)：原生HTML／CSS／JS、人工数据、内存事件模拟，不是正式组件工程。
 
-## 技术设计审核入口
-
-建议先看 [G2 整体系统设计审核包](docs/30-g2-system-design-review-package.md)，由其中的逐项决策与确认清单完成审核；需要核对依据时再看 [整体架构与技术复核](docs/27-architecture-and-technical-design-review.md)，并按 03 → [前端与 SSE 29](docs/29-frontend-and-sse-design.md) → 18 → 19／边界采集 → 20／21／22 → 28 深入阅读。需求 B2 已通过，UI／SSE 方向已局部确认，整体设计 G2 尚未通过；没有创建正式工程、安装新依赖或调用云／模型。
-
-可运行的纯文档检查：`python3 scripts/check_design_docs.py`、`python3 scripts/check_references.py`。前者检查链接、围栏、JSON 示例、范围和预算结构，不执行规则语义或业务测试。
-
-## 已可运行的最小离线验证
-
-详见 [实验说明](experiments/eino-offline/README.md)。当前仅是模拟模型驱动的集成验证，不是正式系统命令。
+仓库根目录可运行的文档／原型检查：
 
 ```bash
-# 首次需要联网下载固定依赖；不修改全局 Go 配置。
-bash scripts/eino-offline.sh prepare
-# 准备后关闭模块联网执行，不需要模型密钥或云账号。
-bash scripts/eino-offline.sh test
-bash scripts/eino-offline.sh run
-# 可选的资料完整性校验：Python 标准库，不联网。
+python3 scripts/check_design_docs.py
 python3 scripts/check_references.py
+node docs/prototypes/audit-workflow/prototype-smoke.cjs
 ```
 
-## 填写模型服务配置
+模型私有配置保留在被忽略的`.env.local`，空白模板为[.env.example](.env.example)；仅通过`bash scripts/eino-offline.sh config-check`查看脱敏摘要，不发送请求。正式业务系统尚无安装、构建或启动命令，不用实验命令冒充。
 
-本地在仓库根目录 `.env.local` 填写 `CFW_MODEL_BASE_URL`、`CFW_MODEL_API_KEY` 和 `CFW_MODEL_NAME`；该文件被 Git 忽略。可分享的空白模板见 [`.env.example`](.env.example)，详细规则见 [实验配置说明](experiments/eino-offline/README.md)。
-
-```bash
-# 仅检查并输出脱敏摘要，不发送模型请求。
-bash scripts/eino-offline.sh config-check
-```
-
-配置入口与非流式 Chat Completions 实验适配器已实现；默认离线样例和 `config-check` 仍不发真实请求。MiniMax 初测的准确范围见 [记录](docs/11-live-model-validation.md)，不能泛化为所有协议或模型均兼容。
-
-## 显式真实模型实验
-
-仅在已获授权并确认单次/整组预算时执行；输入仍是人工样例，不连接云账号：
-
-```bash
-bash scripts/eino-offline.sh live -provider minimax -allow-paid-requests -scenario whitelist
-```
-
-`live` 必须显式允许请求；每次命令独立计数，不是全账户或跨命令总预算。当前只支持非流式 Chat Completions，Responses 明确拒绝。详见 [实验说明](experiments/eino-offline/README.md)。
-
-已实测 Go 1.26.10、Eino v0.9.22 与模型组件 v0.1.13。正式 Web 和云采集命令尚未实现，不用实验命令代替。
-
-许可证沿用仓库已有的 [Apache License 2.0](LICENSE)。
+许可证：[Apache License 2.0](LICENSE)。

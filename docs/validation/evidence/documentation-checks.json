@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "date": "2026-10-27",
+  "design_version": "0.6",
+  "scope": "documentation_governance_only",
+  "status": "passed",
+  "requirements_gate": "G1_passed",
+  "design_gate": "G2_passed",
+  "structure": {
+    "docs_root_markdown_before": 32,
+    "docs_root_markdown_after": 1,
+    "extra_approval_snapshots_retained": false,
+    "history_mechanism": "Git"
+  },
+  "checks": [
+    {
+      "command": "python3 scripts/check_design_docs.py",
+      "status": "passed",
+      "local_links": 235,
+      "design_json_blocks": 4,
+      "acceptance_scope_mappings": 25
+    },
+    {
+      "command": "python3 scripts/check_references.py",
+      "status": "passed",
+      "reference_files": 82
+    },
+    {
+      "command": "node docs/prototypes/audit-workflow/prototype-smoke.cjs",
+      "status": "passed",
+      "scope": "existing minimal-DOM offline prototype checks only"
+    },
+    {
+      "command": "git diff --check",
+      "status": "passed"
+    },
+    {
+      "name": "Approved FR/NFR/AC clauses preserved during editorial migration",
+      "status": "passed",
+      "requirement_rows": 50
+    },
+    {
+      "name": "Thesis, bibliography, model evidence, latest browser evidence and prototype HTML preserved",
+      "status": "passed"
+    }
+  ],
+  "formal_business_tests_executed": false,
+  "new_browser_tests_executed": false,
+  "formal_concurrency_tested": false,
+  "formal_api_generated": false,
+  "real_cloud_or_model_called": false,
+  "dependencies_installed": false
+}

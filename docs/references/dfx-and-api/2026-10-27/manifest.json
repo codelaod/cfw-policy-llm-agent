@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "documents": [
+    {
+      "id": "D6-01",
+      "title": "SQLite WAL、小并发与引擎修复门槛",
+      "url": "https://www.sqlite.org/wal.html",
+      "retrieved_date": "2026-10-27",
+      "text_file": "d6-01.md",
+      "text_bytes": 556,
+      "text_sha256": "d4dff3db212be14ef4393992fd162363b0eb9d7b0caaf2b5cf41ef7c9e9d596b"
+    },
+    {
+      "id": "D6-02",
+      "title": "Swag 注释生成与规范版本",
+      "url": "https://github.com/swaggo/swag",
+      "retrieved_date": "2026-10-27",
+      "text_file": "d6-02.md",
+      "text_bytes": 496,
+      "text_sha256": "a25b26bbdba0804bb5be2e52670586ff5abfb0b4bbe67fd0e208e42c67b4c341"
+    },
+    {
+      "id": "D6-03",
+      "title": "SQLite 一致备份",
+      "url": "https://www.sqlite.org/backup.html",
+      "retrieved_date": "2026-10-27",
+      "text_file": "d6-03.md",
+      "text_bytes": 432,
+      "text_sha256": "0ec14f51bda473f5372c467419606a549bb556479e2c1fb763b0702ef0963ff9"
+    },
+    {
+      "id": "D6-04",
+      "title": "Go SQL 连接池与死锁边界",
+      "url": "https://go.dev/doc/database/manage-connections",
+      "retrieved_date": "2026-10-27",
+      "text_file": "d6-04.md",
+      "text_bytes": 518,
+      "text_sha256": "4d2b03c497bc014fad7572478504dfd5f47b6bc31a766e1f0cdc2f82b03867a5"
+    }
+  ]
+}

@@ -3,18 +3,13 @@
 from __future__ import annotations
 
 import json
-import hashlib
 import re
 from datetime import datetime
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
 ROOT = Path(__file__).resolve().parents[1]
-DESIGN_DOCS = ["03-architecture-discussion.md", "18-data-and-api-design.md",
-               "19-audit-and-agent-design.md", "20-session-history-and-data-freshness.md",
-               "21-credentials-and-tool-auth-design.md", "22-guidance-and-multi-entry-design.md",
-               "25-boundary-and-aliyun-collector-design.md", "26-design-v03-review-and-implementation-plan.md",
-               "27-architecture-and-technical-design-review.md", "28-evaluation-and-real-validation-design.md", "29-frontend-and-sse-design.md"]
+DESIGN_DOCS = {p.name for p in (ROOT / "docs/design").glob("*.md")}
 
 
 def require(value: bool, message: str) -> None:
@@ -24,7 +19,7 @@ def require(value: bool, message: str) -> None:
 
 def check_markdown() -> tuple[int, int]:
     links = json_blocks = 0
-    paths = [ROOT / "README.md", ROOT / "AGENTS.md", *(ROOT / "docs").rglob("*.md")]
+    paths = [ROOT / "README.md", ROOT / "AGENTS.md", *(ROOT / "docs").rglob("*.md"), *(ROOT / "experiments").rglob("*.md")]
     for path in paths:
         text = path.read_text(encoding="utf-8")
         prose: list[str] = []
@@ -49,7 +44,7 @@ def check_markdown() -> tuple[int, int]:
             if target:
                 links += 1
                 require((path.parent / target).exists(), f"missing link: {path.relative_to(ROOT)} -> {target}")
-        if path.parent == ROOT / "docs" and path.name in DESIGN_DOCS:
+        if path.parent == ROOT / "docs/design" and path.name in DESIGN_DOCS:
             require("G2" in text, f"missing G2 status: {path.name}")
             for block in re.findall(r"```json\s*\n(.*?)\n```", text, re.S):
                 json.loads(block)
@@ -64,10 +59,10 @@ def index(items: list[dict], label: str) -> dict[str, dict]:
 
 
 def check_examples() -> None:
-    data = json.loads((ROOT / "docs/design-examples/b2-contract-examples.json").read_text(encoding="utf-8"))
+    data = json.loads((ROOT / "docs/validation/fixtures/audit-contracts.json").read_text(encoding="utf-8"))
     require(data["documentation_only"] and data["source_kind"] == "synthetic", "examples must stay synthetic")
     require(not data["formal_business_implementation"] and not data["semantics_evaluated"], "no business-validation claim")
-    require(data["design_version"] == "0.5" and data["requirement_baseline"] == "B2", "design/baseline mismatch")
+    require(data["design_version"] == "0.6" and data["requirement_baseline"] == "B2", "design/baseline mismatch")
     limits = data["limits"]
     require(sum(limits["phases_seconds"].values()) == limits["execution_seconds"] == 240, "phase budget mismatch")
     require(limits["queue_seconds"] + limits["execution_seconds"] == limits["total_seconds"] == 360, "root budget mismatch")
@@ -185,7 +180,7 @@ def check_examples() -> None:
     require(perf["documentation_only"] and not perf["measured_by_this_review"], "no invented performance result")
     require(not perf["requires_new_cloud_ecs"] and not perf["truncation_counts_as_performance_pass"], "performance scope/claim")
     require(perf["stress_rule_stage_deadline_seconds"] <= limits["phases_seconds"]["rules"], "performance exceeds rule-stage budget")
-    matrix = (ROOT / "docs/26-design-v03-review-and-implementation-plan.md").read_text(encoding="utf-8")
+    matrix = (ROOT / "docs/validation/verification-plan.md").read_text(encoding="utf-8")
     for case in data["trace_matrix_case_ids"]:
         require(f"| {case} |" in matrix, f"missing planned case {case}")
     require(len(data["trace_matrix_case_ids"]) == 18, "unexpected trace matrix size")
@@ -198,20 +193,40 @@ def scoped_document(relative_path: str) -> Path:
     return candidate
 
 
+
+
+def check_governance() -> None:
+    """Check current layout and document contracts; history belongs in Git."""
+    require([p.name for p in (ROOT / "docs").glob("*.md")] == ["README.md"], "docs root must be navigation only")
+    trace = json.loads((ROOT / "docs/validation/requirement-traceability.json").read_text(encoding="utf-8"))
+    require(trace["approval_status"]["requirements"] == "G1_passed" and trace["approval_status"]["system_design"] == "G2_passed", "approval state drift")
+    supplement = json.loads((ROOT / "docs/validation/fixtures/concurrency-and-api.json").read_text(encoding="utf-8"))
+    require(supplement["documentation_only"] and supplement["design_version"] == "0.6", "supplement scope")
+    require(not any(supplement[k] for k in ("formal_business_implementation", "formal_concurrency_tested", "formal_api_generated", "real_cloud_or_model_called")), "invented runtime evidence")
+    require(supplement["execution"]["worker_slots"] == 3 and supplement["execution"]["per_conversation_unfinished"] == 1, "small concurrency drift")
+    sqlite = supplement["sqlite"]
+    require(sqlite["journal_mode"] == "WAL" and sqlite["pooling"] == "single_shared_database_sql_pool", "simple SQLite baseline drift")
+    require(not any(sqlite[k] for k in ("force_single_writer_connection", "force_separate_read_write_pools", "custom_write_queue", "custom_checkpoint_scheduler", "tx_across_network")), "SQLite over-design or transaction network wait")
+    api = supplement["api_docs"]
+    require(api["generator"] == "swaggo/swag" and api["artifacts_tracked_after_generation"] and not api["generation_verified"], "API documentation handoff drift")
+    matrix = (ROOT / "docs/validation/verification-plan.md").read_text(encoding="utf-8")
+    require(supplement["planned_check_ids"] == [f"V6-{i:02d}" for i in range(1,9)], "supplement checks")
+    require(all(f"| {case} |" in matrix for case in supplement["planned_check_ids"]), "missing supplement planned check")
+    return None
+
+
 def check_traceability() -> int:
-    trace = json.loads((ROOT / "docs/design-examples/b2-requirement-traceability.json").read_text(encoding="utf-8"))
-    require(trace["design_version"] == "0.5" and trace["requirement_baseline"] == "B2", "trace baseline")
+    trace = json.loads((ROOT / "docs/validation/requirement-traceability.json").read_text(encoding="utf-8"))
+    require(trace["design_version"] == "0.6" and trace["requirement_baseline"] == "B2", "trace baseline")
     require(not trace["formal_business_tests_executed"], "trace is not a business-test result")
-    for path, digest in trace["frozen_requirement_files"].items():
-        require(hashlib.sha256(scoped_document(path).read_bytes()).hexdigest() == digest, "frozen requirement changed: "+path)
-    text = (ROOT / "docs/02-requirements-and-scope.md").read_text(encoding="utf-8")
+    text = (ROOT / "docs/requirements/system.md").read_text(encoding="utf-8")
     definitions = set(re.findall(r"^\| ((?:FR|NFR|AC)-\d{2})\b", text, re.M))
     cr = set(re.findall(r"^- \*\*(CR-1-F\d{2})\b", text, re.M))
     expected = {f"AC-{i:02d}" for i in range(1,22)} | cr
     entries = index(trace["entries"], "trace")
     require(set(entries) == expected and len(cr) == 4, "incomplete acceptance/scope trace")
     covered = set()
-    matrices = (ROOT/"docs/26-design-v03-review-and-implementation-plan.md").read_text(encoding="utf-8") + (ROOT/"docs/27-architecture-and-technical-design-review.md").read_text(encoding="utf-8")
+    matrices = (ROOT/"docs/validation/verification-plan.md").read_text(encoding="utf-8") + (ROOT/"docs/validation/verification-plan.md").read_text(encoding="utf-8")
     for entry in entries.values():
         require(not entry["implementation_verified"], "trace must not claim implementation")
         require(set(entry["requirement_ids"]) <= definitions, "undefined requirement ID")
@@ -230,9 +245,9 @@ def check_traceability() -> int:
 def check_transport_contracts(data: dict | None = None) -> int:
     """Checks documentation fixture consistency only, NOT a network/SSE implementation."""
     if data is None:
-        data = json.loads((ROOT / "docs/design-examples/frontend-sse-v05-contracts.json").read_text(encoding="utf-8"))
+        data = json.loads((ROOT / "docs/validation/fixtures/frontend-events.json").read_text(encoding="utf-8"))
     require(data["documentation_only"] and data["source_kind"] == "synthetic", "transport fixtures must stay synthetic")
-    require(data["design_version"] == "0.5" and data["requirement_baseline"] == "B2", "transport design baseline")
+    require(data["design_version"] == "0.6" and data["requirement_baseline"] == "B2", "transport design baseline")
     require(not data["formal_transport_tested"] and not data["model_streaming_verified"], "no invented transport/model test")
     ui = data["frontend"]
     require((ui["framework"], ui["bundler"], ui["router"], ui["ui"], ui["styles"]) ==
@@ -278,7 +293,7 @@ def check_transport_contracts(data: dict | None = None) -> int:
     terminal = data["terminal_empty_stream"]
     require(terminal["job_status"] == events[-1]["payload"]["status"] and
             terminal["after_seq"] == terminal["last_seq"] == events[-1]["seq"] and terminal["http_status"] == 204, "invalid terminal 204 example")
-    matrix = (ROOT/"docs/27-architecture-and-technical-design-review.md").read_text(encoding="utf-8")
+    matrix = (ROOT/"docs/validation/verification-plan.md").read_text(encoding="utf-8")
     require(data["planned_check_ids"] == [f"V5-{i:02d}" for i in range(1,9)], "missing planned transport checks")
     for case in data["planned_check_ids"]:
         require(f"| {case} |" in matrix, "unmapped planned transport check: " + case)
@@ -291,10 +306,11 @@ def main() -> int:
         check_examples()
         check_transport_contracts()
         trace_count = check_traceability()
+        check_governance()
     except (OSError, ValueError, KeyError, TypeError, AssertionError) as error:
         print(f"FAIL: {error}")
         return 1
-    print(f"PASS: {links} local documentation links; balanced fences; {blocks} design JSON blocks; B2 v0.5 example contracts and UI/SSE contract fixtures; {trace_count} acceptance/scope mappings; frozen requirements unchanged.")
+    print(f"PASS: {links} local documentation links; balanced fences; {blocks} design JSON blocks; B2/design v0.6 documentation contracts; {trace_count} acceptance/scope mappings; classified current documentation.")
     print("LIMIT: static documentation validation only; no rule semantics, SDK build, browser, database, cloud or model tests executed.")
     return 0
 
