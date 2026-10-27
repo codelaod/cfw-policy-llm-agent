@@ -1,6 +1,6 @@
 # 项目协作说明
 
-> 2026-10-26 最新状态：用户明确“需求算过了”并授权普通推送一轮。需求 v0.6／B2（含 CR-1 有限出向／NAT ACL）、领域／规则需求附件及 PRD v0.4 已确认；原 B1 历史保留。现有设计 v0.2 须按 B2 联动后审 G2，G2 前仍不创建正式业务工程或调用真实服务。
+> 2026-10-27 最新状态：用户要求保持需求不变并复核整体技术设计；已完成 v0.4 整体复核；用户随后确认 UI／SSE 方向，现联动为 v0.5（03／18／19，20～22 v0.4，新增 29，原型 v0.3），并新增 30 作为用户 G2 审核主入口，仍待 G2。八份需求／PRD／验收原文保持不变；用户现已授权本轮一次本地提交，推送、正式工程和真实服务调用仍未获授权；本条不构成后续提交许可，实际归档结果以 Git 记录为准。
 
 > 2026-10-27 补漏约束：按用户授权沿用 B2 完善需求验收，见 docs/25-proposal-requirements-alignment-review.md。20～30 个独立人工案例不等于云实例数量；真实验证优先复用同一台 ECS／同一套防火墙，串行切换并还原／清理配置。不要求多类资产或多 VM 并行部署，不修改系统设计来代替 G2。相关修订经 review → 修改 → review 后提交并普通推送一轮。
 
@@ -11,7 +11,7 @@
 - 论文题目：《基于大模型智能体的云防火墙策略审计与推荐系统设计与实现》。
 - 按本科或一般硕士工程实践控制工作量，优先完成可演示、可解释、可验证的系统。
 - 以云防火墙审计为业务主线，以 Agent 为关键实现方法；审计业务和 Agent 工程需要共同落到实际案例中。
-- 当前已按用户条件授权完成交叉审核并进入 P2 系统设计，设计 v0.2 待 G2；尚无正式业务系统。`experiments/eino-offline/` 已有 Go + Eino 模拟模式和受限真实模型适配；MiniMax 人工样例初测见 `docs/11-live-model-validation.md`，不代表完整协议、生产审计或云接口验收；Go／Gin／Eino、Vue／TS／Vite、GORM／纯 Go SQLite 是设计建议而非已批准或已构建的正式栈。
+- 当前已按用户条件授权完成交叉审核并进入 P2 系统设计，设计 v0.5 待 G2；尚无正式业务系统。`experiments/eino-offline/` 已有 Go + Eino 模拟模式和受限真实模型适配；MiniMax 人工样例初测见 `docs/11-live-model-validation.md`，不代表完整协议、生产审计或云接口验收；Go／Gin／Eino、Vue／TS／Vite／Vue Router／Nuxt UI v4／Tailwind CSS v4、GORM／纯 Go SQLite 是整体待 G2／未构建的正式栈；用户已局部确认 Nuxt UI v4＋Tailwind 与 fetch SSE＋轮询兜底，不等于整体 G2 通过。
 - 先读 `README.md` 和与当前任务相关的 `docs/` 文档。区分已确认决策、候选建议、已实现功能和已验证结果。
 
 ## 已确认的边界
@@ -51,7 +51,7 @@
 ## 文档、验证与提交
 
 - 默认使用中文编写项目说明，保留必要的技术标识。文档与实际代码状态保持一致。
-- 正式业务实现前必须经过两道用户审核：先完成需求主文档、必要领域需求及产品 PRD／使用流程，由用户确认需求基线；再编写系统设计并由用户审核通过。未通过时只完善相应文档，不因技术实验成功或云联调可后置而跳过审核，不把讨论稿、候选方案或未回复当作批准。用户此前条件授权使 v0.5／B1 进入设计；本轮已明确通过 v0.6／B2 需求。下一步按 B2 联动修订设计 v0.2 并提交 G2，不是业务编码或自动追加真实调用。
+- 正式业务实现前必须经过两道用户审核：先完成需求主文档、必要领域需求及产品 PRD／使用流程，由用户确认需求基线；再编写系统设计并由用户审核通过。未通过时只完善相应文档，不因技术实验成功或云联调可后置而跳过审核，不把讨论稿、候选方案或未回复当作批准。用户此前条件授权使 v0.5／B1 进入设计；本轮已明确通过 v0.6／B2 需求。本轮已按稳定 B2 整体复核形成设计 v0.5，下一步提交 G2，不是业务编码或自动追加真实调用。
 - 已确认决策或范围变化时，同步更新相关文档及 `docs/05-roadmap-and-decisions.md`，避免相互矛盾。
 - 仅修改文档时检查链接、格式、一致性和引用，不声称通过尚不存在的业务测试。
 - 修改实现时运行与改动相关的检查；测试优先覆盖策略语义、证据、缺失数据、协议适配与错误处理，不为低影响文档或样式修改增加无意义测试。
@@ -62,9 +62,11 @@
 
 - 需求阶段的离线低保真原型仅用于交互评审，可使用明确标注的人工数据与模拟状态，不接真实模型／云 API，不把其脚本、静态结果或原型检查当成正式前端、规则或 Agent 验收。具体组件、接口和正式实现留到设计 G2 之后。
 
-- 当前设计入口为 docs/03-architecture-discussion.md、docs/18-data-and-api-design.md、docs/19-audit-and-agent-design.md，审核依据见 docs/17-requirements-cross-review-and-design-baseline.md 的 B2 批准记录及 docs/24-scope-expansion-and-prototype-review.md。B0 是此前按条件授权采用的设计默认，不宣称所有范围／技术细节此前均由用户逐项指定。G2 之前不创建正式业务工程、数据库迁移或部署实例。
+- 当前用户 G2 审核主入口为 docs/30-g2-system-design-review-package.md；详细设计入口为 docs/03-architecture-discussion.md、docs/18-data-and-api-design.md、docs/19-audit-and-agent-design.md，B2 采集细节见 docs/25-boundary-and-aliyun-collector-design.md；技术复核与评价执行设计见 docs/27-architecture-and-technical-design-review.md、docs/28-evaluation-and-real-validation-design.md，26 保留为 v0.3 历史，审核依据见 docs/17-requirements-cross-review-and-design-baseline.md 的 B2 批准记录及 docs/24-scope-expansion-and-prototype-review.md。B0 是此前按条件授权采用的设计默认，不宣称所有范围／技术细节此前均由用户逐项指定。G2 之前不创建正式业务工程、数据库迁移或部署实例。
 
 - B1 使用要求：连续会话／可见消息／确认／任务／报告必须持久化，不能仅提供孤立任务历史。Eino Checkpoint 与业务会话 Store 分开，不持久原始 reasoning 或孤立回放旧工具消息。SQLite 如采用必须无 CGO；GORM 适配与零值／事务需实测，不照搬默认 CGO 驱动。
 - 设计计时覆盖排队、凭据／认证、云查询、规则、模型链和汇总。使用固定快照／合格优先／强制刷新，保留各数据族时点；定时采集可选默认关闭、不自动调模型。Web／CLI／TUI 的已交付入口必须有情境推荐与下一步，共用意图／权限规范，显示建议不隐式收费／外呼。
 - 云平台与 CFW 使用显式连接 CredentialProvider，不读机器其他 profile 或公司环境回退；启动配置检查不外呼。凭据不进模型／会话／前端，MCP 非首版必需。细化设计见 docs/20-session-history-and-data-freshness.md、21-credentials-and-tool-auth-design.md、22-guidance-and-multi-entry-design.md。
-- 用户本轮已明确授权：相关修订经自审／自动修复／回归后提交并普通推送一轮。仅包含本项目相关改动，核对暂存区、密钥与私有数据排除及仓库级 GitHub author／committer；不强推、不改已推历史，不因此越过 G2。
+- 此前授权的一轮提交／普通推送已完成；后续提交和推送按新的明确授权执行，不重复消费一次性授权。仅包含本项目相关改动，核对暂存区、密钥与私有数据排除及仓库级 GitHub author／committer；不强推、不改已推历史，不因此越过 G2。
+
+- UI／SSE 详细设计见 docs/29-frontend-and-sse-design.md。保留 Vue/Vite/Router，不引入 Nuxt 服务端；应用访问头走 fetch 事件流，持久连续 seq、只读恢复、断线不取消、显式取消和 SQLite 短事务必须一致。上游非流式模型不因浏览器 SSE 而变成流式。原型 v0.3 仅模拟订阅／补发／兜底，不是正式 UI 库或网络验收。

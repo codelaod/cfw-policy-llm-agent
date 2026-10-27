@@ -1,0 +1,678 @@
+{
+  "review_date": "2026-10-27",
+  "requirement_baseline": "B2",
+  "head_at_review": "b1b27a9cba45ca26251dd71d3963883584385173",
+  "frozen_requirement_files": {
+    "docs/02-requirements-and-scope.md": "c548ab07f221a4d3a09e90a7722617e38c2d01ea91cf63e620381d5c40453db3",
+    "docs/04-evaluation-and-demo.md": "e935c3e14d8b24cf3faa3e950c80c7aa5870dfb806e41e4ffafa33a48fd3a6ee",
+    "docs/12-audit-domain-requirements.md": "dad47fafade23a797ed2e431d3490539298ebce9283fea788078af6cfffb5eba",
+    "docs/13-business-value-and-asset-profiles.md": "43ffd5c890a9a65be819a96012fc94d813cd991538a674eff1475def83577c23",
+    "docs/14-security-baselines-and-rule-catalog.md": "f997a9c7eae28d584a6329c5b8fb9d8a51c84a68660bc1a8e1e4ae19b4ae7db3",
+    "docs/16-product-requirements-and-user-flows.md": "7fcf57a8e77c8e7ff8602022a2616f5f0ed85147b51b79253afc3c975cdeb598",
+    "docs/24-scope-expansion-and-prototype-review.md": "0d706560f71e7007506fc4c75e15ee6989dc174701848d40541e13f4d11dc64f",
+    "docs/25-proposal-requirements-alignment-review.md": "fa4915ad2728282715b513bda6e57d1ebd439e230f4119cd79c5c2a703c08e2f"
+  },
+  "design_version": "0.5",
+  "review_type": "documentation_only",
+  "formal_business_tests_executed": false,
+  "entries": [
+    {
+      "id": "AC-01",
+      "requirement_ids": [
+        "FR-01",
+        "FR-10",
+        "NFR-05"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/18-data-and-api-design.md",
+          "marker": "## 12. 输入覆盖与结论保证"
+        },
+        {
+          "file": "docs/19-audit-and-agent-design.md",
+          "marker": "## 11. 来源保证进入结果与工具"
+        }
+      ],
+      "planned_checks": [
+        "V4-05"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-02",
+      "requirement_ids": [
+        "FR-01",
+        "FR-02",
+        "NFR-01",
+        "NFR-09"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/25-boundary-and-aliyun-collector-design.md",
+          "marker": "## 2. 云查询接口"
+        },
+        {
+          "file": "docs/25-boundary-and-aliyun-collector-design.md",
+          "marker": "## 4. 采集流水线"
+        }
+      ],
+      "planned_checks": [
+        "B2-09",
+        "V4-10"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-03",
+      "requirement_ids": [
+        "FR-03",
+        "FR-09",
+        "NFR-04"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/18-data-and-api-design.md",
+          "marker": "### 1.1 B2"
+        },
+        {
+          "file": "docs/03-architecture-discussion.md",
+          "marker": "### 2.2 正式前端"
+        }
+      ],
+      "planned_checks": [
+        "B2-01",
+        "V4-11"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-04",
+      "requirement_ids": [
+        "FR-04",
+        "FR-07",
+        "NFR-02",
+        "NFR-08"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/18-data-and-api-design.md",
+          "marker": "## 4. 画像"
+        },
+        {
+          "file": "docs/19-audit-and-agent-design.md",
+          "marker": "### 4.1 B2"
+        }
+      ],
+      "planned_checks": [
+        "B2-05"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-05",
+      "requirement_ids": [
+        "FR-05",
+        "FR-09",
+        "NFR-02"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/19-audit-and-agent-design.md",
+          "marker": "## 3. 端点"
+        },
+        {
+          "file": "docs/19-audit-and-agent-design.md",
+          "marker": "## 4. M0"
+        }
+      ],
+      "planned_checks": [
+        "B2-04",
+        "B2-07",
+        "V4-09"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-06",
+      "requirement_ids": [
+        "FR-06",
+        "FR-07",
+        "NFR-03",
+        "NFR-04"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/19-audit-and-agent-design.md",
+          "marker": "## 12. 模型能力"
+        },
+        {
+          "file": "docs/28-evaluation-and-real-validation-design.md",
+          "marker": "## 2. 三组"
+        }
+      ],
+      "planned_checks": [
+        "V4-08"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-07",
+      "requirement_ids": [
+        "FR-07",
+        "FR-08",
+        "NFR-01",
+        "NFR-03"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/20-session-history-and-data-freshness.md",
+          "marker": "### 10.3 排队"
+        },
+        {
+          "file": "docs/21-credentials-and-tool-auth-design.md",
+          "marker": "## 10. 统一准入"
+        }
+      ],
+      "planned_checks": [
+        "V4-06",
+        "V4-07"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-08",
+      "requirement_ids": [
+        "FR-10",
+        "NFR-02",
+        "NFR-04",
+        "NFR-05"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/18-data-and-api-design.md",
+          "marker": "## 8. 报告"
+        },
+        {
+          "file": "docs/03-architecture-discussion.md",
+          "marker": "## 7. 数据隐私"
+        }
+      ],
+      "planned_checks": [
+        "B2-14",
+        "V4-05"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-09",
+      "requirement_ids": [
+        "FR-02",
+        "NFR-01"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/21-credentials-and-tool-auth-design.md",
+          "marker": "## 9. B2"
+        },
+        {
+          "file": "docs/21-credentials-and-tool-auth-design.md",
+          "marker": "## 10. 统一准入"
+        },
+        {
+          "file": "docs/29-frontend-and-sse-design.md",
+          "marker": "## 8. G2 后验收计划与本轮交付"
+        }
+      ],
+      "planned_checks": [
+        "V4-04",
+        "B2-17",
+        "V5-02"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-10",
+      "requirement_ids": [
+        "FR-11",
+        "NFR-02",
+        "NFR-09"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/28-evaluation-and-real-validation-design.md",
+          "marker": "## 5. 串行真实验证"
+        },
+        {
+          "file": "docs/18-data-and-api-design.md",
+          "marker": "## 8. 报告"
+        }
+      ],
+      "planned_checks": [
+        "V4-10"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-11",
+      "requirement_ids": [
+        "FR-04",
+        "FR-09",
+        "FR-12",
+        "NFR-08"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/18-data-and-api-design.md",
+          "marker": "## 4. 画像"
+        },
+        {
+          "file": "docs/19-audit-and-agent-design.md",
+          "marker": "## 4. M0"
+        },
+        {
+          "file": "docs/29-frontend-and-sse-design.md",
+          "marker": "## 8. G2 后验收计划与本轮交付"
+        }
+      ],
+      "planned_checks": [
+        "B2-05",
+        "V4-11",
+        "V5-07"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-12",
+      "requirement_ids": [
+        "FR-13",
+        "FR-09",
+        "NFR-08"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/19-audit-and-agent-design.md",
+          "marker": "## 13. 推荐目标"
+        },
+        {
+          "file": "docs/25-boundary-and-aliyun-collector-design.md",
+          "marker": "## 3. 覆盖"
+        }
+      ],
+      "planned_checks": [
+        "V4-13",
+        "B2-13"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-13",
+      "requirement_ids": [
+        "FR-14",
+        "FR-09",
+        "NFR-08"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/19-audit-and-agent-design.md",
+          "marker": "## 13. 推荐目标"
+        },
+        {
+          "file": "docs/03-architecture-discussion.md",
+          "marker": "## 1. 设计目标"
+        }
+      ],
+      "planned_checks": [
+        "V4-12"
+      ],
+      "status": "optional_disabled_by_default",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-14",
+      "requirement_ids": [
+        "FR-12",
+        "FR-15",
+        "NFR-06"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/03-architecture-discussion.md",
+          "marker": "### 2.2 正式前端"
+        },
+        {
+          "file": "docs/22-guidance-and-multi-entry-design.md",
+          "marker": "## 9. 正式前端"
+        },
+        {
+          "file": "docs/03-architecture-discussion.md",
+          "marker": "### 10.2 NFR-06"
+        },
+        {
+          "file": "docs/29-frontend-and-sse-design.md",
+          "marker": "## 8. G2 后验收计划与本轮交付"
+        }
+      ],
+      "planned_checks": [
+        "V4-11",
+        "V4-14",
+        "V5-01",
+        "V5-08"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-15",
+      "requirement_ids": [
+        "FR-16",
+        "NFR-09"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/18-data-and-api-design.md",
+          "marker": "## 11. 审阅"
+        },
+        {
+          "file": "docs/20-session-history-and-data-freshness.md",
+          "marker": "### 10.1 审阅"
+        },
+        {
+          "file": "docs/29-frontend-and-sse-design.md",
+          "marker": "## 8. G2 后验收计划与本轮交付"
+        }
+      ],
+      "planned_checks": [
+        "V4-03",
+        "V4-06",
+        "V5-04"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-16",
+      "requirement_ids": [
+        "FR-17",
+        "NFR-09"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/20-session-history-and-data-freshness.md",
+          "marker": "## 9. B2"
+        },
+        {
+          "file": "docs/25-boundary-and-aliyun-collector-design.md",
+          "marker": "## 4. 采集流水线"
+        }
+      ],
+      "planned_checks": [
+        "B2-11",
+        "B2-12"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-17",
+      "requirement_ids": [
+        "FR-18",
+        "NFR-03",
+        "NFR-06",
+        "NFR-09"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/20-session-history-and-data-freshness.md",
+          "marker": "## 6. 累计"
+        },
+        {
+          "file": "docs/20-session-history-and-data-freshness.md",
+          "marker": "### 10.4 逐物理"
+        },
+        {
+          "file": "docs/03-architecture-discussion.md",
+          "marker": "### 10.2 NFR-06"
+        },
+        {
+          "file": "docs/29-frontend-and-sse-design.md",
+          "marker": "## 8. G2 后验收计划与本轮交付"
+        }
+      ],
+      "planned_checks": [
+        "V4-06",
+        "V4-07",
+        "V4-14",
+        "V5-03",
+        "V5-05",
+        "V5-06"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-18",
+      "requirement_ids": [
+        "FR-19",
+        "NFR-01"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/21-credentials-and-tool-auth-design.md",
+          "marker": "## 4. CredentialProvider"
+        },
+        {
+          "file": "docs/21-credentials-and-tool-auth-design.md",
+          "marker": "## 10. 统一准入"
+        },
+        {
+          "file": "docs/29-frontend-and-sse-design.md",
+          "marker": "## 8. G2 后验收计划与本轮交付"
+        }
+      ],
+      "planned_checks": [
+        "V4-04",
+        "V4-07",
+        "V5-02"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-19",
+      "requirement_ids": [
+        "FR-16",
+        "NFR-05",
+        "NFR-09"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/18-data-and-api-design.md",
+          "marker": "## 2. 逻辑实体"
+        },
+        {
+          "file": "docs/03-architecture-discussion.md",
+          "marker": "## 10. G2"
+        },
+        {
+          "file": "docs/29-frontend-and-sse-design.md",
+          "marker": "## 8. G2 后验收计划与本轮交付"
+        }
+      ],
+      "planned_checks": [
+        "V4-06",
+        "V4-12",
+        "V5-04"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-20",
+      "requirement_ids": [
+        "FR-20",
+        "FR-15",
+        "NFR-06"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/22-guidance-and-multi-entry-design.md",
+          "marker": "## 9. 正式前端"
+        },
+        {
+          "file": "docs/18-data-and-api-design.md",
+          "marker": "### 5.1 统一准入"
+        },
+        {
+          "file": "docs/29-frontend-and-sse-design.md",
+          "marker": "## 8. G2 后验收计划与本轮交付"
+        }
+      ],
+      "planned_checks": [
+        "V4-04",
+        "V4-11",
+        "V5-05"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "AC-21",
+      "requirement_ids": [
+        "NFR-07",
+        "FR-05",
+        "FR-06",
+        "FR-07"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/28-evaluation-and-real-validation-design.md",
+          "marker": "## 1. 案例"
+        },
+        {
+          "file": "docs/28-evaluation-and-real-validation-design.md",
+          "marker": "## 3. 标签"
+        },
+        {
+          "file": "docs/28-evaluation-and-real-validation-design.md",
+          "marker": "## 4. 全部运行"
+        }
+      ],
+      "planned_checks": [
+        "V4-01",
+        "V4-02"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "CR-1-F01",
+      "requirement_ids": [
+        "FR-05",
+        "FR-06",
+        "FR-07"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/19-audit-and-agent-design.md",
+          "marker": "### 3.2 三种边界"
+        },
+        {
+          "file": "docs/19-audit-and-agent-design.md",
+          "marker": "### 4.1 B2"
+        }
+      ],
+      "planned_checks": [
+        "B2-04",
+        "B2-05",
+        "B2-06"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "CR-1-F02",
+      "requirement_ids": [
+        "FR-02",
+        "FR-03",
+        "FR-05"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/25-boundary-and-aliyun-collector-design.md",
+          "marker": "## 1. 首版执行"
+        },
+        {
+          "file": "docs/25-boundary-and-aliyun-collector-design.md",
+          "marker": "## 2. 云查询"
+        }
+      ],
+      "planned_checks": [
+        "B2-01",
+        "B2-02",
+        "B2-03"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "CR-1-F03",
+      "requirement_ids": [
+        "FR-03",
+        "FR-07"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/25-boundary-and-aliyun-collector-design.md",
+          "marker": "## 5. NAT 的关联"
+        },
+        {
+          "file": "docs/19-audit-and-agent-design.md",
+          "marker": "### 4.1 B2"
+        }
+      ],
+      "planned_checks": [
+        "B2-10"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    },
+    {
+      "id": "CR-1-F04",
+      "requirement_ids": [
+        "FR-08",
+        "FR-10",
+        "FR-11",
+        "FR-15"
+      ],
+      "design_evidence": [
+        {
+          "file": "docs/18-data-and-api-design.md",
+          "marker": "### 5.1 统一准入"
+        },
+        {
+          "file": "docs/18-data-and-api-design.md",
+          "marker": "## 8. 报告"
+        }
+      ],
+      "planned_checks": [
+        "B2-11",
+        "B2-14",
+        "V4-04"
+      ],
+      "status": "design_defined_not_implemented",
+      "implementation_verified": false
+    }
+  ]
+}

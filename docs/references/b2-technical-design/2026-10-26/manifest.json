@@ -1,0 +1,186 @@
+{
+  "schema_version": 1,
+  "description": "B2 技术设计 v0.3 的公开一手资料核对，自写摘要",
+  "documents": [
+    {
+      "id": "T-01",
+      "title": "当前 NAT 策略查询接口",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describenatfirewallcontrolpolicy",
+      "retrieved_date": "2026-10-26",
+      "text_file": "t-01.md",
+      "text_bytes": 633,
+      "text_sha256": "97d73b8cf509b1aa56147451381dd440c12ac7cb5fc0641e5cac3162d90ef9fe",
+      "public_url_check": {
+        "checked_date": "2026-10-26",
+        "http_status": 200,
+        "resolved_url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describenatfirewallcontrolpolicy",
+        "note": "公开资料可访问性核对，不是产品接口或服务验收"
+      }
+    },
+    {
+      "id": "T-02",
+      "title": "当前 NAT 防火墙查询接口",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describenatfirewalllist",
+      "retrieved_date": "2026-10-26",
+      "text_file": "t-02.md",
+      "text_bytes": 613,
+      "text_sha256": "7bb284460cd91520b569cba9b9eeeadc9eb0e3d42053a82767e9945778639537",
+      "public_url_check": {
+        "checked_date": "2026-10-26",
+        "http_status": 200,
+        "resolved_url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describenatfirewalllist",
+        "note": "公开资料可访问性核对，不是产品接口或服务验收"
+      }
+    },
+    {
+      "id": "T-03",
+      "title": "云防火墙 API 概览与边界",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-overview",
+      "retrieved_date": "2026-10-26",
+      "text_file": "t-03.md",
+      "text_bytes": 595,
+      "text_sha256": "8b28c82d06ccda2881b89ba4aaca38066d3610d043dd74dee1578fcbe1cefa47",
+      "public_url_check": {
+        "checked_date": "2026-10-26",
+        "http_status": 200,
+        "resolved_url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-overview",
+        "note": "公开资料可访问性核对，不是产品接口或服务验收"
+      }
+    },
+    {
+      "id": "T-04",
+      "title": "官方 SDK 控制面与方法来源",
+      "url": "https://github.com/alibabacloud-go/cloudfw-20171207/blob/c44859c166b7f54f0cd9e48efe8890916e363ee3/client/client.go",
+      "retrieved_date": "2026-10-26",
+      "text_file": "t-04.md",
+      "text_bytes": 630,
+      "text_sha256": "1a563e848132267bd3af3d84ccecb947b92ce872062f25039b4262a36717f9d4",
+      "public_url_check": {
+        "checked_date": "2026-10-26",
+        "http_status": 200,
+        "resolved_url": "https://github.com/alibabacloud-go/cloudfw-20171207/blob/c44859c166b7f54f0cd9e48efe8890916e363ee3/client/client.go",
+        "note": "公开资料可访问性核对，不是产品接口或服务验收"
+      }
+    },
+    {
+      "id": "T-05",
+      "title": "官方 Go SDK 的 NAT 类型与 context 路线",
+      "url": "https://github.com/alibabacloud-go/cloudfw-20171207/tree/c44859c166b7f54f0cd9e48efe8890916e363ee3/client",
+      "retrieved_date": "2026-10-26",
+      "text_file": "t-05.md",
+      "text_bytes": 798,
+      "text_sha256": "9a468842146d801e8fe7419b29e37de3b9eb4d1401ac83feed4c9e9390c1b865",
+      "public_url_check": {
+        "checked_date": "2026-10-26",
+        "http_status": 200,
+        "resolved_url": "https://github.com/alibabacloud-go/cloudfw-20171207/tree/c44859c166b7f54f0cd9e48efe8890916e363ee3/client",
+        "note": "公开资料可访问性核对，不是产品接口或服务验收"
+      }
+    },
+    {
+      "id": "T-06",
+      "title": "CFW 匹配与默认行为",
+      "url": "https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/how-access-control-policies-work",
+      "retrieved_date": "2026-10-26",
+      "text_file": "t-06.md",
+      "text_bytes": 569,
+      "text_sha256": "7c88ffb86a4b7de4db40819cef3acace1aaf27ff6331a41cec5d8b10265b3e45",
+      "public_url_check": {
+        "checked_date": "2026-10-26",
+        "http_status": 200,
+        "resolved_url": "https://help.aliyun.com/zh/cloud-firewall/how-access-control-policies-work",
+        "note": "公开资料可访问性核对，不是产品接口或服务验收"
+      }
+    },
+    {
+      "id": "T-07",
+      "title": "Element Plus 设计原则与组件路线",
+      "url": "https://element-plus.org/en-US/guide/design.html",
+      "retrieved_date": "2026-10-26",
+      "text_file": "t-07.md",
+      "text_bytes": 552,
+      "text_sha256": "34a5d207921674985e0bacdf1c78baeb24c1eb18feebd133f98412f084b40e97",
+      "public_url_check": {
+        "checked_date": "2026-10-26",
+        "http_status": 200,
+        "resolved_url": "https://element-plus.org/en-US/guide/design.html",
+        "note": "公开资料可访问性核对，不是产品接口或服务验收"
+      }
+    },
+    {
+      "id": "T-08",
+      "title": "Vue Router 与页面刷新",
+      "url": "https://router.vuejs.org/guide/essentials/history-mode.html",
+      "retrieved_date": "2026-10-26",
+      "text_file": "t-08.md",
+      "text_bytes": 507,
+      "text_sha256": "2bb7d1a9025b753848ee47364530c4430d24a85a3ed37d30c15d97954fc298cf",
+      "public_url_check": {
+        "checked_date": "2026-10-26",
+        "http_status": 200,
+        "resolved_url": "https://router.vuejs.org/guide/essentials/history-mode.html",
+        "note": "公开资料可访问性核对，不是产品接口或服务验收"
+      }
+    },
+    {
+      "id": "T-09",
+      "title": "SQLite 每连接外键约束",
+      "url": "https://www.sqlite.org/foreignkeys.html",
+      "retrieved_date": "2026-10-26",
+      "text_file": "t-09.md",
+      "text_bytes": 508,
+      "text_sha256": "e60d135bffd46ebb137002ac9d28a839328ff3d52805baf28673a11f3ef2424f",
+      "public_url_check": {
+        "checked_date": "2026-10-26",
+        "http_status": 200,
+        "resolved_url": "https://www.sqlite.org/foreignkeys.html",
+        "note": "公开资料可访问性核对，不是产品接口或服务验收"
+      }
+    },
+    {
+      "id": "T-10",
+      "title": "GORM 更新与零值",
+      "url": "https://gorm.io/docs/update.html",
+      "retrieved_date": "2026-10-26",
+      "text_file": "t-10.md",
+      "text_bytes": 482,
+      "text_sha256": "b231e1f2d7ba9f0ef4e2a4a3fc190bbac9b7e53812287226c0683404e18442d8",
+      "public_url_check": {
+        "checked_date": "2026-10-26",
+        "http_status": 200,
+        "resolved_url": "https://gorm.io/docs/update.html",
+        "note": "公开资料可访问性核对，不是产品接口或服务验收"
+      }
+    },
+    {
+      "id": "T-11",
+      "title": "社区纯 Go GORM 适配候选",
+      "url": "https://github.com/libtnb/sqlite",
+      "retrieved_date": "2026-10-26",
+      "text_file": "t-11.md",
+      "text_bytes": 550,
+      "text_sha256": "2582964e927ac8e49b84a2e3f252037daed3bee527a15f40eb0a5d5719184ec7",
+      "public_url_check": {
+        "checked_date": "2026-10-26",
+        "http_status": 200,
+        "resolved_url": "https://github.com/libtnb/sqlite",
+        "note": "公开资料可访问性核对，不是产品接口或服务验收"
+      }
+    },
+    {
+      "id": "T-12",
+      "title": "工具调用与应用执行边界",
+      "url": "https://developers.openai.com/api/docs/guides/function-calling",
+      "retrieved_date": "2026-10-26",
+      "text_file": "t-12.md",
+      "text_bytes": 591,
+      "text_sha256": "def44ff04edd3caf9a2595fe41067da1b0ad976de15e689f7de434ce96a107a9",
+      "public_url_check": {
+        "checked_date": "2026-10-26",
+        "http_status": 200,
+        "resolved_url": "https://developers.openai.com/api/docs/guides/function-calling",
+        "note": "公开资料可访问性核对，不是产品接口或服务验收"
+      }
+    }
+  ]
+}

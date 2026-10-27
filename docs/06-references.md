@@ -175,3 +175,41 @@
 新增 [8 份自写摘要与来源校验](references/scope-and-prototype/2026-10-26/manifest.json)，关联 [CR-1 复审](24-scope-expansion-and-prototype-review.md)。S-01 为互联网策略方向，S-02 为 NAT 边界 ACL，S-03～S-08 为设计技能、界面审查、Codex 技能、Figma、Stitch 和浏览器验证。
 
 来源支持产品或工具的公开能力，不证明本项目已实现。技能仓库关注量不等于单项技能评分；Stitch 的 Google Labs 仓库说明不属于 Google 正式支持产品。没有进行云调用、模型调用、Figma／Stitch 登录或项目上传。
+
+
+## 13. 2026-10-26：B2 技术设计 v0.3
+
+新增 [12 份一手资料自写摘要及校验清单](references/b2-technical-design/2026-10-26/manifest.json)，不复制厂商全文或将 SDK 源文件纳入仓库。
+
+| 编号 | 资料范围 | 核实用途与限制 |
+| --- | --- | --- |
+| T-01／02 | 当前 NAT 策略与防火墙查询 | 方法／分页／状态／RAM 动作；不是实际账号验收 |
+| T-03／04 | API 概览／固定 SDK 来源 | 核对操作与控制面；不按猜测名称推断存在／新旧或废弃 |
+| T-05 | 官方 Go SDK 固定源码提交 | 请求／响应类型与 WithContext 路线；未编译、未验证实际取消／重试 |
+| T-06 | CFW 匹配原则 | 优先级、默认、模式与高级条件；必须绑定适用分区 |
+| T-07／08 | Element Plus、Vue Router | 正式前端组件与路由建议；未安装／构建 |
+| T-09／10／11 | SQLite、GORM、社区纯 Go 适配 | 外键／零值／版本约束与驱动门槛；不宣称项目集成通过 |
+| T-12 | OpenAI 工具调用 | 应用执行／回传边界；不推导第三方完整兼容 |
+
+设计入口见 [03](03-architecture-discussion.md)、[25](25-boundary-and-aliyun-collector-design.md) 和 [26](26-design-v03-review-and-implementation-plan.md)。本轮没有真实云／模型调用或新增正式依赖。
+
+
+## 14. 2026-10-27：整体技术设计复核
+
+[D4-01 自写摘要及校验](references/design-review/2026-10-27/manifest.json) 记录 RFC 9110 条件请求与应用修订 CAS 的区别；v0.4 选择显式 expected_revision 动作契约，不假装实现了 ETag／If-Match。既有 T-09 的 SQLite 每连接外键要求也重新核对；这不是数据库或 HTTP 服务测试。
+
+## UI／SSE 设计 v0.5 核实（2026-10-27）
+
+用户已确认前端组件与事件传输方向。以下一手资料只证明接口／组件入口，不代表本项目已经构建或通过真实 SSE 验收。旧 Element Plus 来源保留为历史方案依据，不继续作为当前采用的 UI 栈。
+
+| 编号 | 来源摘要 | 本轮用途 |
+| --- | --- | --- |
+| D5-01 | [Nuxt UI v4 Vue/Vite](references/ui-and-sse/2026-10-27/d5-01.md) | 不依赖 Nuxt 框架；路由与图标构建集成 |
+| D5-02 | [Nuxt UI 定位](references/ui-and-sse/2026-10-27/d5-02.md) | 单组件体系与工作区／聊天候选 |
+| D5-03 | [ChatMessages](references/ui-and-sse/2026-10-27/d5-03.md) | 消息／状态映射，不引入示例后端 |
+| D5-04 | [WHATWG SSE](references/ui-and-sse/2026-10-27/d5-04.md) | 线格式、原生 EventSource 参数与鉴权差异 |
+| D5-05 | [Gin SSE](references/ui-and-sse/2026-10-27/d5-05.md) | 流式发送入口，不等于生产方案 |
+| D5-06 | [Tailwind v4 兼容](references/ui-and-sse/2026-10-27/d5-06.md) | 现代浏览器基线 |
+| D5-07 | [Fetch 流式读取](references/ui-and-sse/2026-10-27/d5-07.md) | 请求头、响应流、中止与应用级恢复 |
+
+完整设计与待验收边界见 [29](29-frontend-and-sse-design.md)，[清单](references/ui-and-sse/2026-10-27/manifest.json)记录摘要哈希；没有下载 Nuxt UI、Tailwind 或解析库依赖。

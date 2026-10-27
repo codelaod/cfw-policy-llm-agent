@@ -66,3 +66,17 @@ python3 scripts/check_references.py
 ## 2026-10-26：范围复审与原型辅助工具
 
 [scope-and-prototype/2026-10-26/manifest.json](scope-and-prototype/2026-10-26/manifest.json) 包含 8 份自写摘要：互联网出向字段、NAT ACL、设计／界面／浏览器技能与 Figma／Stitch 接入前提。不保存第三方全文、私有数据或账号凭据；关注量不是单技能使用人数。
+
+
+## 2026-10-26：B2 技术设计
+
+[b2-technical-design/2026-10-26/manifest.json](b2-technical-design/2026-10-26/manifest.json) 包含 12 份自写摘要：当前 NAT API／来源核验、固定官方 SDK 类型与 context、CFW 匹配、正式前端组件／路由、SQLite／GORM／纯 Go 适配及工具调用边界。不是 SDK 构建、云端接入或业务效果验证。
+
+
+## 2026-10-27：整体设计复核
+
+[design-review/2026-10-27/manifest.json](design-review/2026-10-27/manifest.json) 为一份 HTTP 条件请求／业务修订契约的自写摘要。既有资料历史不重写，设计规则和真实集成验收继续分开。
+
+## 2026-10-27：UI／SSE 设计 v0.5
+
+[ui-and-sse/2026-10-27/manifest.json](ui-and-sse/2026-10-27/manifest.json) 新增 7 份自写摘要：Nuxt UI v4 的 Vue/Vite、组件定位与消息展示、SSE 格式、Gin 示例、Tailwind 浏览器边界与 fetch 流式读取。旧 Element Plus 资料作为历史保留。哈希检查不证明实际框架构建、互操作或已发布。

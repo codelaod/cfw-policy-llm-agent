@@ -41,7 +41,7 @@ async (page) => {
   await page.locator('#previewBtn').click();
   await page.locator('#confirmBtn').click();
   verify((await state()).profileVersion === 1, 'explicit confirmation stores a new in-memory version');
-  await page.screenshot({path:'output/playwright/03-assets-desktop.png',fullPage:true});
+  await page.screenshot({path:'output/playwright/v03-03-assets-desktop.png',fullPage:true});
   await nav('audit');
   await page.locator('#startBtn').click();
   verify(await page.locator('#startBtn').isDisabled(), 'single running task protected in UI');
@@ -65,7 +65,7 @@ async (page) => {
   await page.locator('#findingFilter').selectOption('insufficient');
   verify(!await page.locator('#findingDetail').isVisible(), 'empty filter does not show stale detail');
   await page.locator('#findingFilter').selectOption('all');
-  await page.screenshot({path:'output/playwright/04-findings-desktop.png',fullPage:true});
+  await page.screenshot({path:'output/playwright/v03-04-findings-desktop.png',fullPage:true});
   await page.locator('#openReportBtn').click();
   const downloadPromise = page.waitForEvent('download');
   await page.locator('#exportBtn').click();
@@ -80,7 +80,7 @@ async (page) => {
   await page.locator('#previewBtn').click(); await page.locator('#confirmBtn').click();
   await nav('report');
   verify((await page.locator('#reportVersion').textContent()).includes('报告固定画像 v1；当前资料 v2'), 'old report remains pinned to old version');
-  await page.screenshot({path:'output/playwright/05-report-desktop.png',fullPage:true});
+  await page.screenshot({path:'output/playwright/v03-05-report-desktop.png',fullPage:true});
 
   await nav('audit');
   await page.locator('#scope-outbound').check();
@@ -93,7 +93,7 @@ async (page) => {
   verify(s.tasks.at(-1).boundary.plane === 'nat' && s.tasks.at(-1).findings[0].kind === 'insufficient', 'NAT mapping gaps do not become a pass');
   verify(s.tasks[0].boundary.plane === 'internet', 'NAT selection does not mutate earlier internet task');
   await page.locator('#viewFindingsBtn').click();
-  await page.screenshot({path:'output/playwright/06-nat-desktop.png',fullPage:true});
+  await page.screenshot({path:'output/playwright/v03-06-nat-desktop.png',fullPage:true});
 
   await selectScenario('model-error');
   await nav('assets'); await page.locator('#inferBtn').click();
@@ -112,6 +112,54 @@ async (page) => {
   await page.locator('#previewBtn').click(); await page.locator('#confirmBtn').click();
   await nav('audit'); await page.locator('#startBtn').click(); await page.locator('#finishBtn').click();
   await nav('findings'); await page.locator('#planBtn').click();
+  // v0.3 delivery projection checks: manually generated events, never a real SSE connection.
+  await selectScenario('normal'); await nav('audit'); await page.locator('#startBtn').click();
+  await page.locator('.transport-controls').evaluate(el=>el.open=true);
+  await page.locator('#disconnectBtn').click();
+  verify((await state()).tasks[0].status==='running', 'disconnect does not cancel producer task');
+  await page.locator('#advanceBtn').click();
+  verify((await state()).tasks[0].findings.length===1, 'producer can advance while disconnected');
+  verify(await page.evaluate(()=>window.mockAuditPrototype.getVisibleTask().findings.length)===0, 'unreceived findings are hidden');
+  verify(!await page.locator('#viewFindingsBtn').isVisible(), 'disconnected results are not linked early');
+  verify(!(await page.locator('#taskEvents').textContent()).includes('规则样例已就绪'), 'timeline only contains received events');
+  await nav('findings'); verify(await page.locator('#findingsEmpty').isVisible(), 'finding page cannot expose unreceived producer result');
+  await nav('audit'); await page.locator('#finishBtn').click();
+  verify((await state()).tasks[0].status==='completed', 'producer terminal is independent of subscription');
+  verify((await page.locator('#runStatus').textContent()).includes('进行中'), 'unreceived terminal does not silently update visible status');
+  verify((await page.locator('#taskHistory').textContent()).includes('进行中'), 'history list also uses received projection');
+  await page.screenshot({path:'output/playwright/v03-audit-disconnected.png',fullPage:true});
+  await page.locator('#reconnectBtn').click();
+  verify((await page.locator('#streamStatus').textContent()).includes('正在重连'), 'reconnecting state is explicit');
+  verify(await page.evaluate(()=>window.mockAuditPrototype.getVisibleTask().delivery.cursor)===1, 'reconnecting alone does not acknowledge missing data');
+  await page.locator('#replayBtn').click();
+  let view=await page.evaluate(()=>window.mockAuditPrototype.getVisibleTask());
+  verify(view.status==='completed'&&view.delivery.mode==='ended', 'replay drains through terminal and closes subscription');
+  verify(view.delivery.received.every((e,i)=>e.seq===i+1), 'replay yields contiguous ordered timeline');
+  const deliveredCount=view.delivery.received.length;
+  await page.evaluate(()=>window.mockAuditPrototype.replayEvents());
+  verify(await page.evaluate(()=>window.mockAuditPrototype.getVisibleTask().delivery.received.length)===deliveredCount, 'duplicate replay is deduplicated');
+  verify((await state()).tasks.length===1, 'reconnection never creates a new task');
+  verify((await page.locator('#agentMessage').textContent()).includes('固定样例'), 'public answer is explicitly a fixed complete-message sample');
+  await selectScenario('normal'); await nav('audit'); await page.locator('#startBtn').click();
+  await page.locator('#pollBtn').click(); await page.locator('#advanceBtn').click();
+  verify((await page.locator('#streamStatus').textContent()).includes('轮询兜底'), 'polling fallback is visible');
+  verify(await page.evaluate(()=>window.mockAuditPrototype.getVisibleTask().findings.length)===1, 'polling shares the same received projection');
+  await page.locator('#reconnectBtn').click(); await page.locator('#cancelBtn').click(); await page.locator('#replayBtn').click();
+  view=await page.evaluate(()=>window.mockAuditPrototype.getVisibleTask());
+  verify(view.status==='cancelled'&&view.findings.length===1, 'explicit cancellation retains rule result after replay');
+  await selectScenario('model-error'); await nav('audit'); await page.locator('#startBtn').click();
+  await page.locator('#disconnectBtn').click(); await page.locator('#finishBtn').click(); await page.locator('#pollBtn').click();
+  view=await page.evaluate(()=>window.mockAuditPrototype.getVisibleTask());
+  verify(view.status==='partial'&&view.findings.length===1, 'model failure can be recovered through polling without losing rules');
+  verify(!view.delivery.received.some(e=>e.type==='message_available'), 'model failure does not invent an assistant answer');
+  verify((await page.locator('#agentMessage').textContent()).includes('尚未收到'), 'unavailable final answer is not rendered as successful');
+  await selectScenario('normal'); await nav('assets'); await page.locator('[data-asset="demo-b"]').click();
+  await page.locator('#inferBtn').click(); await page.locator('#ports').fill('TCP 3306');
+  await page.locator('#sources').fill('10.0.1.0/24（人工声明）'); await page.locator('#exposure').selectOption('private');
+  await page.locator('#completeSet').check(); await page.locator('#previewBtn').click(); await page.locator('#confirmBtn').click();
+  await nav('audit'); await page.locator('#startBtn').click(); await page.locator('#finishBtn').click();
+  await page.locator('.transport-controls').evaluate(el=>el.open=false);
+  await nav('findings'); await page.locator('#planBtn').click();
   // Let transient status messages finish naturally before final visual captures.
   await page.locator('#notice').filter({hasText:/./}).waitFor({state:'hidden',timeout:10000}).catch(async()=>{
     await page.waitForFunction(()=>document.getElementById('notice').textContent === '');
@@ -122,7 +170,7 @@ async (page) => {
       await nav(view);
       const bounds = await page.evaluate(()=>({width:innerWidth,scroll:document.documentElement.scrollWidth}));
       verify(bounds.scroll <= bounds.width+1, 'no document overflow at '+width+'px / '+view);
-      await page.screenshot({path:'output/playwright/final-'+view+'-'+width+'.png',fullPage:true});
+      await page.screenshot({path:'output/playwright/v03-final-'+view+'-'+width+'.png',fullPage:true});
     }
   }
   await page.locator('.skip').focus();

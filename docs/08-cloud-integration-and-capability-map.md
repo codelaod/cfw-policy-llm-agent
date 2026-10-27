@@ -2,7 +2,7 @@
 
 状态：官方文档核对与接入建议；**尚未调用真实云账号 API**。资料更新日期：2026-10-21；审核顺序及 ECS／安全组字段补核：2026-10-22。
 
-本文是背景依据，不是接口验收记录。当前按用户条件授权及 [B0](17-requirements-cross-review-and-design-baseline.md) 已进入 P2，[系统设计 v0.1](03-architecture-discussion.md) 待 G2；不按早期验证清单自动追加调用，也不因资料齐全就编码。
+本文是背景依据，不是接口验收记录。当前按用户条件授权及 [B0](17-requirements-cross-review-and-design-baseline.md) 已进入 P2，[系统设计 v0.3](03-architecture-discussion.md) 待 G2；不按早期验证清单自动追加调用，也不因资料齐全就编码。
 
 资料编号见 [官方资料与核实记录](06-references.md)，技术选型背景见 [技术背景与选型评估](07-technical-background-and-options.md)。
 
@@ -157,8 +157,12 @@
 | 数据族 | 当前可核实依据 | 尚需核实与权限边界 |
 | --- | --- | --- |
 | 互联网出向 ACL | `DescribeControlPolicy` 的 `Direction` 支持 `in/out`；请求与响应的方向必须保留 | 按方向独立分页／计数、动作／状态／顺序／引用、默认行为与账号实际响应；不是已验证采集器 |
-| NAT 边界 ACL | 官方产品文档按 NAT 网关选择规则，说明源／目标／端口／动作／优先级／状态和引擎模式 | 目标版本的只读 API、网关／防火墙标识、响应、分页、默认行为和最小 RAM 权限需单独核实；本轮不猜造 API 名称 |
+| NAT 边界 ACL | 官方产品文档按 NAT 网关选择规则，说明源／目标／端口／动作／优先级／状态和引擎模式 | 现已核实当前 DescribeNatFirewallControlPolicy／DescribeNatFirewallList 的公开契约及官方 SDK 类型；真实响应／账号能力／默认 profile 与权限仍需验收，详见 25 |
 | NAT 保护与资产关联 | 需要可定位的网关、防火墙、资产和观察点上下文 | CFW 信息不足时，再评审最小网络查询权限；不得自动读取其他账号 profile 或补开产品 |
 | SNAT／DNAT 资料 | 与防火墙 ACL 分开；当前仅建议保留显式来源的关联资料 | 是否采集转换条目、地址观察位置、产品版本差异和时点一致性待 G2，不声明全转换审计或实际可达性 |
 
 每族数据独立记录时间、来源、完整性、失败／未纳入状态；资料不足降级为未知，不以网络调研替代真实接口验收。外部查询仍须既定授权，不因 CR-1 自动调用。
+
+## 10. B2 公开契约核对结果（设计 v0.3）
+
+当前 NAT 只读适配选择、未核实接口排除、字符串／整数分页差异、Policys 集合、ProxyStatus／StrictMode 与 WithContext 源码路线见 [25](25-boundary-and-aliyun-collector-design.md)；一手资料 T-01～T-06 见 [清单](references/b2-technical-design/2026-10-26/manifest.json)。这是公开文档／源码核对，不是实际云查询或 SDK 集成成功。

@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "documents": [
+    {
+      "id": "D5-01",
+      "title": "Nuxt UI v4 的 Vue/Vite 接入与路由",
+      "url": "https://github.com/nuxt/ui/blob/v4/docs/content/docs/1.getting-started/2.installation/2.vue.md",
+      "retrieved_date": "2026-10-27",
+      "text_file": "d5-01.md",
+      "text_bytes": 633,
+      "text_sha256": "698ca33cf06d147339f88d45f0f21303f8fd34cf296c294c8bc637842df097e5",
+      "retrieved_source_sha256": "990bee518e7b999045ed53f0f66ccea3f49f47af8240c5fdba42f610abd995b8"
+    },
+    {
+      "id": "D5-02",
+      "title": "Nuxt UI 的组件库定位",
+      "url": "https://github.com/nuxt/ui/blob/v4/README.md",
+      "retrieved_date": "2026-10-27",
+      "text_file": "d5-02.md",
+      "text_bytes": 498,
+      "text_sha256": "762a5f8fafde99654a0f5fb7479bf3229518af989c6025281d054b6b2e6a8d64",
+      "retrieved_source_sha256": "7e3213de98e361a534343b052acdccddf99dfcb2188e566f72c087c0faa6f2bd"
+    },
+    {
+      "id": "D5-03",
+      "title": "ChatMessages 展示数据与状态",
+      "url": "https://github.com/nuxt/ui/blob/v4/docs/content/docs/2.components/chat-messages.md",
+      "retrieved_date": "2026-10-27",
+      "text_file": "d5-03.md",
+      "text_bytes": 632,
+      "text_sha256": "49275a1d176c23cc82ef4dc594a37965d19add13a6c0c93e30dff70031907e33",
+      "retrieved_source_sha256": "275ce79eff1baa64027c6630d5327460afc765ea4a38f530e502822fedd373dc"
+    },
+    {
+      "id": "D5-04",
+      "title": "WHATWG SSE 线格式与 EventSource",
+      "url": "https://html.spec.whatwg.org/multipage/server-sent-events.html",
+      "retrieved_date": "2026-10-27",
+      "text_file": "d5-04.md",
+      "text_bytes": 630,
+      "text_sha256": "3aba2658909944d9d46ee3aa592c35ef88d1a415539dc962493e7f129588a610",
+      "retrieved_source_sha256": "8956dcbcf2451afb8ecabddddfa3cb9b80861ca19c58fb8ee0d2d623f9a46727"
+    },
+    {
+      "id": "D5-05",
+      "title": "Gin 官方 SSE 示例",
+      "url": "https://github.com/gin-gonic/examples/blob/master/server-sent-event/main.go",
+      "retrieved_date": "2026-10-27",
+      "text_file": "d5-05.md",
+      "text_bytes": 547,
+      "text_sha256": "aa2a318689af2e7c911dd081176910defecbbaa497deae006460c57caa9b840a",
+      "retrieved_source_sha256": "f8d0c7db55430e5effd9aeb80a41d19440a1c09cbfce02cab25bb9a488b6a406"
+    },
+    {
+      "id": "D5-06",
+      "title": "Tailwind CSS v4 浏览器兼容边界",
+      "url": "https://tailwindcss.com/docs/compatibility",
+      "retrieved_date": "2026-10-27",
+      "text_file": "d5-06.md",
+      "text_bytes": 572,
+      "text_sha256": "1f47474b4262933a74e75c8e141d794579b7563996037f174cc1758e2479358c"
+    },
+    {
+      "id": "D5-07",
+      "title": "Fetch 响应流与中止",
+      "url": "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch",
+      "retrieved_date": "2026-10-27",
+      "text_file": "d5-07.md",
+      "text_bytes": 591,
+      "text_sha256": "f1c488f93f1dfaec8f541d066fe467a94e119c9b206eb0cfe1aa5e30cc80512b",
+      "retrieved_source_sha256": "cb83eab195b40ec2d9f1094eeed3281d6e2d340a2f744ec95e1339755e6f423b"
+    }
+  ]
+}

@@ -91,3 +91,7 @@
 ## 6. 一手资料与核实范围
 
 来源与自写摘要见 [本轮资料清单](references/scope-and-prototype/2026-10-26/manifest.json)，不复制厂商全文。GitHub 关注数是读取时点的数据；产品账号能力与费用没有进行实测。
+
+## 7. 技术设计承接（需求范围不变）
+
+B2 已由用户确认；后续技术设计已形成 v0.3，具体分区／API／前端／规则方案及 G2 待审取舍见 [25](25-boundary-and-aliyun-collector-design.md)、[26](26-design-v03-review-and-implementation-plan.md)。本文件保留需求与原型评审经过，不将 G2 后验证计划当作已执行。

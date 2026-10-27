@@ -1,10 +1,12 @@
 # 换环境开发交接
 
-> 2026-10-26 最新交接：需求 v0.6／B2 与 PRD v0.4 已获用户确认，见 [CR-1／B2 批准记录](24-scope-expansion-and-prototype-review.md)。下一步按 B2 补齐设计再审 G2；原型不是正式前端，不自动创建业务工程或调用真实服务。
+> 2026-10-27 最新交接：需求 v0.6／B2 及补充验收保持不变；整体设计已复核为 v0.5，待 G2。先看 [27](27-architecture-and-technical-design-review.md) 与 [28](28-evaluation-and-real-validation-design.md)，再审 03／18／19／20～22／边界采集。用户已授权本轮一次本地提交，结果以 Git 记录为准；未授权推送，未创建正式工程或调用真实服务。
 
 > 2026-10-27 补充：本文下方保留 2026-10-22 的 B1 交接快照；当前需求以 v0.6／B2 与 [开题对齐补漏记录](25-proposal-requirements-alignment-review.md) 为准。真实验证优先复用同一台 ECS／同一套防火墙串行进行；旧多资产示例不代表最低采购或并行部署要求。设计仍待 G2，本轮仅修订需求文档，不自动补写设计或执行真实调用。
 
 更新日期：2026-10-22。本文是当前阶段的交接快照，不是正式系统安装说明。先读 [协作说明](../AGENTS.md) 和 [README](../README.md)。
+
+当前 UI／SSE 采用方向已获用户局部确认，细节见 [29](29-frontend-and-sse-design.md)；原型 v0.3 只作视觉和内存事件恢复演示，仍没有正式 Nuxt UI 构建或真实 SSE 服务。
 
 ## 1. 当前已经做到哪里
 
@@ -117,6 +119,6 @@ bash scripts/eino-offline.sh config-check
 
 ## 6. 给下一环境的简短任务描述
 
-> 请先读 AGENTS.md、README.md、docs/17-requirements-cross-review-and-design-baseline.md 和系统设计 03／18／19。当前是 P2：用户授权交叉审核无关键阻塞后进入设计，需求 v0.5／B1 已成为设计输入，设计 v0.2 待用户 G2；不要回退到无限等待 G1，也不要自动开始业务编码。设计建议 Go／Gin／Eino＋Vue／TS／Vite＋GORM／纯 Go SQLite／单工作器，B0 默认 M0、M1 关闭、只读云，不接云安全中心。同时读取 20／21／22 的会话时序、统一认证和跨入口引导；先处理用户对架构／契约／算法与安全预算的意见；真实连续补查和云 API 仍未验收。凭据和真实原文不随 Git，资料／设计是否提交以 Git 状态为准。
+> 请先读 AGENTS.md、README.md 和 docs/27-architecture-and-technical-design-review.md，再读 03／18／19／20～22、25-boundary-and-aliyun-collector-design.md 与 28-evaluation-and-real-validation-design.md。用户要求需求保持稳定，B2 及 2026-10-27 的补充验收不变；设计 v0.5 已完成文档级整体复核，仍待 G2。20～30 是独立人工案例数，真实优先单台 ECS／同一套防火墙串行复用，至少一次真实人工整改复审不能用离线替代。技术栈和具体设计未获 G2；不启动正式工程或真实调用，不沿用之前的一次推送授权。本地改动与备份以 Git 状态为准，不读取私有凭据。
 
 本轮 B1 新增连续会话／历史、缓存时序与累计耗时、统一凭据及 Web／CLI／TUI 引导，见 20／21／22；Review 与发布核对见 23。用户已授权审查修订后提交推送，具体 SHA／远端结果以 Git 与最终回执为准。设计仍待 G2，不能根据发布成功自动编码、后台采集或调用模型。

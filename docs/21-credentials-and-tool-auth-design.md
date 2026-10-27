@@ -1,8 +1,10 @@
 # 专用工具、外部凭据与认证授权设计
 
-> 2026-10-26 [B2 设计待办](24-scope-expansion-and-prototype-review.md)：NAT 需求范围已确认，查询接口、只读权限与期望账号须在 G2 单独细化，不扩用通用默认凭据，不增加云写工具或自动外呼。
+> v0.3 与设计 v0.4 共用统一执行准入、逐请求预算和传输验证门槛；所有真实权限／驱动／取消行为仍待后续验收。
 
-版本：v0.1。日期：2026-10-22。对应需求 v0.5／设计 v0.2，**待 G2；新配置字段和连接能力尚未实现**。
+> v0.5 联动：用户确认 Nuxt UI v4＋Tailwind 与 fetch SSE＋轮询兜底；保留 Vue/Vite/Router、非流式模型和原有授权边界，整体 G2 仍待审核。详细契约见 [29](29-frontend-and-sse-design.md)。
+
+版本：v0.4。日期：2026-10-27。对应稳定需求 v0.6／B2 与设计 v0.5，**待 G2，尚未实现／验收**。
 
 关联：[系统设计](03-architecture-discussion.md)、[数据／API](18-data-and-api-design.md)、[会话与时序](20-session-history-and-data-freshness.md)。本项目是专用审计应用，不是能连接任意工具／账号的通用 Agent；默认直接通过官方 SDK，不要求外部 MCP。
 
@@ -34,7 +36,7 @@ flowchart LR
   M --> MP[独立模型凭据Provider]
 ```
 
-启动时组装接口：采集服务持有 CloudClientFactory／CredentialProvider，模型适配器持有 ModelCredentialProvider，Agent 工具仅持有领域 QueryService 与授权上下文。云 SDK、私有配置和 raw token 不作为工具参数，也不放聊天／系统提示词／可序列化 Eino state。
+启动时组装接口：采集服务持有 CloudClientFactory／CredentialProvider，模型适配器持有 ModelCredentialProvider，Agent 工具仅持有领域 QueryService 与包含 policy_scope_ref 的授权上下文。云 SDK、私有配置和 raw token 不作为工具参数，也不放聊天／系统提示词／可序列化 Eino state。
 
 Gin 的 request context 仅用于本次 API 的认证、验证和短事务。异步任务复制已验证的 operator／workspace／connection／scope 引用和预算，由服务根 context＋任务 deadline 驱动；不得保留池化 Gin Context，也不能因返回 202 就把后台工作取消。
 
@@ -52,6 +54,8 @@ Gin 的 request context 仅用于本次 API 的认证、验证和短事务。异
 | --- | --- | --- |
 | CFW 资产 | DescribeAssetList | `yundun-cloudfirewall:DescribeAssetList` |
 | CFW 互联网 ACL | DescribeControlPolicy | `yundun-cloudfirewall:DescribeControlPolicy` |
+| NAT 网关／防火墙元数据 | DescribeNatFirewallList | `yundun-cloudfirewall:DescribeNatFirewallList`（T-02） |
+| NAT 边界 ACL | DescribeNatFirewallControlPolicy | `yundun-cloudfirewall:DescribeNatFirewallControlPolicy`（T-01） |
 | 静态引用 | DescribeAddressBook | `yundun-cloudfirewall:DescribeAddressBook` |
 | ECS 上下文 | DescribeInstances | `ecs:DescribeInstances` |
 | 安全组上下文 | DescribeSecurityGroupAttribute | `ecs:DescribeSecurityGroupAttribute` |
@@ -150,3 +154,35 @@ A-28／A-29 提供官方 Go 凭据路线。**本应用默认显式选择连接�
 - Gin 请求结束后排队任务仍按服务根 context 执行，取消／停机只终止后续已授权请求，不错误继承 HTTP 生命周期。
 
 本轮只做资料核对和设计，不读取实际 `.env.local`、不发身份检查／STS／云／模型／MCP 请求。
+
+## 9. B2 的最小授权与实现约束
+
+- G2 后连接配置增加显式 allowed_boundaries／allowed_nat_gateway_ids／允许资源地域；网关名单为空不等于所有网关。范围目录可由这些配置生成“已配置但未验证”的条目，无需启动外呼。没有配置／导入来源时提示操作者补充，不为生成下拉框自动扫描。
+- NAT 查询显式选择一个获准 NatGatewayId；默认不传跨账号 MemberUid，不从可见的其他成员账号推导授权。返回账号／网关归属不符或含义未核实时拒绝相关输入，不切换身份补查。
+- 当前只读操作是 DescribeNatFirewallList 和 DescribeNatFirewallControlPolicy；不按猜测的 List／V2 名称推断新旧或回退。曾出现的无可靠依据“已废弃”断言已撤除。T-01～05 的来源与字段见 [25](25-boundary-and-aliyun-collector-design.md)。
+- 官方 NAT 动作支持按 ACL 的 AclUuid 和防火墙的 ProxyId 描述资源范围，不能声称只能资源 `*`，也不能把查询参数 NatGatewayId 塞进这两个 ARN 标识。优先账号限定／已知资源范围；为全分区枚举需更宽模式时明确告知并实际验证，不伪称逐网关／资产隔离。禁止全动作 `*`、FullAccess 和任何写操作。
+- SNAT／DNAT 首版仅使用已明确提供的关联上下文，默认不新增 VPC 转换表查询；确需增加最小只读补证时，在 G2 列出新 API、RAM、数据与预算后采用。
+- 所核 CFW Go SDK 有 WithContext 并调用 CallApiWithCtx。正式适配必须使用任务根 context；公开源码不代表凭据库、ECS、重试或底层网络取消已全部验证。G2 后用模拟 HTTP 和可控凭据源观测实际尝试，不只测外层超时返回。
+- 执行计划预览／范围目录／auth-status 均本地读取，不换 STS 或访问云服务。真正外呼只在显式执行且效果上限允许时发生。两轮复读与续期共用既有预算，不能借新边界多领额度。
+
+对应验证：B2-02／09／15～17、AC-09／18。没有生成或下发 RAM 策略，没有读取实际云／模型配置或使用机器其他 profile。
+
+## 10. 统一准入与传输门槛（RV4-04／06／09）
+
+Web Handler 只能提交类型化意图给 ExecutionAdmission，不能直接取得 CloudClient 或 ModelClient。kind 对应效果由服务端定义，/jobs 的调用方不能覆盖计划里的 kind／scope／预算。模型生成的建议不是用户确认事件，不能自行进入执行队列。
+
+助手明确发送的内部计划只允许模型请求和固定资料 QueryService，禁止隐式身份检查／STS／云刷新；资料缺口转成新的采集计划建议。连接检查也没有模型权限，最多 6 次实际云／凭据尝试，仅有界探测，不把单个操作成功当全部权限验证。Provider 必须惰性取得凭据，不能因为组装客户端、读取状态或生成预览而触发续期。
+
+已知的应用／云／模型凭据值不得进入消息、审阅意见的日志或模型投影；自由文本不宣称完全可自动脱敏。审阅意见默认属于本地私有记录，不因保存在同会话就全部发送给模型或导出公开报告。
+
+CFW SDK WithContext 的存在仅是接口依据。E0 必须证明：实际 HTTP 可取消、SDK／凭据内部重试可在同一 attempt ledger 计数、响应在解码前有界、错误正文不会泄露。若固定版本不能提供这些控制点，该适配不能作为通过版本，需要调整适配或回到 G2，不用外层 goroutine 超时或事后截断掩盖缺口。
+
+建议云单次响应正文上限 2 MiB，仍受每分区 1000 策略及全任务读取预算约束；这不是厂商限额或已测容量。超限／截断产生 COLLECTION_PARTIAL／UPSTREAM_RESPONSE_TOO_LARGE，不把被截掉的匹配条件当 ANY。具体正常响应可用性在模拟和真实 fixture 中验收，未经确认不自动抬高。
+
+所有请求在物理发送前预记，包含身份和续期，发送未知时保守占用；与 20 第 10 节一致。该设计不创建新 RAM 用户、开通产品、安装客户端或增加云写接口。
+
+## 11. v0.5 SSE 访问保护
+
+按 [29](29-frontend-and-sse-design.md) 使用 fetch 响应流，不使用无法携带既定应用访问头的裸 EventSource，也不把口令拼进 URL。事件页、SSE、结果和报告共用应用访问／范围检查，认证必须发生在流式响应头之前；不新增 Cookie 登录、开放 CORS、云权限或模型权限。
+
+401 停止自动重连并要求本地解锁；403／404 停止，不能把权限错误当网络错误持续轮询。连接有最大寿命，应用口令轮换应关闭已有订阅或要求重鉴权。客户端／服务器均不记录授权头，事件只输出公共投影，不含原始错误、凭据或 reasoning。长连接与业务 job context 分离；慢客户端超时、订阅中止均不触发模型／云重试或取消任务。

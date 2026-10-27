@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "documents": [
+    {
+      "id": "D4-01",
+      "title": "HTTP 条件请求与业务修订契约",
+      "url": "https://www.rfc-editor.org/rfc/rfc9110.html",
+      "retrieved_date": "2026-10-27",
+      "text_file": "d4-01.md",
+      "text_bytes": 667,
+      "text_sha256": "984d222f4d13bf4b1d9c83c2a2cad06335ddc4a980e2bd5895c68f642cfa044d"
+    }
+  ]
+}

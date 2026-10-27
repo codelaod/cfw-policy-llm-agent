@@ -2,7 +2,7 @@
 
 本仓库用于论文研究与系统实现。系统以云防火墙策略审计为业务主线，以大模型 Agent 为实现方法，围绕云资产、访问控制策略和业务访问需求，完成风险识别、证据补查、配置推荐与审计报告生成。
 
-当前处于 **P2 系统设计阶段：需求 v0.6／B2 已于 2026-10-26 获用户确认，现有设计 v0.2 需按 B2 补充并通过 G2**。按用户“交叉审核无关键问题后进入设计”的条件授权，需求 v0.5／B1 此前作为设计输入；本轮用户明确“需求算过了”，据此采用 B2，不是用户沉默或技术验证代替批准。正式业务系统仍未实现。已有 Go + Eino 与两个 MiniMax 小样例仅为前期证据，不证明完整协议、审计效果或云端接入。
+当前处于 **P2 系统设计阶段：需求 v0.6／B2 已于 2026-10-26 获用户确认，系统设计已按稳定 B2 及补充验收整体复核为 v0.5，待用户 G2**。按用户“交叉审核无关键问题后进入设计”的条件授权，需求 v0.5／B1 此前作为设计输入；本轮用户明确“需求算过了”，据此采用 B2，不是用户沉默或技术验证代替批准。正式业务系统仍未实现。已有 Go + Eino 与两个 MiniMax 小样例仅为前期证据，不证明完整协议、审计效果或云端接入。
 
 2026-10-27 按用户授权完成开题对应的需求补漏，沿用 B2：明确模型能力验收、审阅记录保存、20～30 个人工评价案例与单台 ECS 串行复用、对照统计及最低真实复审。改动与 review 过程见 [对齐记录](docs/25-proposal-requirements-alignment-review.md)；本轮没有调整系统设计、业务范围或开题正文。
 
@@ -42,11 +42,17 @@ B2 保留互联网入向闭环，并纳入有限互联网出向和 NAT 边界 AC
 | [会话历史与数据时序](docs/20-session-history-and-data-freshness.md) | 持续对话、框架恢复边界、缓存／刷新、累计耗时与分层反馈 |
 | [凭据与专用工具认证](docs/21-credentials-and-tool-auth-design.md) | 启动／环境／STS／角色、期望账号、SDK 与 MCP 边界 |
 | [跨入口推荐引导](docs/22-guidance-and-multi-entry-design.md) | Web／CLI／TUI 共用短语、空态／续聊／失败下一步和副作用 |
+| [B2 边界与阿里云采集设计](docs/25-boundary-and-aliyun-collector-design.md) | 当前 NAT API／来源核验、分区身份、分页／模式／缓存与取消设计 |
+| [G2 整体系统设计审核包](docs/30-g2-system-design-review-package.md) | 用户审核主入口：阶段状态、逐项决策、阻塞项、待实测项、研发分期与可直接回复的确认清单 |
+| [整体架构与技术复核 v0.5](docs/27-architecture-and-technical-design-review.md) | 稳定 B2 的问题修订、完整需求追溯、G2 门槛与检查结果 |
+| [前端组件与 SSE 设计](docs/29-frontend-and-sse-design.md) | 用户已确认 Nuxt UI v4＋Tailwind 方向；带鉴权事件流、恢复、兜底与原型边界 |
+| [评价执行与真实整改复审设计](docs/28-evaluation-and-real-validation-design.md) | 三组公平对照、20～30 独立人工案例、串行复用及最低真实闭环 |
+| [历史 v0.3 审查与实施计划](docs/26-design-v03-review-and-implementation-plan.md) | 保留上一版取舍与 B2 验证计划；当前 G2 入口见 27 |
 | [出向／NAT 范围复审与原型改进](docs/24-scope-expansion-and-prototype-review.md) | CR-1／B2 确认记录、联动文档、设计工具与原型验证边界 |
 | [开题与需求对齐复核](docs/25-proposal-requirements-alignment-review.md) | B2 补漏、资源复用约束、改动记录与两轮 review |
 | [v0.2 Review 与发布核对](docs/23-design-v02-review-and-publication.md) | 迭代检查、修复、回归、隐私／署名和发布授权边界 |
-| [离线交互原型 v0.2](docs/prototypes/audit-workflow/index.html) | 人工数据交互演示，不接 API／模型，不是正式前端；[说明](docs/prototypes/audit-workflow/README.md) |
-| [系统设计说明书 v0.2](docs/03-architecture-discussion.md) | G2 待审：技术取舍、4+1 视图、模块、部署、安全和追溯 |
+| [离线交互原型 v0.3](docs/prototypes/audit-workflow/index.html) | 人工数据交互演示，不接 API／模型，不是正式前端；[说明](docs/prototypes/audit-workflow/README.md) |
+| [系统设计说明书 v0.5](docs/03-architecture-discussion.md) | G2 待审：B2 分区／前端／采集方案、模块、安全与追溯 |
 | [实验与演示方案](docs/04-evaluation-and-demo.md) | 对照实验、标注、真实云环境验证与费用管理 |
 | [阶段计划与决策记录](docs/05-roadmap-and-decisions.md) | 已确认事项、未定问题、实施顺序与下一次讨论重点 |
 | [官方资料与核实记录](docs/06-references.md) | 接口及产品资料来源、核实边界 |
@@ -55,17 +61,23 @@ B2 保留互联网入向闭环，并纳入有限互联网出向和 NAT 边界 AC
 | [离线验证记录](docs/09-offline-validation-record.md) | 固定依赖、实际通过的检查及未验证范围 |
 | [换环境开发交接](docs/10-environment-handoff.md) | 当前进度、迁移边界、新环境恢复步骤与下一任务 |
 | [MiniMax 真实模型初测](docs/11-live-model-validation.md) | 4 次真实请求、两个案例、保护措施与未验证范围 |
-| [离线参考资料](docs/references/README.md) | 11 篇官方正文＋1 模型／19 需求／9 初版设计／10 修订／8 范围及原型摘要，附来源与校验清单 |
+| [离线参考资料](docs/references/README.md) | 11 篇官方正文＋1 模型／19 需求／9 初版设计／10 修订／8 范围及原型／12 B2 技术／1 整体复核／7 UI 与 SSE 摘要，附来源与校验清单 |
 
 ## 开始实现前
 
 仓库协作约定见 [AGENTS.md](AGENTS.md)。
 
-按用户要求执行两道审核门槛：**需求主文档＋必要领域需求 → 用户确认需求基线（G1）→ 系统设计 → 用户审核设计（G2）→ 正式业务实现**。本轮已完成交叉审核并按条件授权进入设计；本轮已确认需求 B2，下一步联动补充系统设计并审核 G2，不是业务编码或追加真实调用。用户本轮授权普通推送当前本项目累计提交，包括此前仅本地保存的开题稿与原型修订；不强推、不改历史。
+按用户要求执行两道审核门槛：**需求主文档＋必要领域需求 → 用户确认需求基线（G1）→ 系统设计 → 用户审核设计（G2）→ 正式业务实现**。本轮已完成交叉审核并按条件授权进入设计；本轮已确认需求 B2，设计 v0.5 已完成整体复核与修订，下一步审核 G2，不是业务编码或追加真实调用。此前一次普通推送授权已执行完毕；用户现已授权本轮累计设计／原型和 G2 审核包的一次本地提交，不包含推送，不重复消费本次或旧授权。
 
 最终验收包含真实只读采集、资产关联和至少一次人工整改后重新采集／审计的闭环；优先复用同一台 ECS 和同一套云防火墙串行验证，不按人工案例数量创建实例。具体版本、字段、权限、必要关联资源和预算在设计／集成阶段核实，离线结果不替代真实验收；当前不自动追加模型或云 API 请求。
 
 本轮补充了技术背景调研：结合 Go 高于 Python、高于 Node.js 的熟悉度与未来 TUI 需求，建议先验证 Go + Eino，Python + PydanticAI 作为备选；云接入建议以云防火墙为核心，有限补充 ECS/安全组。上述仍是候选建议，未完成选型或实际接口验证。
+
+## 技术设计审核入口
+
+建议先看 [G2 整体系统设计审核包](docs/30-g2-system-design-review-package.md)，由其中的逐项决策与确认清单完成审核；需要核对依据时再看 [整体架构与技术复核](docs/27-architecture-and-technical-design-review.md)，并按 03 → [前端与 SSE 29](docs/29-frontend-and-sse-design.md) → 18 → 19／边界采集 → 20／21／22 → 28 深入阅读。需求 B2 已通过，UI／SSE 方向已局部确认，整体设计 G2 尚未通过；没有创建正式工程、安装新依赖或调用云／模型。
+
+可运行的纯文档检查：`python3 scripts/check_design_docs.py`、`python3 scripts/check_references.py`。前者检查链接、围栏、JSON 示例、范围和预算结构，不执行规则语义或业务测试。
 
 ## 已可运行的最小离线验证
 
