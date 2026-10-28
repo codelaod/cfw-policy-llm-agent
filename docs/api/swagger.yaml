@@ -143,6 +143,39 @@ definitions:
       text:
         type: string
     type: object
+  app.CollectionAsset:
+    properties:
+      id:
+        type: string
+      region:
+        type: string
+    type: object
+  app.CollectionOptions:
+    properties:
+      available:
+        type: boolean
+      configured:
+        type: boolean
+      identity_verified:
+        type: boolean
+      max_http_attempts:
+        type: integer
+      scopes:
+        items:
+          $ref: '#/definitions/app.CollectionScope'
+        type: array
+      source_ref:
+        type: string
+    type: object
+  app.CollectionScope:
+    properties:
+      assets:
+        items:
+          $ref: '#/definitions/app.CollectionAsset'
+        type: array
+      scope:
+        $ref: '#/definitions/domain.Scope'
+    type: object
   app.DataPolicy:
     properties:
       allow_stale_fallback:
@@ -759,6 +792,10 @@ definitions:
     type: object
   httpapi.Capabilities:
     properties:
+      cloud_available:
+        type: boolean
+      cloud_configured:
+        type: boolean
       m1_enabled:
         type: boolean
       model_available:
@@ -909,6 +946,8 @@ definitions:
         $ref: '#/definitions/storage.AttemptUsage'
       audit:
         $ref: '#/definitions/storage.AuditRecord'
+      cloud_result:
+        $ref: '#/definitions/storage.CloudRecord'
       completed_phases:
         items:
           type: string
@@ -1154,6 +1193,57 @@ definitions:
       result:
         $ref: '#/definitions/domain.Result'
       snapshot_id:
+        type: string
+    type: object
+  storage.CloudContent:
+    properties:
+      identity_verified:
+        type: boolean
+      job_id:
+        type: string
+      kind:
+        type: string
+      limitations:
+        items:
+          type: string
+        type: array
+      observations:
+        items:
+          $ref: '#/definitions/storage.CloudObservation'
+        type: array
+      policy_scope_ref:
+        type: string
+      product_ready:
+        type: boolean
+      snapshot_id:
+        type: string
+    type: object
+  storage.CloudObservation:
+    properties:
+      enumeration_complete:
+        type: boolean
+      finished_at:
+        type: string
+      operation:
+        type: string
+      pages:
+        type: integer
+      round:
+        type: integer
+      semantic_sha256:
+        type: string
+      started_at:
+        type: string
+    type: object
+  storage.CloudRecord:
+    properties:
+      content:
+        $ref: '#/definitions/storage.CloudContent'
+      created_at:
+        type: string
+      id:
+        type: string
+      job_id:
         type: string
     type: object
   storage.ConfirmDraftRequest:
@@ -1588,12 +1678,12 @@ definitions:
     type: object
 info:
   contact: {}
-  description: Persistent fixed-input rule audits, bounded Eino supplements, confirmations,
-    reports and durable attempt accounting. Runtime is offline unless an explicit
-    private model configuration is enabled; previews and config-check never call providers.
-    Real provider capability remains separately verified.
-  title: CFW offline audit workspace
-  version: 0.3.0
+  description: Persistent fixed-input audits, bounded Eino supplements, explicit Alibaba
+    Cloud read-only collection, confirmations and reports with shared attempt accounting.
+    Provider requests require explicit configuration and task acceptance; previews
+    and config-check remain local. Real provider capability remains separately verified.
+  title: CFW audit workspace
+  version: 0.4.0
 paths:
   /audits/{id}:
     get:
@@ -1869,6 +1959,39 @@ paths:
       security:
       - AppToken: []
       summary: List local configured sources without credential discovery
+      tags:
+      - Workspace
+  /data-sources/{id}/collection-options:
+    get:
+      parameters:
+      - description: Configured data source reference
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.CollectionOptions'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Read explicit local collection choices; never checks credentials or
+        calls a provider
       tags:
       - Workspace
   /e0/jobs:

@@ -13,7 +13,7 @@ func TestE3BudgetSchemaRequiresExplicitMigrationAndKeepsExistingInputs(t *testin
 		t.Fatal(err)
 	}
 	var version int
-	if err = s.db.Raw("SELECT version FROM business_schema").Scan(&version).Error; err != nil || version != 3 {
+	if err = s.db.Raw("SELECT version FROM business_schema").Scan(&version).Error; err != nil || version != BusinessSchemaVersion {
 		s.Close()
 		t.Fatalf("budget schema is not enabled: version=%d err=%v", version, err)
 	}

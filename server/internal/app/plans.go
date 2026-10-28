@@ -74,6 +74,7 @@ type PlanService struct {
 	ModelConfigured   bool
 	ModelHTTPAttempts int
 	ModelMode         string
+	Cloud             *CloudService
 }
 
 func NewPlanService(store *storage.Store) *PlanService {
@@ -84,7 +85,7 @@ func (s *PlanService) Preview(ctx context.Context, req PlanRequest) (PlanPreview
 	bad := func() (PlanPreview, error) { return PlanPreview{}, storage.ErrInputInvalid }
 	if req.Kind != "audit" {
 		if req.Kind == "collect" || req.Kind == "connection_check" {
-			return PlanPreview{}, ErrSourceNotConfigured
+			return s.previewCloud(ctx, req)
 		}
 		return bad()
 	}

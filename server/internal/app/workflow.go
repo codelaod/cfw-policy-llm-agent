@@ -11,11 +11,12 @@ import (
 	"cfw-policy-llm-agent/server/internal/storage"
 )
 
-// Workflow executes accepted local audit plans. Cloud reads and model requests
-// have no adapters here; their absence is never replaced with synthetic output.
+// Workflow executes accepted, fixed-effect plans. Explicit cloud collection is
+// separate from an audit of an immutable snapshot; model tools never refresh it.
 type Workflow struct {
 	Store *storage.Store
 	Agent *AgentService
+	Cloud *CloudService
 	rules func(context.Context, domain.Input) (domain.Result, error)
 }
 
@@ -33,6 +34,9 @@ func workflowFailure(ctx context.Context, code string, partial bool) error {
 func (w *Workflow) Run(ctx context.Context, job storage.Job) error {
 	if err := ctx.Err(); err != nil {
 		return err
+	}
+	if job.Kind == "collect" || job.Kind == "connection_check" {
+		return w.Cloud.Run(ctx, job)
 	}
 	if job.Kind != "audit" && job.Kind != "assistant_turn" {
 		return JobFailure{Code: "EXECUTION_NOT_CONFIGURED"}

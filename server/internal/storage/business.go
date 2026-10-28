@@ -131,8 +131,23 @@ func pageBounds(offset, limit int) error {
 func validKey(s string) bool { return strings.TrimSpace(s) != "" && len(s) <= 128 }
 
 func (s *Store) SaveSnapshot(ctx context.Context, in domain.Input) (record SnapshotRecord, err error) {
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var e error
+		record, e = saveSnapshot(tx, in)
+		return e
+	})
+	if err != nil {
+		record = SnapshotRecord{}
+	}
+	return
+}
+
+func saveSnapshot(tx *gorm.DB, in domain.Input) (record SnapshotRecord, err error) {
 	if in.Scope.Ref == "" || (in.SourceKind != "synthetic" && in.SourceKind != "imported" && in.SourceKind != "live_readonly") {
 		return record, ErrInputInvalid
+	}
+	if err = validateScopeIdentity(tx, in.Scope); err != nil {
+		return record, err
 	}
 	body, err := marshalBounded(in, 5<<20)
 	if err != nil {
@@ -143,7 +158,7 @@ func (s *Store) SaveSnapshot(ctx context.Context, in domain.Input) (record Snaps
 		return record, err
 	}
 	record = SnapshotRecord{ID: id, ScopeRef: in.Scope.Ref, SourceKind: in.SourceKind, CreatedAt: now(), Body: string(body)}
-	err = s.db.WithContext(ctx).Exec("INSERT INTO snapshots(id,scope_ref,source_kind,created_at,body) VALUES(?,?,?,?,?)", id, record.ScopeRef, record.SourceKind, record.CreatedAt, record.Body).Error
+	err = tx.Exec("INSERT INTO snapshots(id,scope_ref,source_kind,created_at,body) VALUES(?,?,?,?,?)", id, record.ScopeRef, record.SourceKind, record.CreatedAt, record.Body).Error
 	if err == nil {
 		err = json.Unmarshal(body, &record.Input)
 	}

@@ -22,6 +22,8 @@ type Capabilities struct {
 	ModelConfigured  bool   `json:"model_configured"`
 	ModelMode        string `json:"model_mode"`
 	ModelAvailable   bool   `json:"model_available"`
+	CloudConfigured  bool   `json:"cloud_configured"`
+	CloudAvailable   bool   `json:"cloud_available"`
 }
 type DataSource struct {
 	ID         string `json:"id"`
@@ -102,6 +104,7 @@ type JobResult struct {
 	Recheck         *RecheckView         `json:"recheck"`
 	SnapshotID      string               `json:"snapshot_id"`
 	AgentResult     *storage.AgentRecord `json:"agent_result"`
+	CloudResult     *storage.CloudRecord `json:"cloud_result"`
 	AttemptUsage    storage.AttemptUsage `json:"attempt_usage"`
 }
 type RecheckView struct {
@@ -124,6 +127,7 @@ func (a *API) workspaceRoutes(r *gin.Engine) {
 	v := r.Group("/api/v1")
 	v.GET("/capabilities", a.capabilities)
 	v.GET("/data-sources", a.sources)
+	v.GET("/data-sources/:id/collection-options", a.collectionOptions)
 	v.GET("/policy-scopes", a.scopes)
 	v.GET("/workspaces/current", a.workspace)
 	v.PATCH("/workspaces/current", a.selectConversation)
@@ -246,7 +250,8 @@ func reply(c *gin.Context, status int, value any, err error) {
 // @Failure 401,403 {object} Error
 // @Router /capabilities [get]
 func (a *API) capabilities(c *gin.Context) {
-	c.JSON(200, Capabilities{true, 3, false, a.plans.ModelConfigured || a.plans.ModelReady, a.plans.ModelMode, a.plans.ModelReady})
+	cloud := a.plans.Cloud
+	c.JSON(200, Capabilities{OfflineAvailable: true, WorkerSlots: 3, M1Enabled: false, ModelConfigured: a.plans.ModelConfigured || a.plans.ModelReady, ModelMode: a.plans.ModelMode, ModelAvailable: a.plans.ModelReady, CloudConfigured: cloud != nil && cloud.Configured, CloudAvailable: cloud != nil && cloud.Ready})
 }
 
 // sources godoc
@@ -257,7 +262,29 @@ func (a *API) capabilities(c *gin.Context) {
 // @Success 200 {object} DataSourcePage
 // @Router /data-sources [get]
 func (a *API) sources(c *gin.Context) {
-	c.JSON(200, DataSourcePage{[]DataSource{{"local-offline", "固定离线资料", "offline", true, false}}})
+	items := []DataSource{{"local-offline", "固定离线资料", "offline", true, false}}
+	if cloud := a.plans.Cloud; cloud != nil && cloud.Configured {
+		items = append(items, DataSource{cloud.SourceRef, "显式阿里云只读连接", "aliyun", cloud.Ready, true})
+	}
+	c.JSON(200, DataSourcePage{items})
+}
+
+// collectionOptions godoc
+// @Summary Read explicit local collection choices; never checks credentials or calls a provider
+// @Tags Workspace
+// @Produce json
+// @Security AppToken
+// @Param id path string true "Configured data source reference"
+// @Success 200 {object} app.CollectionOptions
+// @Failure 401,403,404 {object} Error
+// @Router /data-sources/{id}/collection-options [get]
+func (a *API) collectionOptions(c *gin.Context) {
+	cloud := a.plans.Cloud
+	if cloud == nil || !cloud.Configured || cloud.SourceRef != c.Param("id") {
+		fail(c, 404, "NOT_FOUND", "configured source not found")
+		return
+	}
+	c.JSON(200, cloud.Options())
 }
 
 // scopes godoc
@@ -663,7 +690,7 @@ func (a *API) result(c *gin.Context) {
 		comparison = &RecheckView{ID: view.Recheck.ID, OldAuditID: view.Recheck.OldAuditID, NewAuditID: view.Recheck.NewAuditID, CreatedAt: view.Recheck.CreatedAt}
 		e = json.Unmarshal(view.Recheck.Comparison, &comparison.Comparison)
 	}
-	reply(c, 200, JobResult{Audit: view.Audit, IsFinal: storage.Terminal(view.Job.Status), ViewSeq: view.Job.ViewSeq, CompletedPhases: phases, Recheck: comparison, SnapshotID: view.SnapshotID, AgentResult: view.AgentResult, AttemptUsage: view.AttemptUsage}, e)
+	reply(c, 200, JobResult{Audit: view.Audit, IsFinal: storage.Terminal(view.Job.Status), ViewSeq: view.Job.ViewSeq, CompletedPhases: phases, Recheck: comparison, SnapshotID: view.SnapshotID, AgentResult: view.AgentResult, CloudResult: view.CloudResult, AttemptUsage: view.AttemptUsage}, e)
 }
 
 // jobInput godoc

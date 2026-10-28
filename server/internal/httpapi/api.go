@@ -158,7 +158,10 @@ func (a *API) protect(c *gin.Context) {
 		}
 		if len(body) > 0 {
 			var tree any
-			if json.Unmarshal(body, &tree) != nil {
+			decoder := json.NewDecoder(bytes.NewReader(body))
+			decoder.UseNumber()
+			var extra any
+			if decoder.Decode(&tree) != nil || decoder.Decode(&extra) != io.EOF {
 				fail(c, 422, "INVALID_REQUEST", "one JSON value required")
 				return
 			}
@@ -176,6 +179,8 @@ func (a *API) protect(c *gin.Context) {
 
 func hasSecret(value any, secret string) bool {
 	switch v := value.(type) {
+	case json.Number:
+		return strings.Contains(v.String(), secret)
 	case string:
 		return strings.Contains(v, secret)
 	case []any:
@@ -243,7 +248,7 @@ func storeError(c *gin.Context, err error) {
 // @Success 200 {object} Health
 // @Failure 401,403 {object} Error
 // @Router /health [get]
-func (a *API) health(c *gin.Context) { c.JSON(200, Health{"E3", "local-offline", "ok"}) }
+func (a *API) health(c *gin.Context) { c.JSON(200, Health{"E4", "local-offline", "ok"}) }
 
 // create godoc
 // @Summary Start a synthetic local E0 probe; never a business audit

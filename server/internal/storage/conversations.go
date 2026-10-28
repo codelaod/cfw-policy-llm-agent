@@ -96,7 +96,7 @@ func localScope(tx *gorm.DB, scope string) error {
 		return ErrInputInvalid
 	}
 	var count int64
-	if err := tx.Raw("SELECT count(*) FROM snapshots WHERE scope_ref=?", scope).Scan(&count).Error; err != nil {
+	if err := tx.Raw("SELECT (SELECT count(*) FROM snapshots WHERE scope_ref=?) + (SELECT count(*) FROM configured_scope_catalog WHERE scope_ref=? AND active=1)", scope, scope).Scan(&count).Error; err != nil {
 		return err
 	}
 	if count == 0 {
@@ -345,8 +345,13 @@ func insertConversationMessageContext(tx *gorm.DB, conversationID string, input 
 	if input.PolicyScopeRef != conversation.PolicyScopeRef && jobContextID == "" && !(input.Role == "user" && reportContextID != "") {
 		return message, false, ErrInputInvalid
 	}
-	if err = localScope(tx, input.PolicyScopeRef); err != nil {
-		return message, false, err
+	// Already accepted work has just validated its immutable job/plan/turn and
+	// original scope. A later catalog deactivation cannot revoke its metadata
+	// finalization; ordinary appends still require a currently known scope.
+	if jobContextID == "" {
+		if err = localScope(tx, input.PolicyScopeRef); err != nil {
+			return message, false, err
+		}
 	}
 	id, err := opaqueID("message")
 	if err != nil {

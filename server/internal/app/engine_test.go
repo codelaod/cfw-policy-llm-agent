@@ -30,7 +30,7 @@ func enginePlan(t *testing.T, s *storage.Store, title string) storage.ExecutionP
 	if err != nil {
 		t.Fatal(err)
 	}
-	plan, err := s.SavePlan(context.Background(), storage.ExecutionPlan{Kind: "connection_check", ConversationID: conversation.ID, DataSourceID: "local-offline", PolicyScopeRef: in.Scope.Ref, SnapshotID: snapshot.ID, ConversationRevision: conversation.Revision, Mode: "local_probe", PreparedInput: frozen, Heads: heads, ConfigRevision: "offline-v1"})
+	plan, err := s.SavePlan(context.Background(), storage.ExecutionPlan{Kind: "audit", ConversationID: conversation.ID, DataSourceID: "local-offline", PolicyScopeRef: in.Scope.Ref, SnapshotID: snapshot.ID, ConversationRevision: conversation.Revision, Mode: "rules_only", PreparedInput: frozen, Heads: heads, ConfigRevision: "offline-v1"})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -73,6 +73,9 @@ func TestEngineSharesThreeSlotsAcrossProbeAndPlannedJobs(t *testing.T) {
 		case <-ctx.Done():
 			return ctx.Err()
 		case <-gate:
+			if job.Kind == "audit" {
+				return NewWorkflow(s).Run(ctx, job)
+			}
 			return nil
 		}
 	})

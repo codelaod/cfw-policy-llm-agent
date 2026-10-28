@@ -16,6 +16,7 @@ type JobWorkspace struct {
 	Audit           *AuditRecord
 	Recheck         *RecheckRecord
 	AgentResult     *AgentRecord
+	CloudResult     *CloudRecord
 	AttemptUsage    AttemptUsage
 	ReportPublished bool
 	ReportRef       string
@@ -36,6 +37,13 @@ func (s *Store) ReadJobWorkspace(ctx context.Context, id string) (view JobWorksp
 			return e
 		}
 		view.SnapshotID = plan.SnapshotID
+		view.CloudResult, e = jobCloudResult(tx, id)
+		if e != nil {
+			return e
+		}
+		if view.CloudResult != nil && view.CloudResult.Content.SnapshotID != "" {
+			view.SnapshotID = view.CloudResult.Content.SnapshotID
+		}
 		if e = tx.Raw("SELECT sealed_input IS NOT NULL FROM e0_jobs WHERE id=?", id).Scan(&view.InputSealed).Error; e != nil {
 			return e
 		}

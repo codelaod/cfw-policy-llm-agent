@@ -67,7 +67,7 @@ func migrateExecution(tx *gorm.DB) error {
 	if err := tx.Raw("SELECT version FROM business_schema").Scan(&version).Error; err != nil {
 		return err
 	}
-	if version == 2 || version == BusinessSchemaVersion {
+	if version == 2 || version == 3 || version == BusinessSchemaVersion {
 		return migrateCollaboration(tx)
 	}
 	if version != 1 {
@@ -241,6 +241,11 @@ func insertPlan(tx *gorm.DB, p ExecutionPlan) error {
 		}
 		if err = localScope(tx, p.PolicyScopeRef); err != nil {
 			return err
+		}
+		if p.Kind == "collect" || p.Kind == "connection_check" {
+			if err = validateCloudPlan(tx, p); err != nil {
+				return err
+			}
 		}
 		if p.SnapshotID != "" {
 			source, err := snapshot(tx, p.SnapshotID)
@@ -630,6 +635,9 @@ func (s *Store) SealInput(ctx context.Context, jobID string, input domain.Input)
 			return ErrJobTerminal
 		}
 		if job.Status != "running" || job.PlanID == "" {
+			return ErrInputInvalid
+		}
+		if !enum(job.Kind, "audit", "assistant_turn") {
 			return ErrInputInvalid
 		}
 		plan, e := planRecord(tx, job.PlanID)
@@ -1059,6 +1067,15 @@ func finishJob(tx *gorm.DB, job *Job, status, code string) error {
 	if status == "completed" && job.Kind == "audit" && job.ResultRef == "" {
 		status = "failed"
 		code = "RESULT_NOT_SAVED"
+	}
+	if status == "completed" && enum(job.Kind, "collect", "connection_check") {
+		var saved int64
+		if err := tx.Raw("SELECT count(*) FROM job_cloud_results WHERE job_id=?", job.ID).Scan(&saved).Error; err != nil {
+			return err
+		}
+		if saved != 1 {
+			status, code = "failed", "CLOUD_RESULT_NOT_SAVED"
+		}
 	}
 	if code == "" && status == "failed" {
 		code = "EXECUTION_FAILED"

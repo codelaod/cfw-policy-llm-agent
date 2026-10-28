@@ -109,6 +109,10 @@
         "agent_result_ref": {
           "type": "string",
           "pattern": "^agent_result_[a-f0-9]{32}$"
+        },
+        "cloud_result_ref": {
+          "type": "string",
+          "pattern": "^cloud_result_[a-f0-9]{32}$"
         }
       }
     },

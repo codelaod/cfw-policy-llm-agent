@@ -162,16 +162,16 @@ func (s *Store) PolicyScopes(ctx context.Context, offset, limit int) (items []do
 		return
 	}
 	var rows []struct{ Body string }
-	err = s.db.WithContext(ctx).Raw(`SELECT body FROM snapshots s WHERE id=(SELECT id FROM snapshots n WHERE n.scope_ref=s.scope_ref ORDER BY created_at DESC,id DESC LIMIT 1) ORDER BY scope_ref LIMIT ? OFFSET ?`, limit, offset).Scan(&rows).Error
+	err = s.db.WithContext(ctx).Raw(`SELECT body FROM (SELECT scope_ref,json_extract(body,'$.scope') AS body FROM snapshots s WHERE id=(SELECT id FROM snapshots n WHERE n.scope_ref=s.scope_ref ORDER BY created_at DESC,id DESC LIMIT 1) UNION ALL SELECT scope_ref,body FROM configured_scope_catalog c WHERE active=1 AND NOT EXISTS(SELECT 1 FROM snapshots s WHERE s.scope_ref=c.scope_ref)) ORDER BY scope_ref LIMIT ? OFFSET ?`, limit, offset).Scan(&rows).Error
 	if err != nil {
 		return
 	}
 	for _, row := range rows {
-		var in domain.Input
-		if err = json.Unmarshal([]byte(row.Body), &in); err != nil {
+		var scope domain.Scope
+		if err = json.Unmarshal([]byte(row.Body), &scope); err != nil {
 			return
 		}
-		items = append(items, in.Scope)
+		items = append(items, scope)
 	}
 	return
 }

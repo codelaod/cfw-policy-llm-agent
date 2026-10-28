@@ -1,10 +1,10 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "Persistent fixed-input rule audits, bounded Eino supplements, confirmations, reports and durable attempt accounting. Runtime is offline unless an explicit private model configuration is enabled; previews and config-check never call providers. Real provider capability remains separately verified.",
-        "title": "CFW offline audit workspace",
+        "description": "Persistent fixed-input audits, bounded Eino supplements, explicit Alibaba Cloud read-only collection, confirmations and reports with shared attempt accounting. Provider requests require explicit configuration and task acceptance; previews and config-check remain local. Real provider capability remains separately verified.",
+        "title": "CFW audit workspace",
         "contact": {},
-        "version": "0.3.0"
+        "version": "0.4.0"
     },
     "basePath": "/api/v1",
     "paths": {
@@ -443,6 +443,57 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/httpapi.DataSourcePage"
+                        }
+                    }
+                }
+            }
+        },
+        "/data-sources/{id}/collection-options": {
+            "get": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Workspace"
+                ],
+                "summary": "Read explicit local collection choices; never checks credentials or calls a provider",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Configured data source reference",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/app.CollectionOptions"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
                         }
                     }
                 }
@@ -2658,6 +2709,57 @@
                 }
             }
         },
+        "app.CollectionAsset": {
+            "type": "object",
+            "properties": {
+                "id": {
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.CollectionOptions": {
+            "type": "object",
+            "properties": {
+                "available": {
+                    "type": "boolean"
+                },
+                "configured": {
+                    "type": "boolean"
+                },
+                "identity_verified": {
+                    "type": "boolean"
+                },
+                "max_http_attempts": {
+                    "type": "integer"
+                },
+                "scopes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.CollectionScope"
+                    }
+                },
+                "source_ref": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.CollectionScope": {
+            "type": "object",
+            "properties": {
+                "assets": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.CollectionAsset"
+                    }
+                },
+                "scope": {
+                    "$ref": "#/definitions/domain.Scope"
+                }
+            }
+        },
         "app.DataPolicy": {
             "type": "object",
             "properties": {
@@ -3594,6 +3696,12 @@
         "httpapi.Capabilities": {
             "type": "object",
             "properties": {
+                "cloud_available": {
+                    "type": "boolean"
+                },
+                "cloud_configured": {
+                    "type": "boolean"
+                },
                 "m1_enabled": {
                     "type": "boolean"
                 },
@@ -3823,6 +3931,9 @@
                 },
                 "audit": {
                     "$ref": "#/definitions/storage.AuditRecord"
+                },
+                "cloud_result": {
+                    "$ref": "#/definitions/storage.CloudRecord"
                 },
                 "completed_phases": {
                     "type": "array",
@@ -4201,6 +4312,84 @@
                     "$ref": "#/definitions/domain.Result"
                 },
                 "snapshot_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.CloudContent": {
+            "type": "object",
+            "properties": {
+                "identity_verified": {
+                    "type": "boolean"
+                },
+                "job_id": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "limitations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "observations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.CloudObservation"
+                    }
+                },
+                "policy_scope_ref": {
+                    "type": "string"
+                },
+                "product_ready": {
+                    "type": "boolean"
+                },
+                "snapshot_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.CloudObservation": {
+            "type": "object",
+            "properties": {
+                "enumeration_complete": {
+                    "type": "boolean"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "operation": {
+                    "type": "string"
+                },
+                "pages": {
+                    "type": "integer"
+                },
+                "round": {
+                    "type": "integer"
+                },
+                "semantic_sha256": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.CloudRecord": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "$ref": "#/definitions/storage.CloudContent"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "job_id": {
                     "type": "string"
                 }
             }

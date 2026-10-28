@@ -1,0 +1,24 @@
+{
+  "enabled": false,
+  "connection_ref": "configured-aliyun",
+  "credential_mode": "env_sts",
+  "access_key_id_env": "CFW_ALIYUN_ACCESS_KEY_ID",
+  "access_key_secret_env": "CFW_ALIYUN_ACCESS_KEY_SECRET",
+  "security_token_env": "CFW_ALIYUN_SECURITY_TOKEN",
+  "expected_account_id": "1234567890123456",
+  "control_plane_region": "cn-hangzhou",
+  "allowed_boundaries": ["internet/in", "internet/out", "nat/out"],
+  "allowed_regions": ["cn-hangzhou"],
+  "allowed_assets": [{"region": "cn-hangzhou", "instance_id": "i-synthetic-example"}],
+  "allowed_nat_gateways": [{"region": "cn-hangzhou", "id": "ngw-synthetic-example"}],
+  "timeout_seconds": 30,
+  "max_http_attempts": 100,
+  "budget": {
+    "ref": "set-explicit-authorization-period",
+    "expires_at": "2099-01-01T00:00:00Z",
+    "application_cloud_attempts": 100,
+    "session_cloud_attempts": 100,
+    "application_model_attempts": 20,
+    "session_model_attempts": 6
+  }
+}

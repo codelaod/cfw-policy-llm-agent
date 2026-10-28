@@ -248,6 +248,10 @@ func TestFrozenBusinessUsesCanonicalScopeAndRebindsAlias(t *testing.T) {
 	}
 	setInputScopeRef(&out, snapshot.ScopeRef)
 	out.Scope.PolicySetRef = snapshot.Input.Scope.PolicySetRef
+	if _, err = s.SaveSnapshot(ctx, out); !errors.Is(err, ErrConflict) {
+		t.Fatal("same local scope reference changed canonical identity", err)
+	}
+	setInputScopeRef(&out, "different-direction-scope")
 	other, err := s.SaveSnapshot(ctx, out)
 	if err != nil {
 		t.Fatal(err)

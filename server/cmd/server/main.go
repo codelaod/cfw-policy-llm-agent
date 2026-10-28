@@ -1,4 +1,4 @@
-// Local offline audit service with persistent collaboration and bounded jobs.
+// Local audit workspace with persistent collaboration and bounded read-only jobs.
 package main
 
 import (
@@ -16,14 +16,15 @@ import (
 	"time"
 
 	"cfw-policy-llm-agent/server/internal/app"
+	"cfw-policy-llm-agent/server/internal/cloudconfig"
 	"cfw-policy-llm-agent/server/internal/httpapi"
 	"cfw-policy-llm-agent/server/internal/modelconfig"
 	"cfw-policy-llm-agent/server/internal/storage"
 )
 
-// @title CFW offline audit workspace
-// @version 0.3.0
-// @description Persistent fixed-input rule audits, bounded Eino supplements, confirmations, reports and durable attempt accounting. Runtime is offline unless an explicit private model configuration is enabled; previews and config-check never call providers. Real provider capability remains separately verified.
+// @title CFW audit workspace
+// @version 0.4.0
+// @description Persistent fixed-input audits, bounded Eino supplements, explicit Alibaba Cloud read-only collection, confirmations and reports with shared attempt accounting. Provider requests require explicit configuration and task acceptance; previews and config-check remain local. Real provider capability remains separately verified.
 // @BasePath /api/v1
 // @securityDefinitions.apikey AppToken
 // @in header
@@ -40,12 +41,14 @@ func run() error {
 	migrate := flag.Bool("migrate", false, "explicitly apply the local SQL schema and exit")
 	webDir := flag.String("web-dir", "", "optional built web/dist directory; serves only public bundle files and business routes")
 	modelPath := flag.String("model-config", "", "explicit private model JSON configuration; no dotenv or profile discovery")
+	cloudPath := flag.String("cloud-config", "", "explicit private read-only cloud connection JSON; no default credential discovery")
 	configCheck := flag.Bool("config-check", false, "validate the explicitly selected model configuration locally and print a redacted summary")
 	flag.Parse()
 	if *configCheck {
-		return checkModelConfig(*modelPath, os.Stdout)
+		return checkConfiguration(*modelPath, *cloudPath, os.Stdout)
 	}
-	// Startup/config validation is local; no dotenv, cloud, or model credential reads.
+	// Startup/config validation is local and only explicitly selected credentials
+	// are read. No provider, identity, dotenv or machine profile is contacted.
 	token := os.Getenv("CFW_APP_TOKEN")
 	if !*migrate && len(token) < 16 {
 		return fmt.Errorf("set CFW_APP_TOKEN to at least 16 characters (value is never logged)")
@@ -69,9 +72,16 @@ func run() error {
 			return fmt.Errorf("explicit model configuration is unavailable: %w", err)
 		}
 	}
-	modelRuntime, err := app.NewModelRuntime(store, selectedModel)
+	var selectedCloud cloudconfig.Config
+	if *cloudPath != "" {
+		selectedCloud, err = cloudconfig.Load(*cloudPath)
+		if err != nil {
+			return fmt.Errorf("explicit cloud configuration is unavailable: %w", err)
+		}
+	}
+	modelRuntime, err := app.NewRuntime(store, selectedModel, selectedCloud, token)
 	if err != nil {
-		return fmt.Errorf("model runtime initialization failed; check the explicit configuration and persisted budget")
+		return fmt.Errorf("runtime initialization failed; check the explicit configuration and persisted shared budget")
 	}
 	defer modelRuntime.Close()
 	// A process-owned loopback endpoint supplies bounded artificial work. No user
@@ -90,6 +100,7 @@ func run() error {
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	workflow := app.NewWorkflow(store)
+	workflow.Cloud = modelRuntime.Cloud
 	if modelRuntime.Factory != nil {
 		workflow.Agent = app.NewAgentService(store, modelRuntime.Factory, modelRuntime.Plans.ConfigRevision, modelRuntime.SensitiveValues)
 		workflow.Agent.ModelTimeout = selectedModel.Timeout()
@@ -128,7 +139,7 @@ func run() error {
 	defer stop()
 	errors := make(chan error, 1)
 	go func() { errors <- server.ListenAndServe() }()
-	fmt.Println("Offline audit API listening on 127.0.0.1:8080; web development entry is port 5173")
+	fmt.Println("Local audit API listening on 127.0.0.1:8080; web development entry is port 5173")
 	select {
 	case err = <-errors:
 		if err != http.ErrServerClosed {

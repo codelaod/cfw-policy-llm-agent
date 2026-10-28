@@ -186,7 +186,7 @@ func TestE3AttemptUsageExplicitMigrationRepairsWIPSchema3WithoutReset(t *testing
 		t.Fatal("migration reset attempts or filled old unknown usage with zero", err)
 	}
 	var version int
-	if err = store.db.Raw("SELECT version FROM business_schema").Scan(&version).Error; err != nil || version != 3 {
+	if err = store.db.Raw("SELECT version FROM business_schema").Scan(&version).Error; err != nil || version != BusinessSchemaVersion {
 		t.Fatal("WIP usage migration invented another schema version", err)
 	}
 }
