@@ -1,0 +1,220 @@
+{
+  "schema_version": 1,
+  "snapshot_version": "synthetic-nat-out-v1",
+  "profile_version": "profile-demo-v1",
+  "intent_version": "intent-demo-v1",
+  "normalizer_version": "1",
+  "kernel_version": "1",
+  "source_kind": "synthetic",
+  "evaluation_at": "2026-10-28T01:00:00Z",
+  "collected_at": "2026-10-28T00:00:00Z",
+  "scope": {
+    "ref": "scope-demo-nat-out",
+    "provider": "aliyun",
+    "account_ref": "synthetic-account",
+    "control_plane_ref": "synthetic-control-plane",
+    "ip_family": "ipv4",
+    "boundary": "nat",
+    "direction": "out",
+    "policy_set_ref": "policy-set-demo-nat-out",
+    "gateway_ref": "gateway-demo-one"
+  },
+  "provider_semantics": {
+    "profile_id": "aliyun-cfw-nat-v1",
+    "version": "1",
+    "default_action": "accept",
+    "source_ref": "T-06"
+  },
+  "completeness": {
+    "declared": true,
+    "enumeration_complete": true,
+    "observation_consistency": "fixed_artifact",
+    "known_gaps": []
+  },
+  "protection": {
+    "applicable": true,
+    "required": true,
+    "state": "on",
+    "evidence_ref": "synthetic-protection-assertion"
+  },
+  "selection": {
+    "kind": "assets",
+    "asset_ids": [
+      "asset-demo-a"
+    ]
+  },
+  "assets": [
+    {
+      "id": "asset-demo-a",
+      "scope_ref": "scope-demo-nat-out",
+      "address": "192.0.2.10",
+      "address_observed": true,
+      "association": {
+        "status": "evidenced",
+        "gateway_ref": "gateway-demo-one",
+        "observation_point": "before_translation",
+        "observed_at": "2026-10-28T00:00:00Z",
+        "evidence_ref": "synthetic-nat-association-assertion"
+      },
+      "allowed_confirmed": false,
+      "allowed_complete": false,
+      "deny_all": false,
+      "allowed": null,
+      "services": [
+        {
+          "id": "svc-external-https",
+          "protocol": "tcp",
+          "ports": [
+            {
+              "from": 443,
+              "to": 443
+            }
+          ],
+          "role": "background",
+          "role_status": "confirmed",
+          "public_access": "unknown",
+          "allowed_confirmed": true,
+          "allowed_complete": true,
+          "deny_all": false,
+          "allowed": [
+            {
+              "scope_ref": "scope-demo-nat-out",
+              "protocol": "tcp",
+              "addresses": [
+                "198.51.100.0/25",
+                "203.0.113.9"
+              ],
+              "ports": [
+                {
+                  "from": 443,
+                  "to": 443
+                }
+              ],
+              "applicability": "applicable"
+            }
+          ],
+          "required_confirmed": true,
+          "required": [
+            {
+              "scope_ref": "scope-demo-nat-out",
+              "protocol": "tcp",
+              "addresses": [
+                "203.0.113.9"
+              ],
+              "ports": [
+                {
+                  "from": 443,
+                  "to": 443
+                }
+              ],
+              "applicability": "applicable"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "policies": [
+    {
+      "id": "policy-external-wide",
+      "scope_ref": "scope-demo-nat-out",
+      "source": {
+        "values": [
+          "192.0.2.10"
+        ]
+      },
+      "destination": {
+        "values": [
+          "198.51.100.0/24"
+        ]
+      },
+      "protocol": "tcp",
+      "ports": {
+        "values": [
+          {
+            "from": 443,
+            "to": 443
+          }
+        ]
+      },
+      "action": "accept",
+      "priority": 10,
+      "order_known": true,
+      "enabled": "enabled"
+    },
+    {
+      "id": "policy-external-deny-remainder",
+      "scope_ref": "scope-demo-nat-out",
+      "source": {
+        "values": [
+          "192.0.2.10"
+        ]
+      },
+      "destination": {
+        "values": [
+          "0.0.0.0/0"
+        ]
+      },
+      "protocol": "any",
+      "ports": {
+        "values": [
+          {
+            "from": 1,
+            "to": 65535
+          }
+        ]
+      },
+      "action": "drop",
+      "priority": 100,
+      "order_known": true,
+      "enabled": "enabled"
+    }
+  ],
+  "address_refs": {},
+  "port_refs": {},
+  "baseline": {
+    "version": "B2-v1",
+    "enabled_checks": [
+      "CHK-01",
+      "CHK-02",
+      "CHK-03",
+      "CHK-04",
+      "CHK-05",
+      "CHK-06",
+      "CHK-07",
+      "CHK-08",
+      "OUT-01",
+      "OUT-02",
+      "NAT-01",
+      "NAT-02"
+    ],
+    "risk_ports": [
+      {
+        "protocol": "tcp",
+        "port": 22,
+        "topic": "remote-administration"
+      },
+      {
+        "protocol": "tcp",
+        "port": 3389,
+        "topic": "remote-administration"
+      },
+      {
+        "protocol": "tcp",
+        "port": 3306,
+        "topic": "database-port"
+      },
+      {
+        "protocol": "tcp",
+        "port": 5432,
+        "topic": "database-port"
+      },
+      {
+        "protocol": "tcp",
+        "port": 1433,
+        "topic": "database-port"
+      }
+    ],
+    "exceptions": []
+  }
+}
