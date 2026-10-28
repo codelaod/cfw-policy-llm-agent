@@ -1,0 +1,486 @@
+{
+  "date": "2026-10-28",
+  "stage": "E4_adapters_local",
+  "status": "passed_limited_offline_adapters",
+  "execution": "actual_sdk_http_ledger_collector_storage_with_artificial_loopback_provider_responses",
+  "business_schema_version": 4,
+  "result_input_source_kind": "live_readonly",
+  "provenance_limit": "Code-path provenance only; all current provider responses are artificial loopback fixtures, not observations of a real cloud account.",
+  "real_cloud_requests": 0,
+  "upstream_provider_model_requests": 0,
+  "real_cloud_validation_passed": false,
+  "implemented_contracts": {
+    "explicit_cloud_config_only": true,
+    "credential_modes": [
+      "env_ak",
+      "env_sts"
+    ],
+    "credential_provider": "static",
+    "automatic_refresh": false,
+    "default_profile_or_dotenv": false,
+    "fixed_production_endpoints": true,
+    "identity_before_product_reads": true,
+    "expected_account_and_identity_arn_validation": true,
+    "cfw_operations": 5,
+    "ecs_operations": 2,
+    "identity_operations": 1,
+    "selection_modes": [
+      "assets",
+      "nat_gateway_policy"
+    ],
+    "discover_region": false,
+    "configuration_sweeps_max": 2,
+    "default_action": "unknown",
+    "nat_association_from_same_vpc": false,
+    "one_manager_shared_cloud_credential_model_sources": true,
+    "same_budget_ref_when_both_enabled": true,
+    "explicit_zero_model_budget_remains_zero": true,
+    "local_options_check_preview_provider_requests": 0,
+    "atomic_snapshot_sealed_cloud_record_message_terminal": true,
+    "private_raw_original_bytes_sha256_and_base64": true,
+    "restart_or_cancel_replays_requests": false,
+    "collect_then_explicit_pinned_audit": true,
+    "connection_check": "IDENTITY_ONLY_partial",
+    "connection_check_proves_product_permissions": false,
+    "job_result_field": "cloud_result",
+    "event_types_supported": 8
+  },
+  "targeted_application_fixtures": {
+    "status": "passed_specific_local_cases_included_in_final_suite",
+    "internet_assets_physical_http_attempts": 9,
+    "nat_gateway_policy_physical_http_attempts": 5,
+    "identity_only_physical_http_attempts": 1,
+    "not_formal_evaluation_cases": true
+  },
+  "go_tests": {
+    "status": "passed",
+    "passed_top_level_tests": 368,
+    "passed_including_subtests": 876,
+    "failed": 0,
+    "vet": "passed",
+    "build": "passed",
+    "cgo_enabled": false
+  },
+  "web_final_tests": {
+    "status": "passed",
+    "passed": 68,
+    "failed": 0,
+    "typecheck": "passed",
+    "production_build": "passed"
+  },
+  "browser_evidence": {
+    "status": "passed_limited_artificial_local_protocol",
+    "browser": "Chromium 155.0.8059.12",
+    "browser_check_groups": 28,
+    "viewport_widths": [
+      1440,
+      768,
+      390
+    ],
+    "job_count": 4,
+    "physical_fixture_attempts": 15,
+    "physical_cloud_and_credential_attempts_by_case": {
+      "identity_only": 1,
+      "internet_collection": 9,
+      "explicit_rules_audit": 0,
+      "nat_gateway_collection": 5
+    },
+    "physical_model_attempts": 0,
+    "real_cloud_provider_attempts": 0,
+    "case_summaries": {
+      "identity_only": {
+        "kind": "connection_check",
+        "status": "partial",
+        "error_code": "CLOUD_LIMITED",
+        "is_final": true,
+        "snapshot_present": false,
+        "cloud_result_present": true,
+        "identity_verified": true,
+        "product_ready": false,
+        "observation_count": 0,
+        "limitations": [
+          "IDENTITY_ONLY"
+        ],
+        "attempt_usage": {
+          "cloud_attempts": 1,
+          "model_attempts": 0,
+          "unknown_delivery": 0,
+          "known_usage_responses": 0,
+          "unknown_usage_attempts": 0,
+          "reported_tokens": null,
+          "usage_totals_overflow": false
+        },
+        "audit_verdicts": null
+      },
+      "internet_collection": {
+        "kind": "collect",
+        "status": "completed",
+        "error_code": null,
+        "is_final": true,
+        "snapshot_present": true,
+        "cloud_result_present": true,
+        "identity_verified": true,
+        "product_ready": true,
+        "observation_count": 8,
+        "limitations": [],
+        "attempt_usage": {
+          "cloud_attempts": 9,
+          "model_attempts": 0,
+          "unknown_delivery": 0,
+          "known_usage_responses": 0,
+          "unknown_usage_attempts": 0,
+          "reported_tokens": null,
+          "usage_totals_overflow": false
+        },
+        "audit_verdicts": null
+      },
+      "explicit_rules_audit": {
+        "kind": "audit",
+        "status": "completed",
+        "error_code": null,
+        "is_final": true,
+        "snapshot_present": true,
+        "cloud_result_present": false,
+        "identity_verified": null,
+        "product_ready": null,
+        "observation_count": 0,
+        "limitations": [],
+        "attempt_usage": {
+          "cloud_attempts": 0,
+          "model_attempts": 0,
+          "unknown_delivery": 0,
+          "known_usage_responses": 0,
+          "unknown_usage_attempts": 0,
+          "reported_tokens": null,
+          "usage_totals_overflow": false
+        },
+        "audit_verdicts": {
+          "insufficient_data": 5,
+          "needs_confirmation": 1,
+          "pass": 2
+        }
+      },
+      "nat_gateway_collection": {
+        "kind": "collect",
+        "status": "completed",
+        "error_code": null,
+        "is_final": true,
+        "snapshot_present": true,
+        "cloud_result_present": true,
+        "identity_verified": true,
+        "product_ready": true,
+        "observation_count": 4,
+        "limitations": [],
+        "attempt_usage": {
+          "cloud_attempts": 5,
+          "model_attempts": 0,
+          "unknown_delivery": 0,
+          "known_usage_responses": 0,
+          "unknown_usage_attempts": 0,
+          "reported_tokens": null,
+          "usage_totals_overflow": false
+        },
+        "audit_verdicts": null
+      }
+    },
+    "checks": [
+      {
+        "id": 1,
+        "check": "云连接初始未自动选择，须明确选择服务端配置目录项",
+        "passed": true
+      },
+      {
+        "id": 2,
+        "check": "未选择明确资产或NAT网关策略集时不能预览",
+        "passed": true
+      },
+      {
+        "id": 3,
+        "check": "本地连接选项经受保护GET读取，不发送凭据、端点或自选接口动作",
+        "passed": true
+      },
+      {
+        "id": 4,
+        "check": "云计划请求精确使用配置source alias、scope、force_refresh及allow_stale_fallback=false",
+        "passed": true
+      },
+      {
+        "id": 5,
+        "check": "明确为当前scope创建会话，预览请求会话与scope匹配",
+        "passed": true
+      },
+      {
+        "id": 6,
+        "check": "计划预览不POST /jobs，只有明确接受才启动任务",
+        "passed": true
+      },
+      {
+        "id": 7,
+        "check": "身份计划云物理上限6、采集上限30，模型调用不允许且上限0",
+        "passed": true
+      },
+      {
+        "id": 8,
+        "check": "身份核对结果为partial，物理云尝试1、模型0",
+        "passed": true
+      },
+      {
+        "id": 9,
+        "check": "IDENTITY_ONLY明确产品权限/字段/完整性未验，不暴露snapshot选择按钮",
+        "passed": true
+      },
+      {
+        "id": 10,
+        "check": "身份核对完成后本地collection-options仍identity_verified=false",
+        "passed": true
+      },
+      {
+        "id": 11,
+        "check": "入向采集物理云尝试9、模型0",
+        "passed": true
+      },
+      {
+        "id": 12,
+        "check": "入向结果显示两轮共8条观测、分页完整性、时段和64位语义SHA256",
+        "passed": true
+      },
+      {
+        "id": 13,
+        "check": "NAT网关策略集请求asset_ids为空且使用服务端opaque gateway_ref，不扩大为全资产",
+        "passed": true
+      },
+      {
+        "id": 14,
+        "check": "NAT采集物理云尝试5、模型0，两轮共4条观测",
+        "passed": true
+      },
+      {
+        "id": 15,
+        "check": "身份/采集完成不自动切换当前资料",
+        "passed": true
+      },
+      {
+        "id": 16,
+        "check": "采集任务不自动启动审计或模型",
+        "passed": true
+      },
+      {
+        "id": 17,
+        "check": "明确选择返回snapshot进入审计预览时没有自动POST /jobs",
+        "passed": true
+      },
+      {
+        "id": 18,
+        "check": "另行预览并接受rules_only审计，固定使用采集返回snapshot且云/模型尝试0",
+        "passed": true
+      },
+      {
+        "id": 19,
+        "check": "采集资料审计保留信息不足5/待确认1/通过2，不把未知判为通过",
+        "passed": true
+      },
+      {
+        "id": 20,
+        "check": "明确打开返回snapshot的业务表单无POST、无自动草稿或业务确认",
+        "passed": true
+      },
+      {
+        "id": 21,
+        "check": "暂停观察/改用轮询只读重开，物理用量保持5且无POST",
+        "passed": true
+      },
+      {
+        "id": 22,
+        "check": "可显式选择既有同scope会话，切换scope清除原对象及会话并禁用预览",
+        "passed": true
+      },
+      {
+        "id": 23,
+        "check": "云选择区不包含凭据、endpoint或action文本输入",
+        "passed": true
+      },
+      {
+        "id": 24,
+        "check": "硬刷新需要重新解锁，身份结果仍partial/1云/0模型且重开POST为0",
+        "passed": true
+      },
+      {
+        "id": 25,
+        "check": "重开入向任务保留同任务8条持久观测，不用其他任务替代",
+        "passed": true
+      },
+      {
+        "id": 26,
+        "check": "云读取表单在1440/768/390宽度下document/body均无横向溢出",
+        "passed": true
+      },
+      {
+        "id": 27,
+        "check": "云结果页在1440/768/390宽度下document/body均无横向溢出",
+        "passed": true
+      },
+      {
+        "id": 28,
+        "check": "执行检查无pageerror/浏览器跨origin HTTP，localStorage与sessionStorage均为空",
+        "passed": true
+      }
+    ],
+    "dom_observations": {
+      "identity_snapshot_actions": 0,
+      "cloud_task_model_panels": 0,
+      "auto_snapshot_selections": 0,
+      "auto_audit_starts": 0,
+      "business_form_auto_posts": 0,
+      "business_form_auto_drafts": 0,
+      "read_only_observation_posts": 0,
+      "existing_conversation_uses_revision_checked_workspace_patch": true,
+      "scope_switch_clears_objects_and_conversation": true,
+      "source_credentials_inputs": 0,
+      "result_layouts": [
+        {
+          "width": 1440,
+          "document_scroll_width": 1440,
+          "body_scroll_width": 1440
+        },
+        {
+          "width": 768,
+          "document_scroll_width": 768,
+          "body_scroll_width": 768
+        },
+        {
+          "width": 390,
+          "document_scroll_width": 390,
+          "body_scroll_width": 390
+        }
+      ],
+      "form_layouts": [
+        {
+          "width": 1440,
+          "document_scroll_width": 1440,
+          "body_scroll_width": 1440
+        },
+        {
+          "width": 768,
+          "document_scroll_width": 768,
+          "body_scroll_width": 768
+        },
+        {
+          "width": 390,
+          "document_scroll_width": 390,
+          "body_scroll_width": 390
+        }
+      ],
+      "page_errors": [],
+      "external_http_origins": [],
+      "local_storage_keys": 0,
+      "session_storage_keys": 0
+    },
+    "hard_reload": {
+      "hardReloadRequiresUnlock": true,
+      "identityStatus": "partial",
+      "cloudAttempts": 1,
+      "modelAttempts": 0,
+      "reopenPOSTs": 0,
+      "storage": {
+        "local": 0,
+        "session": 0
+      }
+    },
+    "local_options_identity_verified_after_identity_task": false,
+    "final_build_read_only_recheck": {
+      "passed": true,
+      "posts": 0,
+      "returned_snapshot_selection_present": true
+    },
+    "read_only_web_review": {
+      "read_only_reviewers": 2,
+      "late_task_navigation_regression": "reproduced then fixed; success and error callbacks isolated by taskContext/jobID",
+      "other_blocking_web_findings": 0
+    },
+    "screenshot_count": 14,
+    "browser_closed": true,
+    "private_ignored_artifacts": [
+      "output/playwright/e4-browser-checks.json",
+      "output/playwright/e4-event-schema.json",
+      "output/playwright/e4-hard-reload-check.json",
+      "output/playwright/e4-*.png"
+    ],
+    "main_fixture_shutdown": "normal",
+    "temporary_token_state_stop_deleted": true
+  },
+  "api": {
+    "status": "passed_actual_generation_and_bidirectional_route_check",
+    "generator": "swaggo/swag v1.16.6",
+    "api_version": "0.4.0",
+    "registered_paths": 42,
+    "registered_operations": 50,
+    "route_method_bidirectional_check": "passed",
+    "actual_committed_events_schema_validated": 28,
+    "event_schema_validation": "passed_Draft202012",
+    "event_validation_sources": [
+      "sqlite_e0_events",
+      "http_event_pages"
+    ],
+    "actual_event_types": {
+      "job_status": 8,
+      "stage_changed": 10,
+      "message_available": 4,
+      "job_terminal": 4,
+      "findings_available": 1,
+      "report_available": 1
+    }
+  },
+  "review": {
+    "status": "passed_after_regression_fixes",
+    "confirmed_regression_areas": [
+      "identity_type_and_resource_arn",
+      "static_reference_dual_representation_conflict",
+      "cross_sweep_protection_state",
+      "known_sensitive_value_escaped_and_numeric_reflection",
+      "runtime_known_application_credential_propagation"
+    ],
+    "targeted_application_review": {
+      "passed_top_level_tests": 99,
+      "passed_including_subtests": 172,
+      "failed": 0,
+      "included_in_final_full_suite": true
+    }
+  },
+  "documentation_checks": {
+    "status": "passed_static_only",
+    "design_docs": "passed",
+    "references": "passed",
+    "json": "passed",
+    "json_schema_structure": "passed",
+    "diff_check": "passed"
+  },
+  "deferred_implementation": [
+    "discover_region",
+    "assume_role_refresh_provider",
+    "ecs_ram_role_provider",
+    "prefer_fresh_cache_policy",
+    "scheduled_collection",
+    "combined_force_refresh_audit_plan"
+  ],
+  "unverified": [
+    "Real account identity, static STS, RAM permissions and product readiness.",
+    "Real CFW/ECS/NAT fields, pagination, advanced conditions and resource visibility.",
+    "Actual upstream MiniMax multi-round continuity and autonomous tool choice quality.",
+    "Real human remediation, recollection and recheck.",
+    "E5: 20 to 30 independent cases and fair three-group evaluation.",
+    "2 CPU / 4 GiB standard performance acceptance."
+  ],
+  "external_only_blocker": false,
+  "cli_configuration_check": {
+    "status": "passed_local_disabled_cloud_example_without_app_token",
+    "provider_requests": 0,
+    "private_configuration_read": false
+  },
+  "deferred_entries_do_not_authorize_new_account_requests": true,
+  "additional_tagged_smoke": {
+    "test": "TestE4BrowserFixtureSmoke",
+    "status": "passed_current_source",
+    "boundaries": 2,
+    "included_in_standard_go_counts": false
+  }
+}

@@ -1,13 +1,13 @@
 # 开发交接与环境恢复
 
-更新日期：2026-10-28。需求B2、整体设计v0.6已通过；E0依赖契约及[E1离线核心／持久闭环](../validation/evidence/e1-local.md)已有实际证据，E2正式离线服务／五视图已通过限定离线验证；E3受限Agent已通过限定离线验证，实际结果与待验边界见[E3记录](../validation/evidence/e3-local.md)。当前任务状态与授权见[项目决策](../project/decisions.md)。
+更新日期：2026-10-28。需求B2、整体设计v0.6已通过；E0依赖契约及[E1离线核心／持久闭环](../validation/evidence/e1-local.md)已有实际证据，E2正式离线服务／五视图已通过限定离线验证；E3受限Agent已通过限定离线验证，实际结果与待验边界见[E3记录](../validation/evidence/e3-local.md)。E4当前切片已通过限定离线适配验证，范围与待验项见[E4适配记录](../validation/evidence/e4-adapters-local.md)。当前任务状态与授权见[项目决策](../project/decisions.md)。
 
 ## 1. 推荐恢复顺序
 
 1. 读根目录[AGENTS](../../AGENTS.md)、[文档导航](../README.md)、实施计划和当前任务相关设计。
 2. 先检查Git状态，保留已有未提交改动；旧提交／推送授权不重复使用。
 3. 只运行当前任务需要的现有离线检查，不能把独立实验命令当正式系统命令。
-4. E1规则、E2持久业务链和E3受限Agent已接通。先核对[E3记录](../validation/evidence/e3-local.md)的本地fixture与待验边界，完成尚可离线实施的适配和回归，再按计划推进E4；E4真实接入与真实整改尚未实现／验收，不能提前认定只剩外部阻塞。继续TDD与Review修复，不重开G2或扩存储框架；提交／推送仍核对当前明确授权。
+4. E1规则、E2持久业务链和E3受限Agent已接通。保留[E3记录](../validation/evidence/e3-local.md)历史结论，核对[E4适配记录](../validation/evidence/e4-adapters-local.md)当前切片／人工HTTPfixture边界。当前回归与Review已完成；下一步按[实施计划](implementation-plan.md)准备显式对象路径的真实只读验证，先取得用户私有配置、允许范围和调用预算。后续模式仍有未实现项，不把当前切片当作完整E4验收。继续TDD与Review修复，不重开G2或扩存储框架；提交／推送仍核对当前明确授权。
 
 ## 2. 可复用的现有成果
 
@@ -23,7 +23,7 @@
 
 `.env.local`／进程环境、云／模型凭据、`data/raw/`、`data/private/`、`runtime/`、私有数据库／备份／未脱敏报告不进入Git。新环境没有私有配置时只能恢复空白模板，由用户在本地填写；不要输出真实值、密钥片段或带密钥的URL，不从机器其他profile兜底。
 
-正式服务不读取`.env.local`或实验默认配置；显式`--model-config`选择私有JSON，只读取其`api_key_env`指定的环境变量。`--config-check`仅本地输出脱敏摘要，启动和预览不外呼；configured／enabled不证明兼容或产生付费授权。保留原MiniMax模型和512等更严输出／次数限制，不借文档默认上限抬额。已有实验仍只通过`bash scripts/eino-offline.sh config-check`查看其摘要。缺模型／云配置不阻止离线规则、人工确认与文档工作。
+正式服务不读取`.env.local`或实验默认配置；显式`--model-config`／`--cloud-config`选择私有JSON，只读取其中点名环境变量。当前云凭据只支持env_ak／env_sts静态Provider，未实现自动角色续期。`--config-check`仅本地输出脱敏摘要，启动和预览不外呼；configured／enabled不证明兼容或产生付费授权。保留原MiniMax模型和512等更严输出／次数限制，不借文档默认上限抬额。已有实验仍只通过`bash scripts/eino-offline.sh config-check`查看其摘要。缺模型／云配置不阻止离线规则、人工确认与文档工作。
 
 ## 4. 当前可运行的检查
 

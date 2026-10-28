@@ -28,7 +28,8 @@
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -53,8 +54,11 @@
         "B2-09",
         "V4-10"
       ],
-      "status": "design_defined_full_acceptance_pending",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e4-adapters-local.md"
+      ]
     },
     {
       "id": "AC-03",
@@ -82,7 +86,8 @@
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -137,7 +142,8 @@
       "status": "local_subset_verified_full_acceptance_pending",
       "implementation_verified": false,
       "local_evidence": [
-        "docs/validation/evidence/e1-local.md"
+        "docs/validation/evidence/e1-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -193,7 +199,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e2-local.md",
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -223,7 +230,8 @@
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -254,7 +262,8 @@
       "status": "local_subset_verified_full_acceptance_pending",
       "implementation_verified": false,
       "local_evidence": [
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -343,7 +352,8 @@
       "status": "local_subset_verified_full_acceptance_pending",
       "implementation_verified": false,
       "local_evidence": [
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -405,7 +415,8 @@
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -438,7 +449,8 @@
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -464,7 +476,8 @@
       "status": "local_subset_verified_full_acceptance_pending",
       "implementation_verified": false,
       "local_evidence": [
-        "docs/validation/evidence/e1-local.md"
+        "docs/validation/evidence/e1-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -506,7 +519,8 @@
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -537,7 +551,8 @@
       "status": "local_subset_verified_full_acceptance_pending",
       "implementation_verified": false,
       "local_evidence": [
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -571,7 +586,8 @@
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -603,7 +619,8 @@
       "status": "local_subset_verified_full_acceptance_pending",
       "implementation_verified": false,
       "local_evidence": [
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -688,7 +705,8 @@
       "status": "local_subset_verified_full_acceptance_pending",
       "implementation_verified": false,
       "local_evidence": [
-        "docs/validation/evidence/e1-local.md"
+        "docs/validation/evidence/e1-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     },
     {
@@ -710,8 +728,11 @@
       "planned_checks": [
         "B2-10"
       ],
-      "status": "design_defined_full_acceptance_pending",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e4-adapters-local.md"
+      ]
     },
     {
       "id": "CR-1-F04",
@@ -741,7 +762,8 @@
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/e4-adapters-local.md"
       ]
     }
   ],
@@ -751,12 +773,14 @@
     "date": "2026-10-27"
   },
   "updated_at": "2026-10-28",
-  "implementation_stage": "E3_limited_offline_passed_E4_offline_adapter_work_remaining",
+  "implementation_stage": "E4_local_adapters_passed_real_account_acceptance_pending",
   "runtime_evidence": [
     "docs/validation/evidence/e0-local.md",
     "docs/validation/evidence/e1-local.md",
     "docs/validation/evidence/e2-local.md",
-    "docs/validation/evidence/e3-local.md"
+    "docs/validation/evidence/e3-local.md",
+    "docs/validation/evidence/e4-adapters-local.md"
   ],
-  "e3_validation_status": "passed_limited_offline"
+  "e3_validation_status": "passed_limited_offline",
+  "e4_adapter_validation_status": "passed_limited_offline_adapters"
 }

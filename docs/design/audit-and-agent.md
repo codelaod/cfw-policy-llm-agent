@@ -222,7 +222,7 @@ policy_change 类型的 `target_policy_ref` 或 `target_policy_set_ref` 必须�
 
 ## 9. 仍需后续验证而非假定成立的事项
 
-E1规则和E2持久业务链已有各自限定证据；E3已接正式Eino Runner、领域工具／跨轮引用、有限上下文、结果持久和共享物理HTTP准入，要求business schema 3显式迁移。最终本地证据见[E3](../validation/evidence/e3-local.md)，不扩大[E1](../validation/evidence/e1-local.md)／[E2](../validation/evidence/e2-local.md)历史结论。E4的模型／云适配尚未实现／验收，先继续可离线完成的字段、权限、分页和协议适配，再在明确授权下分项真实验证；不能提前认定只有外部阻塞。云安全中心和自动下发仍不在范围。
+E1规则和E2持久业务链已有各自限定证据；E3已接正式Eino Runner、领域工具／跨轮引用、有限上下文、结果持久和共享物理HTTP准入，要求business schema 3显式迁移。最终本地证据见[E3](../validation/evidence/e3-local.md)，不扩大[E1](../validation/evidence/e1-local.md)／[E2](../validation/evidence/e2-local.md)历史结论。E4当前只读适配切片已接入：显式配置、静态Provider、身份先行、固定API／两轮采集与schema 4结果持久化，已通过的限定人工协议验证见[E4适配记录](../validation/evidence/e4-adapters-local.md)。真实账号权限／字段、上游模型兼容及完整采集模式仍待验证或实现，不能提前认定只有外部阻塞。云安全中心和自动下发仍不在范围。
 
 历史、数据策略、认证、纯Go存储和跨入口引导对应RC-21～31／AC-15～21。E0已固定依赖并验证限定本机协议，E1／E2已验证纯Go存储及部分业务／传输契约；真实身份／字段、上游模型连续兼容与完整跨入口矩阵仍未完成，不以设计文本或供应商示例推导通过。
 

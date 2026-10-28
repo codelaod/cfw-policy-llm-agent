@@ -1,6 +1,6 @@
 # 项目文档导航
 
-**当前基线：需求v0.6／B2和整体设计v0.6已通过（G1／G2，2026-10-27）。** [E0依赖契约](validation/evidence/e0-local.md)和[E1离线核心／持久闭环](validation/evidence/e1-local.md)已有实际证据；[E2持久服务／五视图](validation/evidence/e2-local.md)已通过限定离线验证；[E3受限Agent](validation/evidence/e3-local.md)已通过限定离线验证，继续推进E4可离线适配。真实接入、正式评价与完整业务验收仍未完成。
+**当前基线：需求v0.6／B2和整体设计v0.6已通过（G1／G2，2026-10-27）。** [E0依赖契约](validation/evidence/e0-local.md)和[E1离线核心／持久闭环](validation/evidence/e1-local.md)已有实际证据；[E2持久服务／五视图](validation/evidence/e2-local.md)已通过限定离线验证；[E3受限Agent](validation/evidence/e3-local.md)已通过限定离线验证；[E4只读适配切片](validation/evidence/e4-adapters-local.md)已通过限定离线适配验证。真实接入、正式评价与完整业务验收仍未完成。
 
 ## 1. 推荐阅读
 

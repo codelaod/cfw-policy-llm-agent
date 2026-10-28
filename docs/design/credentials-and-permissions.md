@@ -21,7 +21,7 @@ flowchart LR
   A --> S[用例/会话/计划/范围验证]
   S --> C[受控采集服务]
   C --> P[云CredentialProvider]
-  P --> K[私有配置/环境/STS/实例角色]
+  P --> K[显式env_ak/env_sts;角色模式后续]
   C --> E[ECS SDK]
   C --> F[CFW SDK]
   S --> G[Eino与领域工具]
@@ -64,44 +64,44 @@ A-28／A-29 提供官方 Go 凭据路线。**本应用默认显式选择连接�
 
 | 模式 | 场景 | 自动续期／前提 |
 | --- | --- | --- |
-| `env_sts`／私有临时配置 | 本地开发时由操作者注入 STS 三元组 | 单次静态三元组不能自己续期；过期需重新注入或改用有可续期来源的模式 |
-| `env_ak`／私有 RAM AK | 暂不具备短期凭据条件的本地演示 | 只允许明确的低权限 RAM 身份，不支持主账号 AK；保护与轮换由操作者负责 |
-| `assume_role` | 已配置低权限源身份及目标 RAM 角色 | 由角色 Provider 取得／续期 STS；源身份和 sts:AssumeRole 授权必须实际具备，系统不自动提权 |
-| `ecs_ram_role` | 应用后来部署到已绑定角色的 ECS | 使用实例角色 Provider，不把长期 AK 写镜像；只有显式启用此模式才访问相应凭据来源 |
+| `env_sts`／私有临时配置 | 当前E4已接：操作者显式JSON点名同一记录的STS三元组环境变量 | 静态Provider；可检查已知到期但不自动续期，过期需重新注入 |
+| `env_ak`／私有 RAM AK | 当前E4已接：暂不具备短期凭据条件的明确低权限RAM身份 | 静态Provider；身份核对拒绝root，保护与轮换由操作者负责 |
+| `assume_role` | 后续设计，当前配置不接受此模式 | 尚未实现角色取得／续期；未来仍须源身份与sts:AssumeRole授权，不自动提权 |
+| `ecs_ram_role` | 后续设计，当前不访问实例元数据 | 尚未实现实例角色Provider；未来仍须显式启用，不把长期AK写镜像 |
 
 默认链是 SDK 提供的能力，不是本应用自动获准使用的身份。若以后允许标准环境变量／配置 profile，也需操作者显式选定并绑定期望账号，不能凭缺少项目配置就回退到其他身份。
 
-客户端按连接／配置版本复用，避免每个工具或接口重新创建 Provider、重复换取 STS；并发续期合并。密钥／token 轮换不应破坏业务历史；新密钥仍需属于相同允许身份，账号／权限边界改变则重新校验并阻止越界任务。
+当前按显式连接复用静态CredentialProvider，不为工具取得另一身份；尚无远程STS换取／自动续期。客户端缓存与并发续期合并属于后续可续期模式的要求，不能说成已经实现。密钥／token 轮换不应破坏业务历史；新密钥仍需属于相同允许身份，账号／权限边界改变则重新校验并阻止越界任务。
 
 ## 5. 配置契约与实际可用性
 
 ### 5.1 配置来源
 
-- 正式服务只通过显式`--model-config`选择私有JSON，并读取其中`api_key_env`指定的进程环境变量；不自动读取dotenv、独立实验配置或机器默认profile。云连接将来也必须显式注入同一配置记录，不能因缺配置向其他身份兜底。部署环境可用安全注入，不能写入前端／代码。
+- 正式服务只通过显式`--model-config`／`--cloud-config`选择私有JSON，并读取其中指定的进程环境变量；不自动读取dotenv、独立实验配置或机器默认profile。云连接当前已接同一记录的env_ak／env_sts静态Provider，不能因缺配置向其他身份兜底。部署环境可用安全注入，不能写入前端／代码。
 - 多字段组成的云凭据必须来自同一明确配置记录，不能把环境中的 AK ID 与文件里的其他账号 secret 拼在一起；配置模式／版本先解析，再原子构造 Provider。
 - GORM 仅保存 `credential_ref`、模式、期望身份绑定、配置版本、检查时间与脱敏状态；不保存 raw AK、secret、STS／OAuth token，也不把它们写进会话或报告。
 - 云凭据不放 `VITE_` 变量、前端 bundle、URL、截图或日志。MCP 子进程将来若有，也不能继承整份应用环境。
 
-### 5.2 未来云字段与实际模型配置
+### 5.2 当前显式云／模型字段
 
-`.env.example`只服务于已有独立实验。正式服务E3已实现`--model-config` JSON与`--config-check`本地脱敏摘要，具体实际参数见[后端说明](../../server/README.md)；configured／enabled不证明上游已验证或产生付费授权。保持原MiniMax模型及512等更严私有上限。下面云字段仍是未来设计示意，**尚未实现读取，不要求现在填写，不因示意就可调用云服务**。
+`.env.example`只服务于已有独立实验。正式服务的实际参数与空白JSON模板见[后端说明](../../server/README.md)；`--config-check`读取显式配置并只输出本地脱敏摘要，不打开业务库、查身份或访问网络。configured／enabled不证明目标账号或产品就绪，也不产生付费／云读取授权。保留原MiniMax模型与512等更严私配。
 
-| 计划字段 | 用途 |
+| 实际字段／参数 | 用途与限制 |
 | --- | --- |
-| `CFW_APP_TOKEN` | 已实现的本地应用入口保护，和云／模型凭据分开 |
-| `CFW_CLOUD_CONNECTIONS_FILE` | 私有连接元数据／凭据引用与范围，不是可分享文件 |
-| `CFW_ALIYUN_CREDENTIAL_MODE` | 明确选择上述模式，不自动读全局链 |
-| `CFW_ALIYUN_ACCESS_KEY_ID`／`CFW_ALIYUN_ACCESS_KEY_SECRET` | 明确连接的 RAM AK 或临时凭据字段，均不得回显 |
-| `CFW_ALIYUN_SECURITY_TOKEN` | 仅 STS 模式需要；不能和长期 AK 混用 |
-| `CFW_ALIYUN_EXPECTED_ACCOUNT_ID` | 防止误连其他账号，保留在私有连接信息 |
-| 角色引用／实例角色配置 | 由对应模式配置，不要求所有模式填写全部字段 |
-| 已有实验`CFW_MODEL_*` | 仅实验读取；正式服务不自动继承，显式模型JSON仍保留原模型与更严上限 |
+| `CFW_APP_TOKEN` | 本机应用访问口令，和云／模型凭据分开 |
+| `--cloud-config`与`connection_ref` | 操作者点名的私有连接JSON；来源引用不是任意URL |
+| `credential_mode`及`access_key_id_env`／`access_key_secret_env`／`security_token_env` | 当前只支持env_ak／env_sts；环境变量名来自同一JSON，STS模式显式提供三元组 |
+| `credential_expires_at` | 可选已知到期；未提供时expiry_known=false，refreshable始终false |
+| `expected_account_id`／`control_plane_region` | 实际身份先核账号与受支持IdentityType／ARN；控制面与资产地域分开，生产端点由受控映射决定 |
+| `allowed_boundaries`／`allowed_regions`／`allowed_assets`／`allowed_nat_gateways` | 显式有限目录，NAT每任务一个网关，不触发discover_region |
+| `timeout_seconds`／`max_http_attempts`／`budget` | 任务／应用／会话上限与授权周期；真实HTTP含身份请求，云与模型同时启用的Ref一致且取严，显式0模型额度保持0 |
+| `--model-config`与`api_key_env` | 既有E3显式模型配置；不自动继承实验CFW_MODEL变量或替换用户模型 |
 
 ### 5.3 三阶段检查
 
 1. **启动／config-check**：纯本地检查模式、字段完整性、引用、范围与是否配置；不获取 STS、不查身份、不启动采集／模型。配置有效不等于认证成功。
-2. **显式连接检查或受控采集的 auth 阶段**：解析凭据，必要时续期，核对调用身份与期望账号。错误／账号不匹配立即停止，不退到别的 profile。
-正常应用启动后的调度与纯配置检查分开：只有操作者以前明确启用的策略才在运行期按下一到期时间排采集；config-check 模式不启动工作器／调度。初始化本身不触发身份／模型请求，也不补执行错过周期。
+2. **显式连接检查或受控采集的auth阶段**：取得当前静态凭据，核对expected account及受支持RAMUser／AssumedRoleUser与ARN；root、空资源或身份冲突拒绝。当前不自动续期。connection_check只执行身份核对，保存IDENTITY_ONLY、product_ready=false与partial，不代表产品权限、字段或分页验证通过。错误／账号不匹配立即停止，不退到别的profile。
+当前采集仅由明确接受的计划启动，可选定时／发现尚未实现。将来调度也必须与纯配置检查分开；config-check不启动工作器，初始化不触发身份／模型请求，不回补错过周期。
 
 3. **具体产品读取**：按白名单调用，分别报告权限不足、产品未就绪、分页／范围和实际字段能力。不能把构造 SDK 成功当产品可用。
 
@@ -147,7 +147,7 @@ A-28／A-29 提供官方 Go 凭据路线。**本应用默认显式选择连接�
 - 会话、日志、GORM SQL 日志、错误、报告和 Eino state 不含原始凭据；公开导出不泄露身份细节。
 - Gin 请求结束后排队任务仍按服务根 context 执行，取消／停机只终止后续已授权请求，不错误继承 HTTP 生命周期。
 
-本节的官方资料核对不读取实际私有配置，也不发身份检查／STS／云／模型／MCP请求；E3正式服务的显式模型配置与有界执行已接入，当前人工协议验证及真实接入未验项见[E3记录](../validation/evidence/e3-local.md)。
+本节官方资料核对与当前E4人工HTTPfixture不等真实账号验证。显式云配置、静态Provider、身份先行与固定只读SDK适配已接入；当前切片与待验项见[E4适配记录](../validation/evidence/e4-adapters-local.md)，E3历史证据保持原边界。
 
 ## 9. B2 的最小授权与实现约束
 

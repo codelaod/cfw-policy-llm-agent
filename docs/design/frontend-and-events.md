@@ -82,7 +82,7 @@ after_seq 是非负十进制安全整数；N 大于该任务 last_seq 或格式�
 
 每条事件序列化上限 4 KiB，正文用稳定引用另取；超长公开摘要在保存前安全截断并标记 truncated，不截断 JSON 帧／关键引用。解析器未完成帧缓存上限 64 KiB；UTF-8 多字节、CRLF、跨 chunk、多条 data 行、注释与空行必须按格式处理。未知事件类型、畸形 JSON、schema 不支持时停止订阅并提示协议错误；不得吞错后宣称已同步。
 
-当前E3实际工具载荷使用`tool`、`call_id`、`status`、`elapsed_ms`与`evidence_refs`，不使用旧草案的tool_name；开始／结束均来自真实Runner回调，未执行的工具不伪造事件。stage_changed在Agent结果提交后可含`agent_result_ref`。字段／枚举以[实际事件schema](../api/events.schema.json)及app sink为准；工具内容另取受保护任务结果／sealed输入，不透传原始协议。
+当前E3实际工具载荷使用`tool`、`call_id`、`status`、`elapsed_ms`与`evidence_refs`，不使用旧草案的tool_name；开始／结束均来自真实Runner回调，未执行的工具不伪造事件。stage_changed在Agent／云产品结果提交后可分别含`agent_result_ref`／`cloud_result_ref`。字段／枚举以[实际事件schema](../api/events.schema.json)及app sink为准；工具内容另取受保护任务结果／sealed输入，不透传原始协议。
 
 ## 5. fetch 订阅、恢复与轮询兜底
 

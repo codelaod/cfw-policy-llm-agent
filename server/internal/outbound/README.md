@@ -4,7 +4,7 @@
 
 构造不访问网络、凭据或账本。真正`RoundTrip`先校验目的地、取得全应用cloud／credential共享2槽或model共享3槽（model每任务1），再由Store在短事务检查running状态、原deadline、效果和任务／会话／应用更严次数。预记提交成功后才发送；等待使用原任务context，取消或耗尽不能获得新次数。
 
-`storage.migrateBudgets(tx)`已接入business schema 3显式迁移；旧库须停机备份后迁移，普通打开拒绝旧版或缺必要表／usage列的非完整schema 3，不在启动时自动修库。`ConfigureBudgetPolicy`是服务端授权期配置；同一Ref仅可收紧次数／到期，不清理历史，不因新会话、重启、重试、key轮换创建新周期。未配置、过期或0上限都拒绝请求。`reserved`和送达未知保守占用，不返还；晚到的受控结果可补记，但不改任务终态。次数不是金额，未记录供应商usage时不声称token或费用为0。
+`storage.migrateBudgets(tx)`已于schema 3接入预算DDL，当前business schema 4继续沿用共享账本，并增加配置范围目录与云结果。旧库须停机备份后显式迁移，普通打开拒绝旧版或缺必要表／列的非完整schema 4，不在启动时自动修库。`ConfigureBudgetPolicy`是服务端授权期配置；同一Ref仅可收紧次数／到期，不清理历史，不因新会话、重启、重试、key轮换创建新周期。未配置、过期或0上限都拒绝请求。`reserved`和送达未知保守占用，不返还；晚到的受控结果可补记，但不改任务终态。次数不是金额，未记录供应商usage时不声称token或费用为0。
 
 为保证一次guard调用就是一次物理HTTP，底层固定HTTP/1、关闭连接复用、代理及自动压缩。SDK重试仍需重新进入guard并再次预记；禁止重定向，响应解码前默认上限2MiB，错误正文替换为固定摘要。模型／云适配器必须只使用`ErrorCode(err)`作为持久或公开错误投影；`http.Client`及SDK的外层错误仍可能附带私有URL，不可保存`err.Error()`。
 

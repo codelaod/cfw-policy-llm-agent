@@ -135,7 +135,11 @@ export function createWorkspace() {
   }
   async function newConversation(title = '', source: Snapshot | null = currentSnapshot.value) {
     const scope = source?.input.scope
-    const conversation = await api.createConversation(title.trim() || `${scopeLabel(scope?.boundary, scope?.direction)}审计`, scope?.ref ?? '')
+    return newConversationForScope(scope?.ref ?? '', title.trim() || `${scopeLabel(scope?.boundary, scope?.direction)}审计`)
+  }
+  async function newConversationForScope(scopeRef: string, title: string) {
+    if (!scopeRef) throw new Error('先选择明确的业务范围。')
+    const conversation = await api.createConversation(title, scopeRef)
     conversations.value.unshift(conversation); conversationID.value = conversation.id; messages.value = []
     pointerLoaded = true
     return conversation
@@ -151,7 +155,7 @@ export function createWorkspace() {
   async function importInput(value: unknown) { const item = await api.importSnapshot(value); snapshots.value.unshift(item); snapshotID.value = item.id; return item }
   function updateJob(job: Job) { jobs.value = mergeJobs(jobs.value, [job]) }
   function setSourceGuard(guard: (() => boolean) | null) { sourceGuard = guard }
-  return { api, unlocked, loading, error, snapshots, conversations, jobs, reports, capabilities, snapshotID, conversationID, messages, messagesHasMore, currentSnapshot, currentConversation, activeJobs, modelAvailable, modelState, drafts, listHasMore, listsLoading, loadMore, unlock, lock, refresh, selectSnapshot, selectConversation, newConversation, ensureConversation, loadMessages, addExample, importInput, updateJob, setSourceGuard }
+  return { api, unlocked, loading, error, snapshots, conversations, jobs, reports, capabilities, snapshotID, conversationID, messages, messagesHasMore, currentSnapshot, currentConversation, activeJobs, modelAvailable, modelState, drafts, listHasMore, listsLoading, loadMore, unlock, lock, refresh, selectSnapshot, selectConversation, newConversation, newConversationForScope, ensureConversation, loadMessages, addExample, importInput, updateJob, setSourceGuard }
 }
 
 export type Workspace = ReturnType<typeof createWorkspace>

@@ -4,7 +4,7 @@
 
 E0已建立`server/`与`web/`最小骨架，限定验证见[E0记录](../validation/evidence/e0-local.md)。下文仍区分目标设计与各阶段实际证据，不从联调骨架推导完整业务能力。
 
-E1已实现确定性离线内核、固定输入与证据、审阅／公开报告和配置复审持久链，范围与未覆盖项见[E1记录](../validation/evidence/e1-local.md)；E2已接正式离线会话／确认／任务／五视图，当前范围见[E2记录](../validation/evidence/e2-local.md)；E3受限Agent已通过限定离线验证，实际结果见[E3记录](../validation/evidence/e3-local.md)；E4真实接入尚未实现／验收，可离线适配继续推进。
+E1已实现确定性离线内核、固定输入与证据、审阅／公开报告和配置复审持久链，范围与未覆盖项见[E1记录](../validation/evidence/e1-local.md)；E2已接正式离线会话／确认／任务／五视图，当前范围见[E2记录](../validation/evidence/e2-local.md)；E3受限Agent已通过限定离线验证，实际结果见[E3记录](../validation/evidence/e3-local.md)；E4当前切片已通过限定离线适配验证，真实账号接入仍未验收，见[E4适配记录](../validation/evidence/e4-adapters-local.md)。
 
 ## 1. 设计目标与明确边界
 
@@ -34,7 +34,7 @@ E1已实现确定性离线内核、固定输入与证据、审阅／公开报告
 | ADR-09 引导 | 共用 GuidanceCatalog，Web／CLI／TUI 各自呈现 | 空态、续聊、解释／复审均有下一步，建议不隐式执行 | 见[用户引导](guidance-and-entrypoints.md)；Web 首入口，终端交付必须同等语义，不冒称已有命令 |
 | ADR-14 API 文档 | 固定版本 swaggo/swag，Go 注释／DTO 生成 Swagger 2.0 JSON／YAML，Git 保留并对照实际路由；SSE 另存事件 schema | 用户要求可生成、可留存、可供前后端协作；不维护独立手写结构副本 | E0已用v1.16.6生成并保留[实际联调接口](../api/README.md)，当前业务API与E0诊断接口均按实际注册生成；未接外部能力不建占位规范 |
 
-当前`.env.example`仍只覆盖独立实验。正式服务的应用口令、私有SQLite、business schema 3显式迁移及`--model-config`／`--config-check`见[后端说明](../../server/README.md)。默认离线规则不要求云／模型配置；正式模型只用显式私有JSON与点名环境变量，启动／预览零外呼，enabled不等兼容或付费授权。E3实际限定离线验证见[E3记录](../validation/evidence/e3-local.md)。
+当前`.env.example`仍只覆盖独立实验。正式服务的应用口令、私有SQLite、business schema 4显式迁移及`--model-config`／`--cloud-config`／`--config-check`见[后端说明](../../server/README.md)。默认离线规则不要求云／模型配置；正式模型／云连接只用显式私有JSON与点名环境变量；当前云端仅env_ak／env_sts静态Provider，固定端点／expected account先行，启动／预览零外呼，enabled不等真实能力或付费授权。E3实际限定离线验证见[E3记录](../validation/evidence/e3-local.md)。
 
 ### 2.1 B2 增量取舍
 
@@ -43,7 +43,7 @@ E1已实现确定性离线内核、固定输入与证据、审阅／公开报告
 | ADR-10 分区任务 | 一次 audit 一个控制面／账号／边界／方向／策略集；NAT 一个网关 | 三种边界均保留，但不扩跨网络矩阵。多个任务共用业务会话，报告不混排优先级 |
 | ADR-11 统一执行准入 | ExecutionAdmission 统一限制四种 job；显式计划与用户明确发送均固化执行意图 | /jobs 只消费 plan_id，不由调用方 kind 扩权；普通助手只读固定资料、不隐式刷新云；见[数据与API](data-and-api.md) |
 | ADR-12 采集与快照 | 按分区配置族整体复用；刷新最多两轮完整复读比较语义指纹 | 已知变化不能输出通过，两轮相同仍不声称原子云快照；沿用既有总预算 |
-| ADR-13 当前 NAT 适配 | 当前两个只读 Describe 操作；官方 SDK v11 的 WithContext 路线；不按猜测名称回退接口 | 已核文档与源码，尚未编译／真实验收；详细字段／权限见[云采集设计](aliyun-collector.md) |
+| ADR-13 当前 NAT 适配 | 当前两个只读 Describe 操作；官方 SDK v11 的 WithContext 路线；不按猜测名称回退接口 | 已接固定SDK／静态Provider及两轮Collector，当前人工HTTPfixture不等真实身份／权限／字段验收；详细切片见[云采集设计](aliyun-collector.md) |
 
 ### 2.2 正式前端工程与视觉约束
 

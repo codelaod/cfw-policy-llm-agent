@@ -77,6 +77,8 @@ Agent产品结果、逻辑模型／工具计数、受控错误和本地证据绑
 
 后台优先级低于用户任务，只在空闲或下一领取点参与；同来源／范围／配置版本的待采集请求合并，避免手动与定时重复读。重启跳过错过的周期，不回补请求风暴；刷新有次数、间隔、分页、凭据及总时限。首版不引入外部队列、集群 leader 或 Codex 自动化。
 
+当前E4只读适配切片实现force_refresh采集与独立pinned审计：用户先明确接受collect计划，采集完成原子保存新snapshot／sealed输入，再另行预览并接受audit。prefer_fresh缓存、discover_region和定时采集仍是目标设计，不能因当前链路接通而称为已交付。connection_check只核本次身份，保存IDENTITY_ONLY的partial，不表示产品权限通过。当前切片与人工fixture边界见[E4适配记录](../validation/evidence/e4-adapters-local.md)。
+
 ## 5. 输入绑定：请求先冻结，实际输入稍后封存
 
 支持按需刷新后，旧设计“接收请求即绑定一个实际快照”不再适用于所有模式，故分两层：

@@ -1,6 +1,7 @@
 import { ApiClient, ApiError, ProtocolError, decodeJob } from './api.ts'
 import { abortScope } from './abort.ts'
-import type { AgentRecord, Asset, AssetChange, AssetView, Capabilities, ConfirmationPreview, ConfirmationResult, Conversation, CurrentWorkspace, ExecutionPlan, FindingRecord, Job, JobResult, MessageAcceptance, MessagePage, MessageRequest, Page, PlanRequest, ProfileDraft, ReportRecord, ReviewAction, ReviewRequest, Snapshot } from './workspace-types.ts'
+import { decodeCloudRecord, decodeCollectionOptions } from './cloud-view.ts'
+import type { AgentRecord, Asset, AssetChange, AssetView, Capabilities, ConfirmationPreview, ConfirmationResult, Conversation, CurrentWorkspace, DataSource, ExecutionPlan, FindingRecord, Job, JobResult, MessageAcceptance, MessagePage, MessageRequest, Page, PlanRequest, ProfileDraft, ReportRecord, ReviewAction, ReviewRequest, Snapshot } from './workspace-types.ts'
 
 const object = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const hasID = <T>(value: unknown): T => { if (!object(value) || typeof value.id !== 'string' || !value.id) throw new ProtocolError('记录缺少有效标识。'); return value as T }
@@ -86,7 +87,12 @@ export class WorkspaceClient {
   async importSnapshot(input: unknown) { return snapshot(await this.post('/snapshots/import', input), 'imported') }
   async assets(id: string) { const result = page<AssetView>(await this.json(`/snapshots/${encodeURIComponent(id)}/assets?offset=0&limit=100`)); result.items = result.items.map(item => ({ ...item, asset: asset(item.asset), declared_asset: asset(item.declared_asset), local_confirmed_sections: item.local_confirmed_sections ?? [] })); return result }
   scopes() { return this.json<{ items: unknown[] }>('/policy-scopes') }
-  sources() { return this.json<{ items: unknown[] }>('/data-sources') }
+  async sources() {
+    const result = await this.json<{ items: DataSource[] }>('/data-sources')
+    if (!object(result) || !Array.isArray(result.items) || result.items.some(item => !object(item) || typeof item.id !== 'string' || !item.id || typeof item.label !== 'string' || typeof item.kind !== 'string' || typeof item.available !== 'boolean' || typeof item.cloud_reads !== 'boolean')) throw new ProtocolError('资料连接目录校验失败。')
+    return result
+  }
+  async collectionOptions(id: string) { return decodeCollectionOptions(await this.json(`/data-sources/${encodeURIComponent(id)}/collection-options`), id) }
   workspace() { return this.json<CurrentWorkspace>('/workspaces/current') }
   setCurrentConversation(id: string, revision: number) { return this.json<CurrentWorkspace>('/workspaces/current', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversation_id: id, expected_revision: revision }) }) }
   async conversations(offset = 0) { return page<Conversation>(await this.json(`/conversations?offset=${offset}&limit=100`)) }
@@ -112,6 +118,7 @@ export class WorkspaceClient {
     if (value.audit) { value.audit.findings = (value.audit.findings ?? []).map(item => finding(item)); value.audit.result.findings ??= []; value.audit.result.evidence ??= []; value.audit.result.coverage.limitations ??= [] }
     if (value.recheck) { value.recheck.comparison.reasons ??= []; value.recheck.comparison.issues ??= [] }
     if (value.agent_result) value.agent_result = agentRecord(value.agent_result, id)
+    if (value.cloud_result) value.cloud_result = decodeCloudRecord(value.cloud_result, id)
     return value
   }
   async jobInput(id: string): Promise<unknown> {

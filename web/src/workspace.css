@@ -235,3 +235,10 @@
 .agent-token-values dd{font-size:17px;font-variant-numeric:tabular-nums;margin:6px 0 0;overflow-wrap:anywhere}
 .agent-token-unknown{font-size:13px;color:#64748b;padding-top:20px;border-top:1px solid #e2e8f0}
 @media(max-width:760px){.agent-results>.section-title{display:block}.agent-results>.section-title>.tag{margin-top:12px}.agent-token-values{gap:14px;grid-template-columns:1fr}.agent-recommendation-meta{grid-template-columns:70px minmax(0,1fr)}.agent-local-evidence{padding:14px}.agent-item>.section-title{display:block}.agent-item>.section-title>.tag{margin-top:8px}}
+.cloud-selection { min-width: 0; border: 0; padding: 0; display: grid; gap: 12px; }
+.cloud-selection > legend { margin-bottom: 12px; font-weight: 600; }
+.cloud-selection .input-action select { min-width: 0; flex: 1; }
+.cloud-operation, .cloud-result-actions { display: flex; flex-wrap: wrap; gap: 12px; }
+.cloud-accepted-plan { margin-top: 24px; padding-top: 24px; border-top: 1px solid #e2e8f0; }
+.cloud-observations, .cloud-limitations, .cloud-usage { margin-top: 24px; }
+.cloud-semantic-hash { display: block; max-width: 22ch; overflow-wrap: anywhere; }

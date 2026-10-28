@@ -34,7 +34,7 @@
 
 ## 2. 云查询接口：只采用已核实的操作
 
-已核对官方文档和官方 Go SDK 源码；**这些是公开契约证据，不是本项目真实账号验收**。SDK 核读提交为 `c44859c166b7f54f0cd9e48efe8890916e363ee3`，其 module 为 `github.com/alibabacloud-go/cloudfw-20171207/v11`。正式依赖标签／校验值在 G2 后锁定，不将源码读取当成编译成功。
+已核对官方文档和官方 Go SDK 源码；**这些是公开契约证据，不是本项目真实账号验收**。SDK 核读提交为 `c44859c166b7f54f0cd9e48efe8890916e363ee3`，其 module 为 `github.com/alibabacloud-go/cloudfw-20171207/v11`。正式依赖标签／校验值已随工程锁定；E4已编译接入固定CFW SDK及通用ECS／STS调用，人工HTTPfixture不等真实账号字段或权限验收。
 
 | 用途 | 采用的只读操作／请求约束 | 返回与处理 |
 | --- | --- | --- |
@@ -42,7 +42,7 @@
 | NAT 防火墙／网关元数据 | `DescribeNatFirewallList`；显式 NatGatewayId，必要时 RegionNo 与连接范围交叉核对；不传跨账号 MemberUid | 返回 `NatFirewallList`；总数是数值；保留网关、ProxyId、VpcId、RegionId、ProxyStatus、StrictMode 与关联来源 |
 | NAT ACL | `DescribeNatFirewallControlPolicy`；显式 NatGatewayId、Direction=out | 返回集合名为 **`Policys`**；总数是字符串；每项回显网关身份，必须与任务匹配 |
 | 静态引用 | `DescribeAddressBook`；只查由获准策略引用的静态 IP／端口对象 | 不把域名／动态组当静态 IP；NAT 响应内联成员优先保留，缺失或截断时不声称完整 |
-| ECS／安全组上下文 | 既有 DescribeInstances／DescribeSecurityGroupAttribute 及必要网卡资料 | 仅有限对象；同 VPC、同标签或同公网 IP 都不能单独证明 NAT 流量路径 |
+| ECS／安全组上下文 | 当前固定DescribeInstances／DescribeSecurityGroupAttribute；未增加网卡／EIP发现API | 仅有限对象；同 VPC、同标签或同公网 IP 都不能单独证明 NAT 流量路径 |
 
 
 ### 2.1 不能照搬分页类型
@@ -121,13 +121,13 @@ SNAT／DNAT 条目仅接受显式提供的、有来源与时点的关联上下�
 
 所核官方 v11 源码提供 `DescribeControlPolicyWithContext`、`DescribeNatFirewallControlPolicyWithContext`、`DescribeNatFirewallListWithContext` 等，并传入 `CallApiWithCtx`（T-05）。设计要求适配器使用这些 context 路线，传入任务根剩余 deadline，而不是普通请求函数外套一个超时协程。
 
-这只解决“存在可传 context 的接口”这一证据缺口；固定 SDK、HTTP transport、凭据续期、实际取消与重试行为仍须 G2 后测试。工作器只持 typed job context，不持已经结束的 Gin Context。
+E4已接固定SDK的WithContext／CallApiWithCtx、共享物理HTTP准入和静态Provider，当前人工fixture验证与待真实核对项见[E4适配记录](../validation/evidence/e4-adapters-local.md)。自动凭据续期尚未实现，不能把固定SDK编译或人工响应当真实身份／权限／分页验收。工作器只持 typed job context，不持已经结束的 Gin Context。
 
 - 运行层关闭无法计数的隐式自动重试，使用唯一的有界重试责任层；SDK／凭据请求如何纳入真实 HTTP 尝试账本必须通过模拟端点验收。
 - NAT 两个查询的官方 RAM 读取动作为 `yundun-cloudfirewall:DescribeNatFirewallList` 和 `yundun-cloudfirewall:DescribeNatFirewallControlPolicy`（T-01／02）；接口授权表的资源范围不能被误写成已经实现网关级 RAM 隔离。
 - 官方授权表提供资源类型：策略操作按 NatFirewallControlPolicy／AclUuid，元数据操作按 NatFirewall／ProxyId；它们不等于查询参数 NatGatewayId。应优先使用账号限定的资源 ARN／已知资源范围，并实测列表完整性；为枚举完整策略集需要更宽资源模式时须显式说明，不宣称已做到逐网关隔离。禁止全动作 `*`、FullAccess 或写 API，不能因为需要列表就默认整套全权限。
 - expected account 不符、返回跨账号／网关数据、Provider 过期失败、权限拒绝均停止受影响读取；不尝试机器全局 profile 或其他 MemberUid。
-- 本文参数不是当前授权；没有执行 RAM、STS、云／模型请求或 SDK 构建。
+- 本文参数不是当前授权。E4已执行SDK编译与人工loopback HTTP协议回归，未向真实RAM／STS／云／模型服务发请求，也未下发权限策略。
 
 ## 7. 能力状态与降级
 
@@ -149,7 +149,7 @@ SNAT／DNAT 条目仅接受显式提供的、有来源与时点的关联上下�
 
 ## 8. 稳定需求下的执行衔接
 
-collect 可以按明确的 explicit_ids 或 discover_region 选择器建立有限资源目录，预算与范围在采集计划中展示；审计则只接受固定 assets／gateway_policy。发现完成后再选择审计对象，不在 audit 中把空列表升级为扫描全账号。
+目标设计允许有限发现后再选择对象；当前E4切片只接受配置目录中的明确assets或NAT gateway_policy，尚未实现discover_region，不提供空列表全量发现。collect先保存新snapshot与sealed输入，再由用户另行预览并接受pinned audit；当前fresh audit通过collect→pinned两步实现，不隐式自动审计或调用模型。
 
 配置族读取的真实 HTTP、凭据交换、重试和大响应限制共用统一准入与账本；源码存在 WithContext 不代表已验证所有物理请求控制。两轮观测一致不是原子快照；大响应或未穷尽仍不能通过。
 
@@ -158,3 +158,17 @@ collect 可以按明确的 explicit_ids 或 discover_region 选择器建立有�
 ## 9. 并发采集
 
 3个任务槽位不改变每任务一个分区／一个NAT网关；云与凭据物理HTTP的全应用并发仍最多2，统一原子账本和根预算。默认不把不同任务的刷新查询合并为同一个可被他人取消的执行；仅复用已提交合格快照。Provider续期隔离、有界等待、响应上限及故障行为按[总体架构](architecture.md)验证，不追加云API或RAM权限。
+
+## 10. E4当前适配切片与尚未验收范围
+
+cloudconfig只读取显式--cloud-config JSON及其点名环境变量；生产端点固定，允许账号／地域／资产／网关有限。aliyunapi仅开放CFW五操作、ECS两操作和GetCallerIdentity；先核expected account及受支持身份／ARN再允许产品读取，关联安全组必须先从所选ECS返回。当前静态env_ak／env_sts无自动续期、AssumeRole或ECS角色Provider。
+
+aliyuncollector对固定选择最多读两轮配置族，区分页号／字符串总数与NextToken；保留重复／缺字段／未知条件／引用冲突、采集窗口和语义指纹。静态地址簿双表示冲突或畸形保持未知，不选其中一种证明完整。默认动作始终unknown；同VPC、私网地址或NAT元数据不生成evidenced关联，未获业务确认不推角色、监听或允许集合。安全组读取是范围内上下文与私有证据，不等完整安全组审计或Agent已获得结构化安全组规则。
+
+两轮保护状态单独核对：明确冲突降unknown并记PROTECTION_CHANGED；后轮未取得或未知记PROTECTION_UNVERIFIED，不让首轮normal在后轮closed时仍证明覆盖通过。两轮状态一致但仅后续ACL读取失败时，独立保护事实可保留，ACL完整性仍降级；原始两轮证据不被覆盖。
+
+所有云／凭据／模型物理HTTP共用一个Manager、同一预算周期与持久预记；同时启用的两份配置Ref须一致，模型额度／到期取严，显式0仍为0。schema 4在网络工作完成后，以短事务原子保存snapshot、sealed输入、CloudRecord、公开应用消息及终态；原始响应按原bytes哈希并base64存私有列，不进入cloud_result或报告，取消／重启不重放。
+
+connection_check当前仅身份核对，返回IDENTITY_ONLY的partial结果，product_ready=false，不证明产品权限／字段／分页。GET collection-options只读本地配置，identity_verified不因此变真。当前SDK→HTTP→账本→Collector→数据库→独立审计／报告的链路均由人工fixture供数据；即使输入标live_readonly，也只能说明经过受控采集代码路径，不是用户账号真实云观测。已通过的限定本机数字与局限见[E4适配记录](../validation/evidence/e4-adapters-local.md)。
+
+仍需真实身份／权限、账号产品就绪、字段／分页／范围、静态STS与错误行为分项验证；至少一次人工整改→重采集→复审及E5的20～30独立案例／公平比较尚未执行。自动角色Provider、discover_region、缓存时效策略与定时采集不能因当前切片接通而宣称交付。
