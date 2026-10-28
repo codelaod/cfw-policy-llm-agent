@@ -19,7 +19,7 @@ def require(value: bool, message: str) -> None:
 
 def check_markdown() -> tuple[int, int]:
     links = json_blocks = 0
-    paths = [ROOT / "README.md", ROOT / "AGENTS.md", ROOT / "server/README.md", ROOT / "web/README.md", *(ROOT / "docs").rglob("*.md"), *(ROOT / "experiments").rglob("*.md")]
+    paths = [ROOT / "README.md", ROOT / "AGENTS.md", ROOT / "web/README.md", *(ROOT / "server").rglob("*.md"), *(ROOT / "testdata").rglob("*.md"), *(ROOT / "docs").rglob("*.md"), *(ROOT / "experiments").rglob("*.md")]
     for path in paths:
         text = path.read_text(encoding="utf-8")
         prose: list[str] = []
@@ -218,7 +218,11 @@ def check_governance() -> None:
 def check_traceability() -> int:
     trace = json.loads((ROOT / "docs/validation/requirement-traceability.json").read_text(encoding="utf-8"))
     require(trace["design_version"] == "0.6" and trace["requirement_baseline"] == "B2", "trace baseline")
-    require(not trace["formal_business_tests_executed"], "trace is not a business-test result")
+    runtime_evidence = trace.get("runtime_evidence", [])
+    if trace["formal_business_tests_executed"]:
+        require(bool(trace.get("implementation_stage")) and bool(runtime_evidence), "runtime progress needs a stage and separate execution evidence")
+    for evidence in runtime_evidence:
+        require(scoped_document(evidence).exists(), "missing execution evidence")
     text = (ROOT / "docs/requirements/system.md").read_text(encoding="utf-8")
     definitions = set(re.findall(r"^\| ((?:FR|NFR|AC)-\d{2})\b", text, re.M))
     cr = set(re.findall(r"^- \*\*(CR-1-F\d{2})\b", text, re.M))
@@ -228,7 +232,11 @@ def check_traceability() -> int:
     covered = set()
     matrices = (ROOT/"docs/validation/verification-plan.md").read_text(encoding="utf-8") + (ROOT/"docs/validation/verification-plan.md").read_text(encoding="utf-8")
     for entry in entries.values():
-        require(not entry["implementation_verified"], "trace must not claim implementation")
+        require(type(entry["implementation_verified"]) is bool, "verification state must be explicit")
+        if entry["implementation_verified"]:
+            require(bool(entry.get("verification_evidence")), "complete acceptance needs explicit evidence")
+        for evidence in entry.get("local_evidence", []) + entry.get("verification_evidence", []):
+            require(scoped_document(evidence).exists(), "missing implementation evidence")
         require(set(entry["requirement_ids"]) <= definitions, "undefined requirement ID")
         covered.update(entry["requirement_ids"])
         require(entry["design_evidence"] and entry["planned_checks"], "trace needs design and checks")

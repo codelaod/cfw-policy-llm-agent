@@ -1,6 +1,6 @@
 # E0 本机后端骨架
 
-这是 Go／Gin／纯 Go SQLite 的依赖与契约验证入口；Eino 和云 SDK 的本机协议探针在 [internal/protocolprobe](internal/protocolprobe/README.md)。任务只发送进程内人工 HTTP 请求，不读取云／模型配置。正式业务会话、规则、证据、审阅和报告留到 E1～E3。
+当前HTTP入口仍是E0本机契约联调；E1已增加实际规则／输入／发现／证据／审阅／固定报告及配置复审的Go应用服务，结果见[E1记录](../docs/validation/evidence/e1-local.md)。正式业务API和五视图在E2接入。Eino／云SDK本机协议探针在[internal/protocolprobe](internal/protocolprobe/README.md)，本阶段不读取云／模型配置。
 
 ## 构建与启动
 
@@ -15,7 +15,7 @@ export CFW_APP_TOKEN
 bash scripts/e0.sh server
 ```
 
-迁移是明确的独立操作，不在正常启动时 AutoMigrate。默认库为 `data/private/e0.sqlite`，只监听 `127.0.0.1:8080`；缺口令拒绝启动。输入口令只供本地访问保护，与云／模型凭据无关，不要将真实云／模型密钥用作此值。
+迁移是明确的独立操作，不在正常启动时AutoMigrate。E1新增业务schema，旧E0库需重新运行`migrate`，正常启动拒绝未迁移的旧库。默认库为`data/private/e0.sqlite`，只监听`127.0.0.1:8080`；缺口令拒启。输入口令只供本地访问保护，不使用云／模型密钥。
 
 另一个终端按 [Web 说明](../web/README.md)启动 `127.0.0.1:5173/e0`。浏览器输入同一应用口令，当前页面仅在内存保存。开发代理支持同源 API；本阶段后端不托管静态产物，`npm run preview` 只用于静态预览，不是完整应用部署入口。
 

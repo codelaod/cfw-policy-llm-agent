@@ -110,6 +110,13 @@ func Open(path string, migrate bool) (*Store, error) {
 		if err == nil && v != 1 {
 			err = errors.New("unsupported E0 schema")
 		}
+		if err == nil {
+			v = 0
+			err = db.Raw("SELECT version FROM business_schema").Scan(&v).Error
+			if err == nil && v != 1 {
+				err = errors.New("unsupported business schema")
+			}
+		}
 	}
 	if err != nil {
 		s.Close()
@@ -139,7 +146,7 @@ func (s *Store) migrate() error {
 				return err
 			}
 		}
-		return nil
+		return migrateBusiness(tx)
 	})
 }
 

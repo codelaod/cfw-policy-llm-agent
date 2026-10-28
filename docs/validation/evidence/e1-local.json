@@ -1,0 +1,94 @@
+{
+  "date": "2026-10-28",
+  "stage": "E1",
+  "execution": "actual_offline_business_core",
+  "source_kind": "synthetic_and_imported_assumptions",
+  "real_cloud_requests": 0,
+  "real_model_requests": 0,
+  "formal_evaluation_cases_frozen": false,
+  "full_business_web_accepted": false,
+  "independent_review": "findings_fixed_and_targeted_recheck_passed",
+  "go_tests": {
+    "stage": "E1",
+    "cgo_enabled": false,
+    "passed_top_level_tests": 84,
+    "passed_including_subtests": 196,
+    "failed": 0,
+    "packages": [
+      {
+        "name": "audit",
+        "elapsed_seconds": 0.136,
+        "top_level_tests": 33
+      },
+      {
+        "name": "app",
+        "elapsed_seconds": 0.142,
+        "top_level_tests": 8
+      },
+      {
+        "name": "recheck",
+        "elapsed_seconds": 0.007,
+        "top_level_tests": 7
+      },
+      {
+        "name": "report",
+        "elapsed_seconds": 0.017,
+        "top_level_tests": 14
+      },
+      {
+        "name": "storage",
+        "elapsed_seconds": 0.081,
+        "top_level_tests": 8
+      },
+      {
+        "name": "protocolprobe",
+        "elapsed_seconds": 0.402,
+        "top_level_tests": 7
+      },
+      {
+        "name": "httpapi",
+        "elapsed_seconds": 0.513,
+        "top_level_tests": 7
+      }
+    ]
+  },
+  "coverage": {
+    "core_checks": [
+      "CHK-01",
+      "CHK-02",
+      "CHK-03",
+      "CHK-04",
+      "CHK-05",
+      "CHK-06",
+      "CHK-07",
+      "CHK-08",
+      "OUT-01",
+      "OUT-02",
+      "NAT-01",
+      "NAT-02"
+    ],
+    "fixed_public_inputs": [
+      "internet-in",
+      "internet-out",
+      "nat-out"
+    ],
+    "seeded_exhaustive_crosschecks": 80,
+    "query_cell_limit": 50000,
+    "input_bytes_limit": 5242880,
+    "rule_computation_seconds_limit": 20,
+    "report_bytes_limit": 5242880,
+    "cancellation_regression": "40200 cells, cancel at 50ms, observed return approximately 54-57ms; not a general performance SLA"
+  },
+  "environment": {
+    "go": "1.26.10",
+    "platform": "Linux/WSL2 x86_64",
+    "logical_cpus": 16,
+    "visible_memory_mib": 15868,
+    "performance_profile_tested": false
+  },
+  "limits": [
+    "Five business routes and persistent conversations/confirmation are E2 work.",
+    "Agent tool selection and real model compatibility are not accepted by E1.",
+    "Real cloud permissions, human remediation/recheck and formal evaluation remain unverified."
+  ]
+}

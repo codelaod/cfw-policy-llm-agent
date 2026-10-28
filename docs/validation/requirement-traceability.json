@@ -1,10 +1,7 @@
 {
-  "review_date": "2026-10-27",
   "requirement_baseline": "B2",
-  "head_at_review": "b1b27a9cba45ca26251dd71d3963883584385173",
   "design_version": "0.6",
-  "review_type": "documentation_only",
-  "formal_business_tests_executed": false,
+  "formal_business_tests_executed": true,
   "entries": [
     {
       "id": "AC-01",
@@ -26,8 +23,11 @@
       "planned_checks": [
         "V4-05"
       ],
-      "status": "design_defined_not_implemented",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e1-local.md"
+      ]
     },
     {
       "id": "AC-02",
@@ -51,7 +51,7 @@
         "B2-09",
         "V4-10"
       ],
-      "status": "design_defined_not_implemented",
+      "status": "design_defined_full_acceptance_pending",
       "implementation_verified": false
     },
     {
@@ -75,8 +75,11 @@
         "B2-01",
         "V4-11"
       ],
-      "status": "design_defined_not_implemented",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e1-local.md"
+      ]
     },
     {
       "id": "AC-04",
@@ -99,7 +102,7 @@
       "planned_checks": [
         "B2-05"
       ],
-      "status": "design_defined_not_implemented",
+      "status": "design_defined_full_acceptance_pending",
       "implementation_verified": false
     },
     {
@@ -124,8 +127,11 @@
         "B2-07",
         "V4-09"
       ],
-      "status": "design_defined_not_implemented",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e1-local.md"
+      ]
     },
     {
       "id": "AC-06",
@@ -148,7 +154,7 @@
       "planned_checks": [
         "V4-08"
       ],
-      "status": "design_defined_not_implemented",
+      "status": "design_defined_full_acceptance_pending",
       "implementation_verified": false
     },
     {
@@ -173,7 +179,7 @@
         "V4-06",
         "V4-07"
       ],
-      "status": "design_defined_not_implemented",
+      "status": "design_defined_full_acceptance_pending",
       "implementation_verified": false
     },
     {
@@ -198,8 +204,11 @@
         "B2-14",
         "V4-05"
       ],
-      "status": "design_defined_not_implemented",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e1-local.md"
+      ]
     },
     {
       "id": "AC-09",
@@ -226,7 +235,7 @@
         "B2-17",
         "V5-02"
       ],
-      "status": "design_defined_not_implemented",
+      "status": "design_defined_full_acceptance_pending",
       "implementation_verified": false
     },
     {
@@ -249,8 +258,11 @@
       "planned_checks": [
         "V4-10"
       ],
-      "status": "design_defined_not_implemented",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e1-local.md"
+      ]
     },
     {
       "id": "AC-11",
@@ -279,8 +291,11 @@
         "V4-11",
         "V5-07"
       ],
-      "status": "design_defined_not_implemented",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e1-local.md"
+      ]
     },
     {
       "id": "AC-12",
@@ -303,7 +318,7 @@
         "V4-13",
         "B2-13"
       ],
-      "status": "design_defined_not_implemented",
+      "status": "design_defined_full_acceptance_pending",
       "implementation_verified": false
     },
     {
@@ -360,8 +375,11 @@
         "V5-01",
         "V5-08"
       ],
-      "status": "design_defined_not_implemented",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e1-local.md"
+      ]
     },
     {
       "id": "AC-15",
@@ -388,8 +406,11 @@
         "V4-06",
         "V5-04"
       ],
-      "status": "design_defined_not_implemented",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e1-local.md"
+      ]
     },
     {
       "id": "AC-16",
@@ -411,8 +432,11 @@
         "B2-11",
         "B2-12"
       ],
-      "status": "design_defined_not_implemented",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e1-local.md"
+      ]
     },
     {
       "id": "AC-17",
@@ -448,8 +472,11 @@
         "V5-05",
         "V5-06"
       ],
-      "status": "design_defined_not_implemented",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e1-local.md"
+      ]
     },
     {
       "id": "AC-18",
@@ -476,7 +503,7 @@
         "V4-07",
         "V5-02"
       ],
-      "status": "design_defined_not_implemented",
+      "status": "design_defined_full_acceptance_pending",
       "implementation_verified": false
     },
     {
@@ -505,8 +532,11 @@
         "V4-12",
         "V5-04"
       ],
-      "status": "design_defined_not_implemented",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e1-local.md"
+      ]
     },
     {
       "id": "AC-20",
@@ -534,7 +564,7 @@
         "V4-11",
         "V5-05"
       ],
-      "status": "design_defined_not_implemented",
+      "status": "design_defined_full_acceptance_pending",
       "implementation_verified": false
     },
     {
@@ -563,7 +593,7 @@
         "V4-01",
         "V4-02"
       ],
-      "status": "design_defined_not_implemented",
+      "status": "design_defined_full_acceptance_pending",
       "implementation_verified": false
     },
     {
@@ -588,8 +618,11 @@
         "B2-05",
         "B2-06"
       ],
-      "status": "design_defined_not_implemented",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e1-local.md"
+      ]
     },
     {
       "id": "CR-1-F02",
@@ -613,8 +646,11 @@
         "B2-02",
         "B2-03"
       ],
-      "status": "design_defined_not_implemented",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e1-local.md"
+      ]
     },
     {
       "id": "CR-1-F03",
@@ -635,7 +671,7 @@
       "planned_checks": [
         "B2-10"
       ],
-      "status": "design_defined_not_implemented",
+      "status": "design_defined_full_acceptance_pending",
       "implementation_verified": false
     },
     {
@@ -661,13 +697,22 @@
         "B2-14",
         "V4-04"
       ],
-      "status": "design_defined_not_implemented",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e1-local.md"
+      ]
     }
   ],
   "approval_status": {
     "requirements": "G1_passed",
     "system_design": "G2_passed",
     "date": "2026-10-27"
-  }
+  },
+  "updated_at": "2026-10-28",
+  "implementation_stage": "E1_local_core",
+  "runtime_evidence": [
+    "docs/validation/evidence/e0-local.md",
+    "docs/validation/evidence/e1-local.md"
+  ]
 }

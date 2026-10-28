@@ -2,7 +2,7 @@
 
 以云防火墙策略审计为业务主线，以受限大模型Agent完成工具选择、证据补查、解释与条件推荐；结果由人审阅并在云端手动整改。
 
-**当前进度：需求v0.6／B2与整体设计v0.6已通过；E0最小前后端骨架和本机依赖／契约验证已建立，业务离线闭环待E1实现。** E0只使用人工数据与本机端点；已有实验、原型和本轮探针均不代表真实云／模型或完整业务验收。实际结果见[E0记录](docs/validation/evidence/e0-local.md)。
+**当前进度：需求v0.6／B2与整体设计v0.6已通过；E0依赖契约和E1离线核心／持久闭环已通过限定验证，下一阶段为E2正式服务／Web。** E1含三边界确定性规则、审阅、固定公开报告和配置复审比较；尚未接五业务页面或真实云／模型。实际结果见[E0记录](docs/validation/evidence/e0-local.md)与[E1记录](docs/validation/evidence/e1-local.md)。
 
 ## 文档入口
 
@@ -30,6 +30,7 @@
 ## 现有可运行内容
 
 - [E0后端](server/README.md)／[Vue联调台](web/README.md)：纯Go SQLite、三任务槽位、真实本机SSE／轮询及固定依赖；不是完整审计系统。
+- [E1离线业务链](docs/validation/evidence/e1-local.md)：实际规则→保存发现／证据→审阅→公开JSON／Markdown→复审比较；三份[公开人工输入](testdata/public/README.md)。
 - [已生成API规范](docs/api/README.md)：固定Swag生成Swagger JSON／YAML，另附E0事件schema。
 - [Go＋Eino独立实验](experiments/eino-offline/README.md)：模拟模式、受限真实模型适配、私有配置规则及实际验证边界。
 - [离线交互原型](docs/prototypes/audit-workflow/README.md)：原生HTML／CSS／JS、人工数据、内存事件模拟，不是正式组件工程。
@@ -42,7 +43,7 @@ python3 scripts/check_references.py
 node docs/prototypes/audit-workflow/prototype-smoke.cjs
 ```
 
-E0检查与构建：
+当前离线检查与构建：
 
 ```bash
 bash scripts/e0.sh test
