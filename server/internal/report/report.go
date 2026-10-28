@@ -121,6 +121,14 @@ type Document struct {
 	Coverage          Coverage   `json:"coverage"`
 	Findings          []Finding  `json:"findings"`
 	Evidence          []Evidence `json:"evidence"`
+	Execution         *Execution `json:"execution,omitempty"`
+}
+
+// Execution records only controlled workflow facts, separately from immutable
+// rule coverage. It cannot carry model prose, upstream errors or private IDs.
+type Execution struct {
+	Mode       string `json:"mode"`
+	ModelStage string `json:"model_stage"`
 }
 
 var ruleText = map[string]string{
@@ -247,6 +255,18 @@ func (a aliases) get(kind, value string) string {
 // Build returns an independent byte slice for a captured result/review snapshot.
 // Fields not explicitly projected below cannot enter either public format.
 func Build(ctx context.Context, result domain.Result, reviews []ReviewHead, format string) ([]byte, error) {
+	return build(ctx, result, reviews, format, nil)
+}
+
+func BuildWithExecution(ctx context.Context, result domain.Result, reviews []ReviewHead, format string, execution Execution) ([]byte, error) {
+	if (execution.Mode != "rules_only" || execution.ModelStage != "not_requested") &&
+		(execution.Mode != "rules_and_agent" || !member(execution.ModelStage, "not_configured", "not_completed", "completed")) {
+		return nil, ErrInvalidResult
+	}
+	return build(ctx, result, reviews, format, &execution)
+}
+
+func build(ctx context.Context, result domain.Result, reviews []ReviewHead, format string, execution *Execution) ([]byte, error) {
 	if ctx == nil {
 		return nil, ErrInvalidResult
 	}
@@ -392,6 +412,7 @@ func Build(ctx context.Context, result domain.Result, reviews []ReviewHead, form
 		Versions: Versions{a.get("snapshot", m.SnapshotVersion), a.get("profile", m.ProfileVersion), a.get("intent", m.IntentVersion), a.get("baseline", m.BaselineVersion), a.get("normalizer", m.NormalizerVersion), a.get("kernel", m.KernelVersion), a.get("semantics", m.ProviderSemantics.ProfileID), a.get("semantics-version", m.ProviderSemantics.Version)},
 		Scope:    Scope{a.get("scope", s.Ref), s.Provider, a.get("account", s.AccountRef), s.Boundary, s.Direction, a.get("policy-set", s.PolicySetRef), a.get("gateway", s.GatewayRef), a.get("control-plane", s.ControlPlaneRef), s.IPFamily},
 		Coverage: Coverage{result.Coverage.Complete, result.Coverage.EvaluatedQueries, result.Coverage.EvaluatedCells, notices(result.Coverage.Limitations)}, Findings: []Finding{}, Evidence: []Evidence{}}
+	doc.Execution = execution
 	if !doc.Coverage.Complete && len(doc.Coverage.Limitations) == 0 {
 		doc.Coverage.Limitations = notices([]string{"coverage_incomplete"})
 	}
@@ -461,6 +482,10 @@ func Build(ctx context.Context, result domain.Result, reviews []ReviewHead, form
 func markdown(ctx context.Context, d Document) ([]byte, error) {
 	var out bytes.Buffer
 	fmt.Fprintf(&out, "# 云防火墙策略审计报告\n\n%s\n\n", d.Qualification)
+	if d.Execution != nil {
+		stageText := map[string]string{"not_requested": "仅规则模式；未请求模型。", "not_configured": "模型未配置或未获授权，模型阶段未执行；规则结果保留。", "not_completed": "模型阶段未完成；已保存规则结果保留。", "completed": "模型阶段流程已结束；模型补充仍需人工核实。"}[d.Execution.ModelStage]
+		fmt.Fprintf(&out, "执行模式：%s。%s\n\n", d.Execution.Mode, stageText)
+	}
 	fmt.Fprintf(&out, "评估时点：%s。范围：%s / %s（%s）。\n\n", d.EvaluationAt, d.Scope.Boundary, d.Scope.Direction, d.Scope.Alias)
 	fmt.Fprintf(&out, "采集／构造时点：%s。\n\n", d.CollectedAt)
 	fmt.Fprintf(&out, "来源：%s；provider=%s；account=%s；control_plane=%s；ip_family=%s；policy_set=%s；gateway=%s。\n\n", d.SourceKind, d.Scope.Provider, d.Scope.AccountAlias, d.Scope.ControlPlaneAlias, d.Scope.IPFamily, d.Scope.PolicySetAlias, d.Scope.GatewayAlias)

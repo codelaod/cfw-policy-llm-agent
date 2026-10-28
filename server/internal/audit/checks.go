@@ -221,7 +221,7 @@ func (r *runState) add(check, sub, subject, service, verdict, summary string, q 
 	at, _ := time.Parse(time.RFC3339Nano, r.input.EvaluationAt)
 	for _, x := range r.input.Baseline.Exceptions {
 		expiry, _ := time.Parse(time.RFC3339Nano, x.ExpiresAt)
-		if x.Confirmed && x.CheckID == check && x.ScopeRef == r.input.Scope.Ref && x.SubjectRef == subject && (x.ServiceRef == "" || x.ServiceRef == service) && expiry.After(at) {
+		if x.Confirmed && x.CheckID == check && (x.Subcheck == "" || x.Subcheck == sub) && x.ScopeRef == r.input.Scope.Ref && x.SubjectRef == subject && (x.ServiceRef == "" || x.ServiceRef == service) && expiry.After(at) {
 			f.AcceptedException = true
 			f.Limitations = uniqueStrings(append(f.Limitations, "已接受例外；原始事实仍保留，需按到期复核。"))
 		}

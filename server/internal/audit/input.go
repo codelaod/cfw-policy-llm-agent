@@ -397,6 +397,9 @@ func ValidateContext(ctx context.Context, in domain.Input) error {
 		}
 	}
 	for _, x := range in.Baseline.Exceptions {
+		if x.Subcheck != "" && (x.CheckID != "NAT-02" || (x.Subcheck != "CHK-04" && x.Subcheck != "CHK-05" && x.Subcheck != "OUT-01" && x.Subcheck != "OUT-02")) {
+			return bad("exception subcheck does not belong to selected check")
+		}
 		if x.ScopeRef != in.Scope.Ref || x.Reason == "" {
 			return bad("exception scope/reason required")
 		}

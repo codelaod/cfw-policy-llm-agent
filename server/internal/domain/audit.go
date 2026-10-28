@@ -130,6 +130,7 @@ type RiskPort struct {
 }
 type Exception struct {
 	CheckID    string `json:"check_id"`
+	Subcheck   string `json:"subcheck,omitempty"`
 	SubjectRef string `json:"subject_ref"`
 	ServiceRef string `json:"service_ref"`
 	ScopeRef   string `json:"scope_ref"`

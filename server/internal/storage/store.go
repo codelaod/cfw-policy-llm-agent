@@ -1,11 +1,9 @@
-// Package storage implements only the E0 synthetic task store, not business history.
+// Package storage persists immutable audit inputs, business history and bounded execution.
 package storage
 
 import (
 	"context"
-	"crypto/rand"
 	"database/sql"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -29,24 +27,33 @@ var (
 )
 
 type Job struct {
-	ID              string `json:"id" gorm:"column:id"`
-	ConversationID  string `json:"conversation_id"`
-	ClientRequestID string `json:"-"`
-	Status          string `json:"status"`
-	ViewSeq         int64  `json:"view_seq"`
-	CreatedAt       string `json:"created_at"`
-	StartedAt       string `json:"started_at,omitempty"`
-	FinishedAt      string `json:"finished_at,omitempty"`
+	ID                string `json:"id" gorm:"column:id"`
+	ConversationID    string `json:"conversation_id"`
+	ClientRequestID   string `json:"-"`
+	RequestDigest     string `json:"-"`
+	Kind              string `json:"kind" enums:"e0_probe,audit,collect,connection_check,assistant_turn"`
+	PlanID            string `json:"plan_id,omitempty"`
+	Status            string `json:"status"`
+	ViewSeq           int64  `json:"view_seq"`
+	CreatedAt         string `json:"created_at"`
+	StartedAt         string `json:"started_at,omitempty"`
+	FinishedAt        string `json:"finished_at,omitempty"`
+	QueueDeadline     string `json:"queue_deadline"`
+	RootDeadline      string `json:"root_deadline"`
+	ExecutionDeadline string `json:"execution_deadline,omitempty"`
+	ResultRef         string `json:"result_ref,omitempty"`
+	ErrorCode         string `json:"error_code,omitempty"`
+	BudgetRef         string `json:"budget_ref"`
 }
 
 type Event struct {
-	SchemaVersion int               `json:"schema_version"`
-	JobID         string            `json:"job_id"`
-	Seq           int64             `json:"seq"`
-	Type          string            `json:"type"`
-	OccurredAt    string            `json:"occurred_at"`
-	Payload       map[string]string `json:"payload" gorm:"-"`
-	PayloadJSON   string            `json:"-" gorm:"column:payload"`
+	SchemaVersion int            `json:"schema_version"`
+	JobID         string         `json:"job_id"`
+	Seq           int64          `json:"seq"`
+	Type          string         `json:"type"`
+	OccurredAt    string         `json:"occurred_at"`
+	Payload       map[string]any `json:"payload" gorm:"-"`
+	PayloadJSON   string         `json:"-" gorm:"column:payload"`
 }
 
 type EventPage struct {
@@ -113,7 +120,7 @@ func Open(path string, migrate bool) (*Store, error) {
 		if err == nil {
 			v = 0
 			err = db.Raw("SELECT version FROM business_schema").Scan(&v).Error
-			if err == nil && v != 1 {
+			if err == nil && v != 2 {
 				err = errors.New("unsupported business schema")
 			}
 		}
@@ -152,7 +159,7 @@ func (s *Store) migrate() error {
 
 func now() string { return time.Now().UTC().Format(time.RFC3339Nano) }
 func terminal(s string) bool {
-	return s == "completed" || s == "failed" || s == "cancelled" || s == "interrupted"
+	return s == "completed" || s == "partial" || s == "failed" || s == "cancelled" || s == "interrupted"
 }
 func Terminal(s string) bool { return terminal(s) }
 
@@ -172,7 +179,7 @@ func (s *Store) Get(ctx context.Context, id string) (Job, error) {
 }
 
 // appendEvent is always called inside the same transaction as the state change.
-func appendEvent(tx *gorm.DB, j *Job, typ string, payload map[string]string) error {
+func appendEvent(tx *gorm.DB, j *Job, typ string, payload map[string]any) error {
 	if len(payload) == 0 {
 		return errors.New("missing payload")
 	}
@@ -193,49 +200,40 @@ func appendEvent(tx *gorm.DB, j *Job, typ string, payload map[string]string) err
 }
 
 func (s *Store) Create(ctx context.Context, conversation, request string) (j Job, replayed bool, err error) {
-	var b [16]byte
-	if _, err = rand.Read(b[:]); err != nil {
-		return
-	}
-	j = Job{ID: "e0_" + hex.EncodeToString(b[:]), ConversationID: conversation, ClientRequestID: request, Status: "queued", CreatedAt: now()}
-	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var old Job
-		r := tx.Raw("SELECT * FROM e0_jobs WHERE client_request_id=?", request).Scan(&old)
-		if r.Error != nil {
-			return r.Error
-		}
-		if r.RowsAffected > 0 {
-			if old.ConversationID != conversation {
-				return ErrConflict
-			}
-			j = old
-			replayed = true
-			return nil
-		}
-		var n int64
-		if e := tx.Raw("SELECT count(*) FROM e0_jobs WHERE conversation_id=? AND status IN ('queued','running','cancelling')", conversation).Scan(&n).Error; e != nil {
-			return e
-		}
-		if n > 0 {
-			return ErrBusy
-		}
-		if e := tx.Raw("SELECT count(*) FROM e0_jobs WHERE status='queued'").Scan(&n).Error; e != nil {
-			return e
-		}
-		if n >= 10 {
-			return ErrCapacity
-		}
-		if e := tx.Exec("INSERT INTO e0_jobs(id,conversation_id,client_request_id,status,created_at) VALUES(?,?,?,?,?)", j.ID, conversation, request, j.Status, j.CreatedAt).Error; e != nil {
-			return e
-		}
-		return appendEvent(tx, &j, "job_status", map[string]string{"status": "queued", "source": "synthetic"})
-	})
-	return
+	return s.createProbe(ctx, conversation, request)
 }
 
 func (s *Store) Claim(ctx context.Context) (j Job, found bool, err error) {
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		r := tx.Raw("UPDATE e0_jobs SET status='running',started_at=? WHERE id=(SELECT id FROM e0_jobs WHERE status='queued' ORDER BY created_at,id LIMIT 1) AND status='queued' RETURNING *", now()).Scan(&j)
+		if e := expireQueued(tx); e != nil {
+			return e
+		}
+		var active int64
+		if e := tx.Raw("SELECT count(*) FROM e0_jobs WHERE status IN ('running','cancelling')").Scan(&active).Error; e != nil {
+			return e
+		}
+		if active >= 3 {
+			return nil
+		}
+		var candidate Job
+		r := tx.Raw("SELECT * FROM e0_jobs WHERE status='queued' ORDER BY created_at,id LIMIT 1").Scan(&candidate)
+		if r.Error != nil {
+			return r.Error
+		}
+		if r.RowsAffected == 0 {
+			return nil
+		}
+		_, execution := timingFor(candidate.Kind)
+		at := time.Now().UTC()
+		deadline := at.Add(execution)
+		root, e := time.Parse(time.RFC3339Nano, candidate.RootDeadline)
+		if e != nil {
+			return e
+		}
+		if root.Before(deadline) {
+			deadline = root
+		}
+		r = tx.Raw("UPDATE e0_jobs SET status='running',started_at=?,execution_deadline=? WHERE id=? AND status='queued' RETURNING *", at.Format(time.RFC3339Nano), deadline.Format(time.RFC3339Nano), candidate.ID).Scan(&j)
 		if r.Error != nil {
 			return r.Error
 		}
@@ -243,34 +241,24 @@ func (s *Store) Claim(ctx context.Context) (j Job, found bool, err error) {
 			return nil
 		}
 		found = true
-		if e := appendEvent(tx, &j, "job_status", map[string]string{"status": "running"}); e != nil {
+		if e := appendEvent(tx, &j, "job_status", map[string]any{"status": "running"}); e != nil {
 			return e
 		}
-		return appendEvent(tx, &j, "stage_changed", map[string]string{"stage": "local_mock", "source": "synthetic"})
+		stage := "input_preparation"
+		if j.Kind == "e0_probe" {
+			stage = "local_mock"
+		} else {
+			if e := tx.Exec("UPDATE conversation_turns SET state='running' WHERE job_id=?", j.ID).Error; e != nil {
+				return e
+			}
+		}
+		return appendEvent(tx, &j, "stage_changed", map[string]any{"stage": stage, "phase": "L1"})
 	})
 	return
 }
 
 func (s *Store) Finish(ctx context.Context, id, status string) error {
-	if status != "completed" && status != "failed" && status != "interrupted" {
-		return errors.New("invalid finish status")
-	}
-	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		j, e := get(tx, id)
-		if e != nil {
-			return e
-		}
-		if terminal(j.Status) {
-			return nil
-		}
-		if j.Status == "cancelling" {
-			status = "cancelled"
-		}
-		if e = tx.Exec("UPDATE e0_jobs SET status=?,finished_at=? WHERE id=?", status, now(), id).Error; e != nil {
-			return e
-		}
-		return appendEvent(tx, &j, "job_terminal", map[string]string{"status": status, "source": "synthetic"})
-	})
+	return s.FinishWithCode(ctx, id, status, "")
 }
 
 func (s *Store) Cancel(ctx context.Context, id string) (j Job, err error) {
@@ -296,24 +284,34 @@ func (s *Store) Cancel(ctx context.Context, id string) (j Job, err error) {
 		if terminal(j.Status) {
 			typ = "job_terminal"
 		}
-		return appendEvent(tx, &j, typ, map[string]string{"status": j.Status})
+		if terminal(j.Status) {
+			if e = tx.Exec("UPDATE conversation_turns SET state='cancelled' WHERE job_id=?", id).Error; e != nil {
+				return e
+			}
+		}
+		return appendEvent(tx, &j, typ, map[string]any{"status": j.Status})
 	})
 	return
 }
 
-// Recovery never replays an HTTP request. Queued E0 probes also require a new
-// explicit start after restart; the production queued policy belongs to E2.
+// Recovery is called only after Open owns the process lock. Active executions
+// are interrupted without replay; valid never-started plans keep their budget.
 func (s *Store) Recover(ctx context.Context) error {
-	var jobs []Job
-	if err := s.db.WithContext(ctx).Raw("SELECT * FROM e0_jobs WHERE status IN ('queued','running','cancelling')").Scan(&jobs).Error; err != nil {
-		return err
-	}
-	for _, j := range jobs {
-		if err := s.Finish(ctx, j.ID, "interrupted"); err != nil {
-			return err
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if e := expireQueued(tx); e != nil {
+			return e
 		}
-	}
-	return nil
+		var jobs []Job
+		if e := tx.Raw("SELECT * FROM e0_jobs WHERE status IN ('running','cancelling') OR (status='queued' AND kind='e0_probe')").Scan(&jobs).Error; e != nil {
+			return e
+		}
+		for i := range jobs {
+			if e := finishJob(tx, &jobs[i], "interrupted", "JOB_INTERRUPTED"); e != nil {
+				return e
+			}
+		}
+		return nil
+	})
 }
 
 func (s *Store) Page(ctx context.Context, id string, after int64, limit int) (p EventPage, j Job, err error) {

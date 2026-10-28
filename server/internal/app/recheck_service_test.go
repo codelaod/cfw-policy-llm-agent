@@ -6,10 +6,57 @@ import (
 	"path/filepath"
 	"testing"
 
+	"cfw-policy-llm-agent/server/internal/audit"
 	"cfw-policy-llm-agent/server/internal/domain"
 	"cfw-policy-llm-agent/server/internal/recheck"
 	"cfw-policy-llm-agent/server/internal/storage"
 )
+
+func TestRecheckUsesSealedAuditInputsInsteadOfSnapshotDeclarations(t *testing.T) {
+	ctx := context.Background()
+	store, err := storage.Open(filepath.Join(t.TempDir(), "sealed-recheck.sqlite"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	service := NewAuditService(store)
+	base, err := audit.SyntheticExample("internet-in")
+	if err != nil {
+		t.Fatal(err)
+	}
+	runs := []storage.AuditRecord{}
+	for _, version := range []string{"first-snapshot", "new-snapshot"} {
+		base.SnapshotVersion = version
+		snapshot, err := store.SaveSnapshot(ctx, base)
+		if err != nil {
+			t.Fatal(err)
+		}
+		sealed := snapshot.Input
+		sealed.EvaluationAt = "2026-10-28T03:21:00Z"
+		result, err := audit.Run(ctx, sealed)
+		if err != nil {
+			t.Fatal(err)
+		}
+		run, err := store.SaveAuditInput(ctx, snapshot.ID, sealed, result)
+		if err != nil {
+			t.Fatal(err)
+		}
+		runs = append(runs, run)
+	}
+	record, err := service.CompareRuns(ctx, runs[0].ID, runs[1].ID)
+	if err != nil {
+		t.Fatalf("comparison substituted old snapshot evaluation for sealed input: %v", err)
+	}
+	var comparison recheck.Comparison
+	if err = json.Unmarshal(record.Comparison, &comparison); err != nil {
+		t.Fatal(err)
+	}
+	for _, reason := range comparison.Reasons {
+		if reason == "evaluation_time_changed" {
+			t.Fatal("equal sealed evaluation times became unequal")
+		}
+	}
+}
 
 func TestRecheckKeepsBothRunsAndPersistsComparison(t *testing.T) {
 	ctx := context.Background()

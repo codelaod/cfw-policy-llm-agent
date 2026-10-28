@@ -19,15 +19,7 @@ func (s *AuditService) CompareRuns(ctx context.Context, oldID, newID string) (st
 	if err != nil {
 		return storage.RecheckRecord{}, err
 	}
-	oldSnapshot, err := s.Store.GetSnapshot(ctx, oldRun.SnapshotID)
-	if err != nil {
-		return storage.RecheckRecord{}, err
-	}
-	newSnapshot, err := s.Store.GetSnapshot(ctx, newRun.SnapshotID)
-	if err != nil {
-		return storage.RecheckRecord{}, err
-	}
-	comparison, err := recheck.Compare(oldSnapshot.Input, oldRun.Result, newSnapshot.Input, newRun.Result)
+	comparison, err := recheck.Compare(oldRun.Input, oldRun.Result, newRun.Input, newRun.Result)
 	if err != nil {
 		return storage.RecheckRecord{}, err
 	}

@@ -39,6 +39,8 @@ type AuditRecord struct {
 	Result     domain.Result   `json:"result" gorm:"-"`
 	Findings   []FindingRecord `json:"findings" gorm:"-"`
 	Body       string          `json:"-"`
+	Input      domain.Input    `json:"input" gorm:"-"`
+	InputBody  string          `json:"-"`
 }
 type ReviewRequest struct {
 	ClientRequestID  string `json:"-"`
@@ -95,7 +97,7 @@ func migrateBusiness(tx *gorm.DB) error {
 			return err
 		}
 	}
-	return nil
+	return migrateExecution(tx)
 }
 
 func opaqueID(prefix string) (string, error) {
@@ -180,7 +182,39 @@ func manifestFor(in domain.Input) domain.InputManifest {
 }
 
 func (s *Store) SaveAudit(ctx context.Context, snapshotID string, result domain.Result) (record AuditRecord, err error) {
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		base, e := snapshot(tx, snapshotID)
+		if e != nil {
+			return e
+		}
+		record, e = saveAuditInput(tx, snapshotID, base.Input, result)
+		return e
+	})
+	return
+}
+
+func (s *Store) SaveAuditInput(ctx context.Context, snapshotID string, input domain.Input, result domain.Result) (record AuditRecord, err error) {
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var e error
+		record, e = saveAuditInput(tx, snapshotID, input, result)
+		return e
+	})
+	return
+}
+
+func saveAuditInput(tx *gorm.DB, snapshotID string, input domain.Input, result domain.Result) (record AuditRecord, err error) {
+	source, err := snapshot(tx, snapshotID)
+	if err != nil {
+		return record, err
+	}
+	if !validResolvedConfiguration(source.Input, input) || !reflect.DeepEqual(manifestFor(input), result.Manifest) || validateFrozenResult(input, result) != nil {
+		return record, ErrInputInvalid
+	}
 	body, err := marshalBounded(result, 8<<20)
+	if err != nil {
+		return record, err
+	}
+	inputBody, err := marshalBounded(input, 5<<20)
 	if err != nil {
 		return record, err
 	}
@@ -188,61 +222,35 @@ func (s *Store) SaveAudit(ctx context.Context, snapshotID string, result domain.
 	if err != nil {
 		return record, err
 	}
-	record = AuditRecord{ID: id, SnapshotID: snapshotID, CreatedAt: now(), Body: string(body), Findings: []FindingRecord{}}
-	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		input, e := snapshot(tx, snapshotID)
-		if e != nil {
-			return e
-		}
-		if !reflect.DeepEqual(manifestFor(input.Input), result.Manifest) || validateFrozenResult(input.Input, result) != nil {
-			return ErrInputInvalid
-		}
-		evidence := map[string]bool{}
-		for _, item := range result.Evidence {
-			if item.ID == "" || evidence[item.ID] || item.ScopeRef != input.ScopeRef || item.SnapshotVersion != input.Input.SnapshotVersion {
-				return ErrInputInvalid
-			}
-			evidence[item.ID] = true
-		}
-		if e = tx.Exec("INSERT INTO audit_runs(id,snapshot_id,created_at,body) VALUES(?,?,?,?)", id, snapshotID, record.CreatedAt, record.Body).Error; e != nil {
-			return e
-		}
-		for _, finding := range result.Findings {
-			if finding.ID == "" || finding.ScopeRef != input.ScopeRef || finding.Origin != "rule" {
-				return ErrInputInvalid
-			}
-			for _, ref := range finding.EvidenceRefs {
-				if !evidence[ref] {
-					return ErrInputInvalid
-				}
-			}
-			fid, e := opaqueID("finding")
-			if e != nil {
-				return e
-			}
-			encoded, e := marshalBounded(finding, 2<<20)
-			if e != nil {
-				return e
-			}
-			if e = tx.Exec("INSERT INTO findings(id,audit_id,finding_key,body) VALUES(?,?,?,?)", fid, id, finding.ID, string(encoded)).Error; e != nil {
-				return e
-			}
-			if e = tx.Exec("INSERT INTO review_heads(finding_id,revision,plan) VALUES(?,0,'')", fid).Error; e != nil {
-				return e
-			}
-			record.Findings = append(record.Findings, FindingRecord{ID: fid, AuditID: id, FindingKey: finding.ID, Body: string(encoded)})
-		}
-		return nil
-	})
-	if err == nil {
-		err = json.Unmarshal(body, &record.Result)
-		for i := range record.Findings {
-			if e := json.Unmarshal([]byte(record.Findings[i].Body), &record.Findings[i].Finding); e != nil {
-				err = e
-				break
-			}
-		}
+	record = AuditRecord{ID: id, SnapshotID: snapshotID, CreatedAt: now(), Body: string(body), InputBody: string(inputBody), Findings: []FindingRecord{}}
+	if err = tx.Exec("INSERT INTO audit_runs(id,snapshot_id,created_at,body,input_body) VALUES(?,?,?,?,?)", id, snapshotID, record.CreatedAt, record.Body, record.InputBody).Error; err != nil {
+		return record, err
 	}
+	for _, finding := range result.Findings {
+		fid, e := opaqueID("finding")
+		if e != nil {
+			return record, e
+		}
+		encoded, e := marshalBounded(finding, 2<<20)
+		if e != nil {
+			return record, e
+		}
+		if e = tx.Exec("INSERT INTO findings(id,audit_id,finding_key,body) VALUES(?,?,?,?)", fid, id, finding.ID, string(encoded)).Error; e != nil {
+			return record, e
+		}
+		if e = tx.Exec("INSERT INTO review_heads(finding_id,revision,plan) VALUES(?,0,'')", fid).Error; e != nil {
+			return record, e
+		}
+		item := FindingRecord{ID: fid, AuditID: id, FindingKey: finding.ID, Body: string(encoded)}
+		if e = json.Unmarshal(encoded, &item.Finding); e != nil {
+			return record, e
+		}
+		record.Findings = append(record.Findings, item)
+	}
+	if err = json.Unmarshal(body, &record.Result); err != nil {
+		return record, err
+	}
+	err = json.Unmarshal(inputBody, &record.Input)
 	return
 }
 func loadFindings(tx *gorm.DB, auditID string) (records []FindingRecord, err error) {
@@ -269,6 +277,9 @@ func auditRun(tx *gorm.DB, id string) (record AuditRecord, err error) {
 	if err = json.Unmarshal([]byte(record.Body), &record.Result); err != nil {
 		return
 	}
+	if err = json.Unmarshal([]byte(record.InputBody), &record.Input); err != nil {
+		return
+	}
 	record.Findings, err = loadFindings(tx, id)
 	return
 }
@@ -287,6 +298,9 @@ func (s *Store) ListAudits(ctx context.Context, offset, limit int) (records []Au
 	}
 	for i := range records {
 		if err = json.Unmarshal([]byte(records[i].Body), &records[i].Result); err != nil {
+			return
+		}
+		if err = json.Unmarshal([]byte(records[i].InputBody), &records[i].Input); err != nil {
 			return
 		}
 	}
@@ -425,11 +439,20 @@ func reportRecord(tx *gorm.DB, id string) (record ReportRecord, err error) {
 	return
 }
 func (s *Store) SaveReport(ctx context.Context, auditID, format string, heads []ReviewHead, content []byte, key string) (record ReportRecord, err error) {
+	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var e error
+		record, e = saveReport(tx, auditID, format, heads, content, key)
+		return e
+	})
+	return
+}
+
+func saveReport(tx *gorm.DB, auditID, format string, heads []ReviewHead, content []byte, key string) (record ReportRecord, err error) {
 	if !validKey(key) || (format != "json" && format != "markdown") {
 		return record, ErrInputInvalid
 	}
 	digest := requestDigest([]string{auditID, format})
-	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	err = func() error {
 		var old ReportRecord
 		r := tx.Raw("SELECT * FROM reports WHERE request_key=?", key).Scan(&old)
 		if r.Error != nil {
@@ -491,7 +514,7 @@ func (s *Store) SaveReport(ctx context.Context, auditID, format string, heads []
 			return e
 		}
 		return json.Unmarshal(encoded, &record.Reviews)
-	})
+	}()
 	return
 }
 func (s *Store) GetReport(ctx context.Context, id string) (ReportRecord, error) {

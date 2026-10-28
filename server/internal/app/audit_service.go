@@ -131,17 +131,61 @@ func (s *AuditService) Review(ctx context.Context, findingID string, request sto
 }
 
 func (s *AuditService) Report(ctx context.Context, auditID, format, key string) (storage.ReportRecord, error) {
-	run, heads, err := s.Store.CaptureReportInput(ctx, auditID)
+	job, found, err := s.Store.JobForAudit(ctx, auditID)
 	if err != nil {
 		return storage.ReportRecord{}, err
+	}
+	if !found {
+		return s.buildReport(ctx, auditID, format, key, nil)
+	}
+	if !storage.Terminal(job.Status) {
+		return storage.ReportRecord{}, storage.ErrJobTerminal
+	}
+	plan, err := s.Store.GetPlan(ctx, job.PlanID)
+	if err != nil {
+		return storage.ReportRecord{}, err
+	}
+	execution := report.Execution{Mode: plan.Mode, ModelStage: "not_requested"}
+	if plan.Mode == "rules_and_agent" {
+		execution.ModelStage = "not_completed"
+		if job.ErrorCode == "MODEL_NOT_CONFIGURED" {
+			execution.ModelStage = "not_configured"
+		}
+	}
+	return s.ReportWithExecution(ctx, auditID, format, key, execution)
+}
+
+// ReportWithExecution is used by the local workflow after its rule/model
+// stages have ended. HTTP exports use Report, which requires a terminal job.
+func (s *AuditService) ReportWithExecution(ctx context.Context, auditID, format, key string, execution report.Execution) (storage.ReportRecord, error) {
+	return s.buildReport(ctx, auditID, format, key, &execution)
+}
+
+func (s *AuditService) buildReport(ctx context.Context, auditID, format, key string, execution *report.Execution) (storage.ReportRecord, error) {
+	heads, content, err := s.prepareReport(ctx, auditID, format, execution)
+	if err != nil {
+		return storage.ReportRecord{}, err
+	}
+	return s.Store.SaveReport(ctx, auditID, format, heads, content, key)
+}
+
+func (s *AuditService) prepareReport(ctx context.Context, auditID, format string, execution *report.Execution) ([]storage.ReviewHead, []byte, error) {
+	run, heads, err := s.Store.CaptureReportInput(ctx, auditID)
+	if err != nil {
+		return nil, nil, err
 	}
 	publicHeads := make([]report.ReviewHead, 0, len(heads))
 	for _, head := range heads {
 		publicHeads = append(publicHeads, report.ReviewHead{FindingID: head.FindingKey, Revision: head.Revision, Plan: head.Plan})
 	}
-	content, err := report.Build(ctx, run.Result, publicHeads, format)
-	if err != nil {
-		return storage.ReportRecord{}, err
+	var content []byte
+	if execution == nil {
+		content, err = report.Build(ctx, run.Result, publicHeads, format)
+	} else {
+		content, err = report.BuildWithExecution(ctx, run.Result, publicHeads, format, *execution)
 	}
-	return s.Store.SaveReport(ctx, auditID, format, heads, content, key)
+	if err != nil {
+		return nil, nil, err
+	}
+	return heads, content, nil
 }
