@@ -97,7 +97,10 @@ func migrateBusiness(tx *gorm.DB) error {
 			return err
 		}
 	}
-	return migrateExecution(tx)
+	if err := migrateExecution(tx); err != nil {
+		return err
+	}
+	return migrateAdmissionSchema(tx)
 }
 
 func opaqueID(prefix string) (string, error) {

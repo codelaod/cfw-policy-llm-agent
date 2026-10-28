@@ -120,8 +120,11 @@ func Open(path string, migrate bool) (*Store, error) {
 		if err == nil {
 			v = 0
 			err = db.Raw("SELECT version FROM business_schema").Scan(&v).Error
-			if err == nil && v != 2 {
+			if err == nil && v != BusinessSchemaVersion {
 				err = errors.New("unsupported business schema")
+			}
+			if err == nil {
+				err = checkAdmissionShape(db)
 			}
 		}
 	}

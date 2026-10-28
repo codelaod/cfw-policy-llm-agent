@@ -285,6 +285,12 @@ func insertConversationMessage(tx *gorm.DB, conversationID string, input Message
 			return message, false, ErrInputInvalid
 		}
 	}
+	return insertConversationMessageContext(tx, conversationID, input, reportContextID, "")
+}
+
+// A job context is accepted only after its durable job/plan/turn graph and
+// sender have been checked. Ordinary append callers never supply this context.
+func insertConversationMessageContext(tx *gorm.DB, conversationID string, input MessageInput, reportContextID, jobContextID string) (message ConversationMessage, replayed bool, err error) {
 	input, err = normalizeMessage(input)
 	if err != nil {
 		return
@@ -315,7 +321,12 @@ func insertConversationMessage(tx *gorm.DB, conversationID string, input Message
 	if err != nil {
 		return message, false, err
 	}
-	if input.Role == "user" && conversation.Archived {
+	if jobContextID != "" {
+		if err := validateJobMessageContext(tx, conversationID, input, jobContextID); err != nil {
+			return message, false, err
+		}
+	}
+	if conversation.Archived && jobContextID == "" {
 		return message, false, ErrConversationArchived
 	}
 	if reportContextID != "" {
@@ -331,7 +342,7 @@ func insertConversationMessage(tx *gorm.DB, conversationID string, input Message
 			return message, false, ErrInputInvalid
 		}
 	}
-	if input.Role == "user" && input.PolicyScopeRef != conversation.PolicyScopeRef && reportContextID == "" {
+	if input.PolicyScopeRef != conversation.PolicyScopeRef && jobContextID == "" && !(input.Role == "user" && reportContextID != "") {
 		return message, false, ErrInputInvalid
 	}
 	if err = localScope(tx, input.PolicyScopeRef); err != nil {

@@ -67,7 +67,7 @@ func migrateExecution(tx *gorm.DB) error {
 	if err := tx.Raw("SELECT version FROM business_schema").Scan(&version).Error; err != nil {
 		return err
 	}
-	if version == 2 {
+	if version == 2 || version == BusinessSchemaVersion {
 		return migrateCollaboration(tx)
 	}
 	if version != 1 {
@@ -850,7 +850,7 @@ func (s *Store) AppendJobMessage(ctx context.Context, id string, input MessageIn
 		}
 		input.JobID = id
 		var replay bool
-		message, replay, e = insertConversationMessage(tx, job.ConversationID, input, plan.ContextReportID)
+		message, replay, e = insertJobConversationMessage(tx, job.ID, input)
 		if e != nil {
 			return e
 		}
@@ -885,12 +885,13 @@ func (s *Store) AttachReportAndEvent(ctx context.Context, id, reportID string) e
 }
 
 type FinalizeJobReportRequest struct {
-	Format  string
-	Heads   []ReviewHead
-	Content []byte
-	Key     string
-	Status  string
-	Code    string
+	Format        string
+	Heads         []ReviewHead
+	Content       []byte
+	Key           string
+	Status        string
+	Code          string
+	AgentResultID string
 }
 
 // FinalizeJobWithReport publishes a fixed report, an application message and the
@@ -923,13 +924,25 @@ func (s *Store) FinalizeJobWithReport(ctx context.Context, id string, request Fi
 			return e
 		}
 		text := "已保存确定性规则结果与固定报告；检查结论及覆盖范围以固定输入和证据为准，配置允许不证明实际可达。"
-		if request.Status == "partial" {
+		role, origin := "event", "application"
+		if request.AgentResultID != "" {
+			agent, e := jobAgentResult(tx, job.ID)
+			if e != nil {
+				return e
+			}
+			if agent == nil || agent.ID != request.AgentResultID || agent.Content.Output == nil || agent.Content.JobID != job.ID || plan.Mode != "rules_and_agent" {
+				return ErrInputInvalid
+			}
+			text = agent.Content.Output.Explanation
+			role, origin = "assistant", "model"
+		}
+		if request.Status == "partial" && request.AgentResultID == "" {
 			text = "本次任务部分完成；已保存确定性规则结果与固定报告，请核对未完成阶段。"
 			if request.Code == "MODEL_NOT_CONFIGURED" {
 				text = "已保存确定性规则结果与固定报告；模型未配置或未获授权，模型阶段未执行，本次任务部分完成。"
 			}
 		}
-		message, replay, e := insertConversationMessage(tx, job.ConversationID, MessageInput{ClientMessageID: "workflow_result_" + job.ID, Role: "event", Origin: "application", PublicText: text, PolicyScopeRef: plan.PolicyScopeRef, JobID: job.ID, RefKind: "report", RefID: record.ID}, plan.ContextReportID)
+		message, replay, e := insertJobConversationMessage(tx, job.ID, MessageInput{ClientMessageID: "workflow_result_" + job.ID, Role: role, Origin: origin, PublicText: text, PolicyScopeRef: plan.PolicyScopeRef, JobID: job.ID, RefKind: "report", RefID: record.ID})
 		if e != nil {
 			return e
 		}
@@ -1074,7 +1087,7 @@ func finishJob(tx *gorm.DB, job *Job, status, code string) error {
 				return err
 			}
 			text := map[string]string{"completed": "本次任务流程已结束；检查结论和覆盖范围以保存结果为准。", "partial": "本次任务部分完成；已保存结果仍可查看，请核对未完成阶段。", "failed": "本次任务未完成；已保存结果保留，请查看受控错误摘要。", "cancelled": "本次任务已取消；已保存结果保留。", "interrupted": "本次任务已中断；已保存结果保留，未自动重放调用。"}[status]
-			message, _, err := insertConversationMessage(tx, job.ConversationID, MessageInput{ClientMessageID: "terminal_" + job.ID, Role: "event", Origin: "application", PublicText: text, PolicyScopeRef: plan.PolicyScopeRef, JobID: job.ID, RefKind: "job", RefID: job.ID}, plan.ContextReportID)
+			message, _, err := insertJobConversationMessage(tx, job.ID, MessageInput{ClientMessageID: "terminal_" + job.ID, Role: "event", Origin: "application", PublicText: text, PolicyScopeRef: plan.PolicyScopeRef, JobID: job.ID, RefKind: "job", RefID: job.ID})
 			if err != nil {
 				return err
 			}
