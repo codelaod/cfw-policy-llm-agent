@@ -15,6 +15,7 @@ import (
 // have no adapters here; their absence is never replaced with synthetic output.
 type Workflow struct {
 	Store *storage.Store
+	Agent *AgentService
 	rules func(context.Context, domain.Input) (domain.Result, error)
 }
 
@@ -33,7 +34,7 @@ func (w *Workflow) Run(ctx context.Context, job storage.Job) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if job.Kind != "audit" {
+	if job.Kind != "audit" && job.Kind != "assistant_turn" {
 		return JobFailure{Code: "EXECUTION_NOT_CONFIGURED"}
 	}
 	plan, err := w.Store.GetPlan(ctx, job.PlanID)
@@ -48,6 +49,13 @@ func (w *Workflow) Run(ctx context.Context, job storage.Job) error {
 	sealed, err := w.Store.SealInput(ctx, job.ID, input)
 	if err != nil {
 		return workflowFailure(ctx, "INPUT_SEAL_FAILED", false)
+	}
+	if job.Kind == "assistant_turn" {
+		if w.Agent == nil {
+			return JobFailure{Code: "MODEL_NOT_CONFIGURED"}
+		}
+		_, err = w.Agent.Run(ctx, job)
+		return err
 	}
 	if err = w.Store.AppendJobEvent(ctx, job.ID, "stage_changed", map[string]any{"phase": "L2", "stage": "rules_started"}); err != nil {
 		return workflowFailure(ctx, "STAGE_SAVE_FAILED", false)
@@ -85,6 +93,36 @@ func (w *Workflow) Run(ctx context.Context, job storage.Job) error {
 	if err = ctx.Err(); err != nil {
 		return err
 	}
+	execution := report.Execution{Mode: plan.Mode, ModelStage: "not_requested"}
+	partialCode, agentResultID := "", ""
+	if plan.Mode == "rules_and_agent" {
+		if w.Agent == nil || !plan.EffectCeiling.AllowModelRequests {
+			execution.ModelStage = "not_configured"
+			partialCode = "MODEL_NOT_CONFIGURED"
+			if err = w.Store.AppendJobEvent(ctx, job.ID, "stage_changed", map[string]any{"phase": "L3", "stage": "model_not_configured"}); err != nil {
+				return workflowFailure(ctx, "STAGE_SAVE_FAILED", true)
+			}
+		} else {
+			if err = w.Store.AppendJobEvent(ctx, job.ID, "stage_changed", map[string]any{"phase": "L3", "stage": "agent_started"}); err != nil {
+				return workflowFailure(ctx, "STAGE_SAVE_FAILED", true)
+			}
+			modelResult, modelErr := w.Agent.Run(ctx, job)
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+			if modelErr != nil {
+				execution.ModelStage = "not_completed"
+				partialCode = "AGENT_EXECUTION_FAILED"
+				var failure JobFailure
+				if errors.As(modelErr, &failure) {
+					partialCode = failure.Code
+				}
+			} else {
+				execution.ModelStage = "completed"
+				agentResultID = modelResult.ID
+			}
+		}
+	}
 	finalCtx, stopFinal := context.WithTimeout(ctx, 10*time.Second)
 	defer stopFinal()
 	service := NewAuditService(w.Store)
@@ -97,29 +135,26 @@ func (w *Workflow) Run(ctx context.Context, job storage.Job) error {
 			return workflowFailure(finalCtx, "RECHECK_COMPARISON_FAILED", true)
 		}
 	}
-	execution := report.Execution{Mode: plan.Mode, ModelStage: "not_requested"}
-	if plan.Mode == "rules_and_agent" {
-		execution.ModelStage = "not_configured"
-		if err = w.Store.AppendJobEvent(finalCtx, job.ID, "stage_changed", map[string]any{"phase": "L3", "stage": "model_not_configured"}); err != nil {
-			return workflowFailure(finalCtx, "STAGE_SAVE_FAILED", true)
-		}
-	}
 	if err = w.Store.AppendJobEvent(finalCtx, job.ID, "stage_changed", map[string]any{"phase": "L4", "stage": "report_building"}); err != nil {
 		return workflowFailure(finalCtx, "STAGE_SAVE_FAILED", true)
+	}
+	execution.JobStatus = "completed"
+	if partialCode != "" {
+		execution.JobStatus = "partial"
 	}
 	heads, content, err := service.prepareReport(finalCtx, record.ID, "json", &execution)
 	if err != nil {
 		return workflowFailure(finalCtx, "REPORT_SAVE_FAILED", true)
 	}
 	status, code := "completed", ""
-	if execution.ModelStage == "not_configured" {
-		status, code = "partial", "MODEL_NOT_CONFIGURED"
+	if partialCode != "" {
+		status, code = "partial", partialCode
 	}
-	if _, err = w.Store.FinalizeJobWithReport(finalCtx, job.ID, storage.FinalizeJobReportRequest{Format: "json", Heads: heads, Content: content, Key: "workflow_report_" + job.ID, Status: status, Code: code}); err != nil {
+	if _, err = w.Store.FinalizeJobWithReport(finalCtx, job.ID, storage.FinalizeJobReportRequest{Format: "json", Heads: heads, Content: content, Key: "workflow_report_" + job.ID, Status: status, Code: code, AgentResultID: agentResultID}); err != nil {
 		return workflowFailure(finalCtx, "FINALIZATION_SAVE_FAILED", true)
 	}
-	if execution.ModelStage == "not_configured" {
-		return JobFailure{Code: "MODEL_NOT_CONFIGURED", Partial: true}
+	if partialCode != "" {
+		return JobFailure{Code: partialCode, Partial: true}
 	}
 	return nil
 }

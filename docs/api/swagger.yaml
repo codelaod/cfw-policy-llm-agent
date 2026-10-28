@@ -1,5 +1,105 @@
 basePath: /api/v1
 definitions:
+  agentquery.LocalBinding:
+    properties:
+      asset_ref:
+        type: string
+      document:
+        type: string
+      field:
+        type: string
+      kind:
+        type: string
+      returned:
+        type: boolean
+      service_ref:
+        type: string
+    type: object
+  agentquery.Output:
+    properties:
+      assessment_basis:
+        type: string
+      explanation:
+        type: string
+      questions:
+        items:
+          type: string
+        type: array
+      recommendations:
+        items:
+          $ref: '#/definitions/agentquery.Recommendation'
+        type: array
+      roles:
+        items:
+          $ref: '#/definitions/agentquery.RoleCandidate'
+        type: array
+      rule_version:
+        type: string
+      scope_ref:
+        type: string
+      source_kind:
+        type: string
+    type: object
+  agentquery.Recommendation:
+    properties:
+      access_ref:
+        type: string
+      action:
+        type: string
+      basis_kind:
+        type: string
+      business_ref:
+        type: string
+      component_topic:
+        type: string
+      conditions:
+        items:
+          type: string
+        type: array
+      evidence_refs:
+        items:
+          type: string
+        type: array
+      field:
+        type: string
+      finding_ref:
+        type: string
+      impact:
+        type: string
+      kind:
+        type: string
+      manual_next_step:
+        type: string
+      target_kind:
+        type: string
+      target_ref:
+        type: string
+    type: object
+  agentquery.RoleCandidate:
+    properties:
+      asset_ref:
+        type: string
+      contradicting_evidence:
+        items:
+          type: string
+        type: array
+      questions:
+        items:
+          type: string
+        type: array
+      role:
+        type: string
+      service_ref:
+        type: string
+      supporting_evidence:
+        items:
+          type: string
+        type: array
+      unknowns:
+        items:
+          type: string
+        type: array
+    type: object
   app.AssetView:
     properties:
       asset:
@@ -465,6 +565,15 @@ definitions:
       source_kind:
         type: string
     type: object
+  domain.ModelUsage:
+    properties:
+      completion_tokens:
+        type: integer
+      prompt_tokens:
+        type: integer
+      total_tokens:
+        type: integer
+    type: object
   domain.Policy:
     properties:
       action:
@@ -794,6 +903,10 @@ definitions:
     type: object
   httpapi.JobResult:
     properties:
+      agent_result:
+        $ref: '#/definitions/storage.AgentRecord'
+      attempt_usage:
+        $ref: '#/definitions/storage.AttemptUsage'
       audit:
         $ref: '#/definitions/storage.AuditRecord'
       completed_phases:
@@ -804,6 +917,8 @@ definitions:
         type: boolean
       recheck:
         $ref: '#/definitions/httpapi.RecheckView'
+      snapshot_id:
+        type: string
       view_seq:
         type: integer
     type: object
@@ -934,6 +1049,38 @@ definitions:
       state:
         type: string
     type: object
+  storage.AgentContent:
+    properties:
+      bindings:
+        additionalProperties:
+          $ref: '#/definitions/agentquery.LocalBinding'
+        type: object
+      context:
+        $ref: '#/definitions/storage.ContextCoverage'
+      error_code:
+        type: string
+      input_manifest:
+        $ref: '#/definitions/domain.InputManifest'
+      job_id:
+        type: string
+      model_calls:
+        type: integer
+      output:
+        $ref: '#/definitions/agentquery.Output'
+      tool_calls:
+        type: integer
+    type: object
+  storage.AgentRecord:
+    properties:
+      content:
+        $ref: '#/definitions/storage.AgentContent'
+      created_at:
+        type: string
+      id:
+        type: string
+      job_id:
+        type: string
+    type: object
   storage.AssetAccessChange:
     properties:
       allowed:
@@ -974,6 +1121,23 @@ definitions:
         type: string
       revision:
         type: integer
+    type: object
+  storage.AttemptUsage:
+    properties:
+      cloud_attempts:
+        type: integer
+      known_usage_responses:
+        type: integer
+      model_attempts:
+        type: integer
+      reported_tokens:
+        $ref: '#/definitions/domain.ModelUsage'
+      unknown_delivery:
+        type: integer
+      unknown_usage_attempts:
+        type: integer
+      usage_totals_overflow:
+        type: boolean
     type: object
   storage.AuditRecord:
     properties:
@@ -1061,6 +1225,17 @@ definitions:
         type: string
       status:
         type: string
+    type: object
+  storage.ContextCoverage:
+    properties:
+      disclosure_version:
+        type: string
+      excluded_messages:
+        type: integer
+      included_messages:
+        type: integer
+      truncated:
+        type: boolean
     type: object
   storage.Conversation:
     properties:
@@ -1413,10 +1588,12 @@ definitions:
     type: object
 info:
   contact: {}
-  description: Persistent offline rule audits, confirmations, reports and task observation.
-    Cloud and model adapters are not configured.
+  description: Persistent fixed-input rule audits, bounded Eino supplements, confirmations,
+    reports and durable attempt accounting. Runtime is offline unless an explicit
+    private model configuration is enabled; previews and config-check never call providers.
+    Real provider capability remains separately verified.
   title: CFW offline audit workspace
-  version: 0.2.0
+  version: 0.3.0
 paths:
   /audits/{id}:
     get:
@@ -2351,6 +2528,48 @@ paths:
       summary: Observe committed task events; reconnect only reads persisted history
       tags:
       - E0
+  /jobs/{id}/input:
+    get:
+      description: Protected local view only. Never substitutes current snapshot declarations
+        or business heads. Unsealed input returns INPUT_NOT_SEALED.
+      parameters:
+      - description: Formal job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.Input'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Read the immutable effective input sealed for this task
+      tags:
+      - Execution
   /jobs/{id}/result:
     get:
       parameters:
@@ -2368,7 +2587,8 @@ paths:
             $ref: '#/definitions/httpapi.JobResult'
       security:
       - AppToken: []
-      summary: Read saved L2 results and finality from one database snapshot
+      summary: Read saved rule/Agent results, attempt usage and finality from one
+        database snapshot
       tags:
       - Execution
   /policy-scopes:

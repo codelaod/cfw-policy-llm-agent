@@ -2,6 +2,7 @@
 import { shallowReactive, computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { onBeforeRouteLeave, onBeforeRouteUpdate, useRoute, useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
+import { inventoryFocus } from '../agent-view'
 import { errorText, formatTime, sourceLabel, useWorkspace } from '../workspace'
 import { cloneData, formatPorts, isDefiniteRejection, LatestRead, missingDependencies, Mutation, parseAddresses, parsePorts } from '../workspace-state'
 import type { Access, AssetChange, AssetView, ConfirmationPreview, ConfirmationResult, ProfileDraft, ServiceAccessChange } from '../workspace-types'
@@ -10,6 +11,10 @@ const workspace = useWorkspace(), route = useRoute(), router = useRouter()
 const activeAsset = ref(''), selected = ref<string[]>([]), changes = ref<AssetChange[]>([]), draft = ref<ProfileDraft | null>(null), preview = ref<ConfirmationPreview | null>(null)
 const dirty = ref(false), busy = ref(false), error = ref(''), message = ref(''), sections = ref<string[]>([])
 const assetViews = ref<AssetView[]>([]), contextError = ref('')
+const routeLoading = ref(false), focusError = ref(''), focusService = ref(''), missingService = ref(false)
+const routeReads = new LatestRead(), assetViewReads = new LatestRead()
+let routeSnapshot = '', assetViewsSource = ''
+const routeScopeMatches = computed(() => typeof route.query.snapshot_id !== 'string' || route.query.snapshot_id === workspace.snapshotID.value)
 const confirmMutation = shallowReactive(new Mutation<{ preview_id: string; revision: number; sections: string[] }, ConfirmationResult>())
 const rejectMutation = shallowReactive(new Mutation<{ revision: number }, ConfirmationResult>())
 const reads = new LatestRead()
@@ -35,11 +40,36 @@ function hydrate(values: AssetChange[]) {
   return copied
 }
 async function loadAssetViews() {
-  const id = snapshot.value?.id
+  const id = snapshot.value?.id, current = assetViewReads.begin()
+  if (id !== assetViewsSource) { assetViews.value = []; contextError.value = ''; assetViewsSource = id ?? '' }
   if (!id) { assetViews.value = []; return }
-  try { const value = await workspace.api.assets(id); if (snapshot.value?.id === id) { assetViews.value = value.items.map(item => ({ ...item, local_confirmed_sections: item.local_confirmed_sections ?? [] })); contextError.value = '' } }
-  catch (cause) { if (snapshot.value?.id === id) contextError.value = errorText(cause) }
+  try { const value = await workspace.api.assets(id); if (current() && snapshot.value?.id === id) { assetViews.value = value.items.map(item => ({ ...item, local_confirmed_sections: item.local_confirmed_sections ?? [] })); contextError.value = '' } }
+  catch (cause) { if (current() && snapshot.value?.id === id) contextError.value = errorText(cause) }
 }
+function applyRouteFocus() {
+  const requested = typeof route.params.id === 'string' ? route.params.id : ''
+  const known = assetViews.value.find(item => item.asset.id === requested)
+  const focused = inventoryFocus(snapshot.value?.input.assets ?? [], requested, route.query.service, known?.asset.services ?? [])
+  activeAsset.value = focused.assetID
+  if (!draft.value) selected.value = focused.assetID ? [focused.assetID] : []
+  focusService.value = focused.serviceID; missingService.value = focused.missingService
+  focusError.value = focused.missingAsset ? '指定资产不在这份固定资料中，未自动切换到其他对象。' : ''
+}
+async function followFixedRoute() {
+  if (typeof route.query.draft === 'string') return
+  const id = typeof route.query.snapshot_id === 'string' ? route.query.snapshot_id : ''
+  const current = routeReads.begin()
+  if (!id) { routeSnapshot = ''; routeLoading.value = false; applyRouteFocus(); return }
+  routeLoading.value = true; focusError.value = ''; routeSnapshot = id
+  try {
+    await workspace.selectSnapshot(id, false)
+    if (!current() || workspace.snapshotID.value !== id || route.query.snapshot_id !== id) return
+    reset(); await loadAssetViews()
+    if (current()) applyRouteFocus()
+  } catch (cause) { if (current()) focusError.value = errorText(cause) }
+  finally { if (current()) { routeSnapshot = ''; routeLoading.value = false } }
+}
+function chooseAsset(id: string) { activeAsset.value = id; focusService.value = ''; missingService.value = false; focusError.value = '' }
 function makeChanges(ids: string[]): AssetChange[] {
   return (snapshot.value?.input.assets ?? []).filter(item => ids.includes(item.id)).map(item => ({ asset_id: item.id,
     roles: item.services.map(service => ({ service_id: service.id, role: service.role, protocol: service.protocol, ports: cloneData(service.ports) })),
@@ -145,28 +175,31 @@ function canLeave() {
   return allow
 }
 onBeforeRouteLeave(canLeave)
-onBeforeRouteUpdate((to, from) => to.query.draft === from.query.draft || to.query.draft === draft.value?.id || canLeave())
-let lastSnapshot = ''
+onBeforeRouteUpdate((to, from) => to.query.snapshot_id === from.query.snapshot_id && to.query.draft === from.query.draft || typeof to.query.draft === 'string' && to.query.draft === draft.value?.id || canLeave())
+let lastSnapshot: string | undefined
 watch(() => workspace.snapshotID.value, id => {
   if (id === lastSnapshot) return
+  if (lastSnapshot === undefined) { lastSnapshot = id; void loadAssetViews(); return }
   lastSnapshot = id
-  if (restoringSnapshot === id) { void loadAssetViews(); return }
-  reads.invalidate(); busy.value = false
+  if (restoringSnapshot === id || routeSnapshot === id) { void loadAssetViews(); return }
+  reads.invalidate(); routeReads.invalidate(); routeLoading.value = false; busy.value = false
   const old = draft.value; cacheEditor(); reset(); rejectMutation.discard()
-  if (old && old.snapshot_id !== id && route.query.draft) void router.push('/inventory')
+  if (old && old.snapshot_id !== id && route.query.draft || typeof route.query.snapshot_id === 'string' && route.query.snapshot_id !== id) void router.replace('/inventory')
   void loadAssetViews()
 }, { immediate: true })
 watch(() => route.query.draft, id => { if (typeof id === 'string' && id !== draft.value?.id) void restore() })
 watch(() => route.params.id, id => { if (typeof id === 'string' && snapshot.value?.input.assets.some(a => a.id === id)) activeAsset.value = id }, { immediate: true })
-onMounted(() => { workspace.setSourceGuard(canLeave); void restore() })
-onBeforeUnmount(() => { reads.invalidate(); cacheEditor(); workspace.setSourceGuard(null) })
+watch(() => [route.query.snapshot_id, route.query.service, route.params.id], () => { if (!route.query.draft) void followFixedRoute() })
+onMounted(() => { workspace.setSourceGuard(() => !routeLoading.value && canLeave()); if (route.query.draft) void restore(); else void followFixedRoute() })
+onBeforeUnmount(() => { assetViewReads.invalidate(); routeReads.invalidate(); reads.invalidate(); cacheEditor(); workspace.setSourceGuard(null) })
 </script>
 
 <template>
   <div class="workspace-page">
     <header class="page-title"><div><h1>资产与业务确认</h1><p>资料事实、候选角色和明确访问要求分开保留；角色不会自动成为授权。</p></div><RouterLink v-if="snapshot" to="/audits">预览审计计划</RouterLink></header>
-    <div v-if="!snapshot" class="workspace-empty"><h2>先选择固定资料</h2><p>载入人工案例或导入离线输入，再确认所审资产。</p><RouterLink to="/overview">准备资料</RouterLink></div>
-    <template v-else><p class="notice">{{ sourceLabel(snapshot.source_kind) }}资料，构造／采集于 {{ formatTime(snapshot.input.collected_at) }}。标签、角色或端口声明不证明运行时监听或真实可达。</p><div v-if="!snapshot.input.assets.length" class="workspace-empty"><h2>此资料没有资产级对象</h2><p>网关策略集可以独立审计。资产角色和访问要求需有明确资产资料后再确认。</p><RouterLink to="/audits">预览网关策略审计</RouterLink></div><div v-else class="inventory-layout"><aside class="asset-list" aria-label="资产选择"><div class="section-title"><h2>本次资料中的资产</h2><span class="muted">{{ selected.length }} 个待编辑</span></div><label v-for="item in snapshot.input.assets" :key="item.id" :class="{ active: activeAsset === item.id }"><input v-model="selected" type="checkbox" :value="item.id" :disabled="editable" /><button type="button" @click="activeAsset = item.id"><strong>{{ item.id }}</strong><span>{{ item.address || '地址未知' }}</span></button></label><UButton color="neutral" variant="outline" :disabled="busy || !selected.length || unresolved" @click="begin">{{ draft ? '从当前版本新建草稿' : '编辑所选资产' }}</UButton><p class="field-hint">可在同一草稿分别编辑多个资产；确认时任一版本冲突都不会部分写入。</p></aside><div class="asset-detail"><section v-if="asset" class="workspace-section plain"><div class="section-title"><h2>{{ asset.id }}</h2><span class="tag tag-neutral">{{ sourceLabel(snapshot.source_kind) }}</span></div><dl class="fact-grid"><div><dt>配置地址</dt><dd>{{ asset.address || '未知' }}</dd></div><div><dt>端点关联</dt><dd>{{ asset.address_observed ? '资料有明确地址声明' : '尚未核实' }}</dd></div><div><dt>当前防火墙层</dt><dd>{{ snapshot.input.protection.state === 'on' ? '声明已开启' : snapshot.input.protection.state === 'off' ? '声明未开启' : '状态未知' }}</dd></div><div v-if="snapshot.input.scope.boundary === 'nat'"><dt>NAT 观察位置</dt><dd>{{ asset.association.observation_point || '未知' }} / {{ asset.association.status || '未知' }}</dd></div></dl><h3 class="subsection-title">原始资料中的服务声明</h3><div class="table-scroll"><table class="workspace-table compact-table"><thead><tr><th>服务</th><th>角色声明</th><th>协议／端口</th><th>状态</th></tr></thead><tbody><tr v-for="service in asset.services" :key="service.id"><td>{{ service.id }}</td><td>{{ roleLabels[service.role] ?? service.role }}</td><td>{{ service.protocol }} / {{ formatPorts(service.ports) || '未知' }}</td><td>{{ service.role_status === 'confirmed' ? '资料声明已确认' : service.role_status === 'candidate' ? '候选' : '待核实' }}</td></tr></tbody></table></div></section>
+    <div v-if="routeLoading || !routeScopeMatches" class="workspace-empty"><h2>{{ routeLoading ? '正在读取指定固定资料' : '指定固定资料尚未读取' }}</h2><p>{{ focusError || '按任务绑定定位资产，不使用其他资料版本替代。' }}</p></div>
+    <div v-else-if="!snapshot" class="workspace-empty"><h2>先选择固定资料</h2><p>载入人工案例或导入离线输入，再确认所审资产。</p><RouterLink to="/overview">准备资料</RouterLink></div>
+    <template v-else><p v-if="focusError" class="notice notice-warning">{{ focusError }}</p><p v-if="focusService" class="notice">定位服务：{{ focusService }}。{{ missingService ? '该服务尚未在当前人工版本中定位；请先核对版本，不会自动新增或确认。' : '角色候选仍需在现有表单中人工核对与预览确认。' }}</p><p class="notice">{{ sourceLabel(snapshot.source_kind) }}资料，构造／采集于 {{ formatTime(snapshot.input.collected_at) }}。标签、角色或端口声明不证明运行时监听或真实可达。</p><div v-if="!snapshot.input.assets.length" class="workspace-empty"><h2>此资料没有资产级对象</h2><p>网关策略集可以独立审计。资产角色和访问要求需有明确资产资料后再确认。</p><RouterLink to="/audits">预览网关策略审计</RouterLink></div><div v-else class="inventory-layout"><aside class="asset-list" aria-label="资产选择"><div class="section-title"><h2>本次资料中的资产</h2><span class="muted">{{ selected.length }} 个待编辑</span></div><label v-for="item in snapshot.input.assets" :key="item.id" :class="{ active: activeAsset === item.id }"><input v-model="selected" type="checkbox" :value="item.id" :disabled="editable" /><button type="button" @click="chooseAsset(item.id)"><strong>{{ item.id }}</strong><span>{{ item.address || '地址未知' }}</span></button></label><UButton color="neutral" variant="outline" :disabled="busy || !selected.length || unresolved" @click="begin">{{ draft ? '从当前版本新建草稿' : '编辑所选资产' }}</UButton><p class="field-hint">可在同一草稿分别编辑多个资产；确认时任一版本冲突都不会部分写入。</p></aside><div class="asset-detail"><section v-if="asset" class="workspace-section plain"><div class="section-title"><h2>{{ asset.id }}</h2><span class="tag tag-neutral">{{ sourceLabel(snapshot.source_kind) }}</span></div><dl class="fact-grid"><div><dt>配置地址</dt><dd>{{ asset.address || '未知' }}</dd></div><div><dt>端点关联</dt><dd>{{ asset.address_observed ? '资料有明确地址声明' : '尚未核实' }}</dd></div><div><dt>当前防火墙层</dt><dd>{{ snapshot.input.protection.state === 'on' ? '声明已开启' : snapshot.input.protection.state === 'off' ? '声明未开启' : '状态未知' }}</dd></div><div v-if="snapshot.input.scope.boundary === 'nat'"><dt>NAT 观察位置</dt><dd>{{ asset.association.observation_point || '未知' }} / {{ asset.association.status || '未知' }}</dd></div></dl><h3 class="subsection-title">原始资料中的服务声明</h3><div class="table-scroll"><table class="workspace-table compact-table"><thead><tr><th>服务</th><th>角色声明</th><th>协议／端口</th><th>状态</th></tr></thead><tbody><tr v-for="service in asset.services" :key="service.id"><td>{{ service.id }}</td><td>{{ roleLabels[service.role] ?? service.role }}</td><td>{{ service.protocol }} / {{ formatPorts(service.ports) || '未知' }}</td><td>{{ service.role_status === 'confirmed' ? '资料声明已确认' : service.role_status === 'candidate' ? '候选' : '待核实' }}</td></tr></tbody></table></div></section>
         <p v-if="contextError" class="notice notice-warning" role="status">当前本地确认版本暂未读到：{{ contextError }}。原始资料声明不自动作为新的本地确认。</p>
         <section v-if="currentView" class="workspace-section"><div class="section-title"><h2>本地已确认业务</h2><span class="muted">聚合修订 {{ currentView.head.revision }}</span></div><p v-if="!currentView.local_confirmed_sections.length" class="empty-inline">尚无本地人工确认版本。以上服务信息只按原始资料来源与声明解释。</p><template v-else><p class="field-hint">已确认部分：{{ currentView.local_confirmed_sections.map(value => value === 'roles' ? '角色' : '访问要求').join('、') }}。未确认部分保留其原来源保证。</p><div class="table-scroll"><table class="workspace-table compact-table"><thead><tr><th>服务</th><th>有效角色</th><th>协议／端口</th><th>访问要求</th></tr></thead><tbody><tr v-for="service in currentView.asset.services" :key="service.id"><td>{{ service.id }}</td><td>{{ roleLabels[service.role] ?? service.role }}</td><td>{{ service.protocol }} / {{ formatPorts(service.ports) || '未知' }}</td><td>{{ service.public_access === 'not_required' ? '明确无需公网' : service.public_access === 'required' ? '声明有公网需求' : '待确认' }}</td></tr></tbody></table></div></template></section>
         <section v-if="draft && change" class="draft-editor workspace-section" aria-labelledby="draft-title"><div class="section-title"><div><h2 id="draft-title">人工确认草稿</h2><p class="field-hint">修订 {{ draft.revision }} / {{ dirty ? '有未保存编辑' : editable ? '草稿已保存，尚未确认' : '此草稿已结束' }}</p></div><span class="tag tag-neutral">本地资料</span></div><fieldset :disabled="busy || !editable || unresolved"><legend>服务角色</legend><p class="field-hint">只确认角色不会同时确认来源、目标或必要访问。</p><div v-for="(role, index) in change.roles" :key="`${role.service_id}-${index}`" class="service-role-row"><label>服务<span class="field-value">{{ role.service_id || '保存后生成标识' }}</span></label><label>角色<select v-model="role.role" @change="markChanged"><option v-for="(label, value) in roleLabels" :key="value" :value="value">{{ label }}</option></select></label><label>协议<select v-model="role.protocol" @change="markChanged"><option value="unknown">未知</option><option value="tcp">TCP</option><option value="udp">UDP</option></select></label><label>业务服务端口<input :value="formatPorts(role.ports)" placeholder="未知可留空" @input="setPorts($event, role)" /></label></div><UButton color="neutral" variant="ghost" size="sm" @click="addService">添加待确认服务</UButton></fieldset>

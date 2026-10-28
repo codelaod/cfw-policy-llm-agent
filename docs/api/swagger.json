@@ -1,10 +1,10 @@
 {
     "swagger": "2.0",
     "info": {
-        "description": "Persistent offline rule audits, confirmations, reports and task observation. Cloud and model adapters are not configured.",
+        "description": "Persistent fixed-input rule audits, bounded Eino supplements, confirmations, reports and durable attempt accounting. Runtime is offline unless an explicit private model configuration is enabled; previews and config-check never call providers. Real provider capability remains separately verified.",
         "title": "CFW offline audit workspace",
         "contact": {},
-        "version": "0.2.0"
+        "version": "0.3.0"
     },
     "basePath": "/api/v1",
     "paths": {
@@ -1475,6 +1475,70 @@
                 }
             }
         },
+        "/jobs/{id}/input": {
+            "get": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "description": "Protected local view only. Never substitutes current snapshot declarations or business heads. Unsealed input returns INPUT_NOT_SEALED.",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Execution"
+                ],
+                "summary": "Read the immutable effective input sealed for this task",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Formal job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.Input"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/jobs/{id}/result": {
             "get": {
                 "security": [
@@ -1488,7 +1552,7 @@
                 "tags": [
                     "Execution"
                 ],
-                "summary": "Read saved L2 results and finality from one database snapshot",
+                "summary": "Read saved rule/Agent results, attempt usage and finality from one database snapshot",
                 "parameters": [
                     {
                         "type": "string",
@@ -2376,6 +2440,158 @@
         }
     },
     "definitions": {
+        "agentquery.LocalBinding": {
+            "type": "object",
+            "properties": {
+                "asset_ref": {
+                    "type": "string"
+                },
+                "document": {
+                    "type": "string"
+                },
+                "field": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "returned": {
+                    "type": "boolean"
+                },
+                "service_ref": {
+                    "type": "string"
+                }
+            }
+        },
+        "agentquery.Output": {
+            "type": "object",
+            "properties": {
+                "assessment_basis": {
+                    "type": "string"
+                },
+                "explanation": {
+                    "type": "string"
+                },
+                "questions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "recommendations": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/agentquery.Recommendation"
+                    }
+                },
+                "roles": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/agentquery.RoleCandidate"
+                    }
+                },
+                "rule_version": {
+                    "type": "string"
+                },
+                "scope_ref": {
+                    "type": "string"
+                },
+                "source_kind": {
+                    "type": "string"
+                }
+            }
+        },
+        "agentquery.Recommendation": {
+            "type": "object",
+            "properties": {
+                "access_ref": {
+                    "type": "string"
+                },
+                "action": {
+                    "type": "string"
+                },
+                "basis_kind": {
+                    "type": "string"
+                },
+                "business_ref": {
+                    "type": "string"
+                },
+                "component_topic": {
+                    "type": "string"
+                },
+                "conditions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "evidence_refs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "field": {
+                    "type": "string"
+                },
+                "finding_ref": {
+                    "type": "string"
+                },
+                "impact": {
+                    "type": "string"
+                },
+                "kind": {
+                    "type": "string"
+                },
+                "manual_next_step": {
+                    "type": "string"
+                },
+                "target_kind": {
+                    "type": "string"
+                },
+                "target_ref": {
+                    "type": "string"
+                }
+            }
+        },
+        "agentquery.RoleCandidate": {
+            "type": "object",
+            "properties": {
+                "asset_ref": {
+                    "type": "string"
+                },
+                "contradicting_evidence": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "questions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "role": {
+                    "type": "string"
+                },
+                "service_ref": {
+                    "type": "string"
+                },
+                "supporting_evidence": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "unknowns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "app.AssetView": {
             "type": "object",
             "properties": {
@@ -3081,6 +3297,20 @@
                 }
             }
         },
+        "domain.ModelUsage": {
+            "type": "object",
+            "properties": {
+                "completion_tokens": {
+                    "type": "integer"
+                },
+                "prompt_tokens": {
+                    "type": "integer"
+                },
+                "total_tokens": {
+                    "type": "integer"
+                }
+            }
+        },
         "domain.Policy": {
             "type": "object",
             "properties": {
@@ -3585,6 +3815,12 @@
         "httpapi.JobResult": {
             "type": "object",
             "properties": {
+                "agent_result": {
+                    "$ref": "#/definitions/storage.AgentRecord"
+                },
+                "attempt_usage": {
+                    "$ref": "#/definitions/storage.AttemptUsage"
+                },
                 "audit": {
                     "$ref": "#/definitions/storage.AuditRecord"
                 },
@@ -3599,6 +3835,9 @@
                 },
                 "recheck": {
                     "$ref": "#/definitions/httpapi.RecheckView"
+                },
+                "snapshot_id": {
+                    "type": "string"
                 },
                 "view_seq": {
                     "type": "integer"
@@ -3802,6 +4041,55 @@
                 }
             }
         },
+        "storage.AgentContent": {
+            "type": "object",
+            "properties": {
+                "bindings": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "$ref": "#/definitions/agentquery.LocalBinding"
+                    }
+                },
+                "context": {
+                    "$ref": "#/definitions/storage.ContextCoverage"
+                },
+                "error_code": {
+                    "type": "string"
+                },
+                "input_manifest": {
+                    "$ref": "#/definitions/domain.InputManifest"
+                },
+                "job_id": {
+                    "type": "string"
+                },
+                "model_calls": {
+                    "type": "integer"
+                },
+                "output": {
+                    "$ref": "#/definitions/agentquery.Output"
+                },
+                "tool_calls": {
+                    "type": "integer"
+                }
+            }
+        },
+        "storage.AgentRecord": {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "$ref": "#/definitions/storage.AgentContent"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "job_id": {
+                    "type": "string"
+                }
+            }
+        },
         "storage.AssetAccessChange": {
             "type": "object",
             "properties": {
@@ -3862,6 +4150,32 @@
                 },
                 "revision": {
                     "type": "integer"
+                }
+            }
+        },
+        "storage.AttemptUsage": {
+            "type": "object",
+            "properties": {
+                "cloud_attempts": {
+                    "type": "integer"
+                },
+                "known_usage_responses": {
+                    "type": "integer"
+                },
+                "model_attempts": {
+                    "type": "integer"
+                },
+                "reported_tokens": {
+                    "$ref": "#/definitions/domain.ModelUsage"
+                },
+                "unknown_delivery": {
+                    "type": "integer"
+                },
+                "unknown_usage_attempts": {
+                    "type": "integer"
+                },
+                "usage_totals_overflow": {
+                    "type": "boolean"
                 }
             }
         },
@@ -3994,6 +4308,23 @@
                 },
                 "status": {
                     "type": "string"
+                }
+            }
+        },
+        "storage.ContextCoverage": {
+            "type": "object",
+            "properties": {
+                "disclosure_version": {
+                    "type": "string"
+                },
+                "excluded_messages": {
+                    "type": "integer"
+                },
+                "included_messages": {
+                    "type": "integer"
+                },
+                "truncated": {
+                    "type": "boolean"
                 }
             }
         },

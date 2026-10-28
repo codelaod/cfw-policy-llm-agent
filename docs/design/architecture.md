@@ -4,7 +4,7 @@
 
 E0已建立`server/`与`web/`最小骨架，限定验证见[E0记录](../validation/evidence/e0-local.md)。下文仍区分目标设计与各阶段实际证据，不从联调骨架推导完整业务能力。
 
-E1已实现确定性离线内核、固定输入与证据、审阅／公开报告和配置复审持久链，范围与未覆盖项见[E1记录](../validation/evidence/e1-local.md)；E2已接正式离线会话／确认／任务／五视图，当前范围见[E2记录](../validation/evidence/e2-local.md)；E3受限Agent和E4真实接入尚未完成。
+E1已实现确定性离线内核、固定输入与证据、审阅／公开报告和配置复审持久链，范围与未覆盖项见[E1记录](../validation/evidence/e1-local.md)；E2已接正式离线会话／确认／任务／五视图，当前范围见[E2记录](../validation/evidence/e2-local.md)；E3受限Agent已通过限定离线验证，实际结果见[E3记录](../validation/evidence/e3-local.md)；E4真实接入尚未实现／验收，可离线适配继续推进。
 
 ## 1. 设计目标与明确边界
 
@@ -24,17 +24,17 @@ E1已实现确定性离线内核、固定输入与证据、审阅／公开报告
 | 决策 | 设计建议 | 选择理由与替代方案 | 当前证据／待验收 |
 | --- | --- | --- | --- |
 | ADR-01 后端 | Go＋Gin，底层 net/http.Server／Transport；类型化应用服务 | Gin 负责路由、JSON、访问／恢复／日志中间件，不代替云 SDK 或 Agent；领域不依赖 Gin Context | E0固定Gin v1.11.0，已构建并验证本机HTTP／SSE；E2已接正式离线业务服务，真实采集／模型仍未验收 |
-| ADR-02 Agent | 复用 Eino ADK 与固定模型组件，自研领域工具、规则、证据和权限 | 已有集成与受限 MiniMax 证据；不自研通用 Agent 框架，不因此把业务外包给框架 | E0固定Eino v0.9.22／组件 v0.1.13并验证本机非流式请求；正式Agent、连续依赖补查未验收 |
+| ADR-02 Agent | 复用 Eino ADK 与固定模型组件，自研领域工具、规则、证据和权限 | 已有集成与受限 MiniMax 证据；不自研通用 Agent 框架，不因此把业务外包给框架 | E0固定Eino v0.9.22／组件 v0.1.13；E3已接每任务独立ChatModelAgent／Runner和9工具，人工协议fixture不证明真实上游连续依赖或自主选择质量 |
 | ADR-03 前端 | Vue 3＋TypeScript＋Vite＋Vue Router＋Nuxt UI v4＋Tailwind CSS v4，浏览器 `fetch` | 表单、表格、确认卡和路由为主；采用一套组件库并定制设计令牌，不混搭 UI 框架，不引入聊天平台或独立状态平台 | E0已固定依赖／锁文件并通过类型检查和构建；E2五业务视图已接正式离线API，原型HTML不直接移植 |
 | ADR-04 持久化 | SQLite 必须纯 Go；GORM＋社区 libtnb/sqlite／modernc，原文另存 | ORM 管业务记录／事务／历史，不替代版本／幂等约束；不采用默认 CGO 示例 | E0已无CGO构建并验证WAL普通池、事务、外键、零值和恢复；E2业务历史、确认版本与任务引用已持久化 |
 | ADR-05 执行 | 同进程持久阶段／任务表＋3 槽位有界工作器池；每会话1个未结束任务，fetch SSE 主通道＋JSON 事件轮询兜底 | 缓存优先，前台优先；可选定时采集默认关，不自动调模型，不等待本队列中的子任务 | 统一根时限含排队／资源等待／认证／采集／模型；3会话真实重叠、全局预算及 WAL 见总体架构，未实测 |
 | ADR-06 模型 | 沿用既有 MiniMax 兼容验证路线，不主动替换用户私有配置；首版仅非流式 Chat Completions | 复用现有最小兼容证据；不替换私有模型，不同时扩 Responses／流式 | 两个人工样例只测一批工具；原生 JSON Schema 不作兼容承诺 |
 | ADR-07 部署 | 源码前后端分离；生产静态产物可由同一 Go 服务同源提供 | 分离开发不必分离部署，减少跨域、端口和服务维护 | 默认 loopback＋最小访问口令；外部部署须另审 TLS／认证，不是公网生产方案 |
-| ADR-08 历史／Eino | 持久会话／公开消息／上下文摘要，关联有界执行；不持久完整 checkpoint | 历史不等执行恢复，原始 reasoning 不落库；重启能续聊但不重放请求 | F-08／09 及缓存 v0.9.22 Runner 已核读，E2会话／公开消息与任务恢复已实现；正式Eino上下文仍待E3 |
+| ADR-08 历史／Eino | 持久会话／公开消息／上下文摘要，关联有界执行；不持久完整 checkpoint | 历史不等执行恢复，原始 reasoning 不落库；重启能续聊但不重放请求 | F-08／09及固定v0.9.22 Runner已有依据；E3按固定接受位置／scope构建有限历史并持久化校验结果，原始wire与reasoning只存运行内存 |
 | ADR-09 引导 | 共用 GuidanceCatalog，Web／CLI／TUI 各自呈现 | 空态、续聊、解释／复审均有下一步，建议不隐式执行 | 见[用户引导](guidance-and-entrypoints.md)；Web 首入口，终端交付必须同等语义，不冒称已有命令 |
-| ADR-14 API 文档 | 固定版本 swaggo/swag，Go 注释／DTO 生成 Swagger 2.0 JSON／YAML，Git 保留并对照实际路由；SSE 另存事件 schema | 用户要求可生成、可留存、可供前后端协作；不维护独立手写结构副本 | E0已用v1.16.6生成并保留[实际联调接口](../api/README.md)，E2正式离线API已注册并生成；未接外部能力不建占位规范 |
+| ADR-14 API 文档 | 固定版本 swaggo/swag，Go 注释／DTO 生成 Swagger 2.0 JSON／YAML，Git 保留并对照实际路由；SSE 另存事件 schema | 用户要求可生成、可留存、可供前后端协作；不维护独立手写结构副本 | E0已用v1.16.6生成并保留[实际联调接口](../api/README.md)，当前业务API与E0诊断接口均按实际注册生成；未接外部能力不建占位规范 |
 
-当前 `.env.example` 仍只覆盖已有实验。E2的显式应用口令、私有SQLite、业务schema 2迁移和Web启动见[后端说明](../../server/README.md)；正式离线运行不要求填云／模型配置。
+当前`.env.example`仍只覆盖独立实验。正式服务的应用口令、私有SQLite、business schema 3显式迁移及`--model-config`／`--config-check`见[后端说明](../../server/README.md)。默认离线规则不要求云／模型配置；正式模型只用显式私有JSON与点名环境变量，启动／预览零外呼，enabled不等兼容或付费授权。E3实际限定离线验证见[E3记录](../validation/evidence/e3-local.md)。
 
 ### 2.1 B2 增量取舍
 

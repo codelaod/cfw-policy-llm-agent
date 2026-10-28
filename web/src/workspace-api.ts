@@ -1,6 +1,6 @@
 import { ApiClient, ApiError, ProtocolError, decodeJob } from './api.ts'
 import { abortScope } from './abort.ts'
-import type { Asset, AssetChange, AssetView, Capabilities, ConfirmationPreview, ConfirmationResult, Conversation, CurrentWorkspace, ExecutionPlan, FindingRecord, Job, JobResult, MessageAcceptance, MessagePage, MessageRequest, Page, PlanRequest, ProfileDraft, ReportRecord, ReviewAction, ReviewRequest, Snapshot } from './workspace-types.ts'
+import type { AgentRecord, Asset, AssetChange, AssetView, Capabilities, ConfirmationPreview, ConfirmationResult, Conversation, CurrentWorkspace, ExecutionPlan, FindingRecord, Job, JobResult, MessageAcceptance, MessagePage, MessageRequest, Page, PlanRequest, ProfileDraft, ReportRecord, ReviewAction, ReviewRequest, Snapshot } from './workspace-types.ts'
 
 const object = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const hasID = <T>(value: unknown): T => { if (!object(value) || typeof value.id !== 'string' || !value.id) throw new ProtocolError('记录缺少有效标识。'); return value as T }
@@ -39,6 +39,26 @@ function snapshot(value: unknown, expectedSource?: string): Snapshot {
   saved.input.baseline.exceptions = Array.isArray(saved.input.baseline.exceptions) ? saved.input.baseline.exceptions : []
   saved.input.assets = saved.input.assets.map(item => asset(item))
   return saved
+}
+
+function stringList(value: unknown): string[] {
+  if (value === null || value === undefined) return []
+  if (!Array.isArray(value) || value.some(item => typeof item !== 'string')) throw new ProtocolError('模型结果列表字段校验失败。')
+  return value
+}
+function agentRecord(value: unknown, jobID: string): AgentRecord {
+  const record = hasID<AgentRecord>(value)
+  if (record.job_id !== jobID || !object(record.content) || record.content.job_id !== jobID || !object(record.content.input_manifest)) throw new ProtocolError('模型结果与当前任务不一致。')
+  if (record.content.bindings !== undefined && !object(record.content.bindings)) throw new ProtocolError('本次模型引用绑定无效。')
+  const output = record.content.output
+  if (output) {
+    if (!object(output) || record.content.error_code || typeof output.explanation !== 'string') throw new ProtocolError('模型结果缺少可核实的解释。')
+    output.roles ??= []; output.recommendations ??= []; output.questions = stringList(output.questions)
+    if (!Array.isArray(output.roles) || !Array.isArray(output.recommendations)) throw new ProtocolError('模型结构结果校验失败。')
+    for (const role of output.roles) { if (!object(role) || typeof role.asset_ref !== 'string' || typeof role.service_ref !== 'string' || typeof role.role !== 'string') throw new ProtocolError('角色候选结构无效。'); role.supporting_evidence = stringList(role.supporting_evidence); role.contradicting_evidence = stringList(role.contradicting_evidence); role.unknowns = stringList(role.unknowns); role.questions = stringList(role.questions) }
+    for (const item of output.recommendations) { if (!object(item) || typeof item.kind !== 'string' || typeof item.target_ref !== 'string' || typeof item.impact !== 'string' || typeof item.manual_next_step !== 'string') throw new ProtocolError('条件建议结构无效。'); item.conditions = stringList(item.conditions); item.evidence_refs = stringList(item.evidence_refs) }
+  }
+  return record
 }
 
 export class WorkspaceClient {
@@ -86,7 +106,21 @@ export class WorkspaceClient {
   async jobs(offset = 0) { const result = page<Job>(await this.json(`/jobs?offset=${offset}&limit=100`)); result.items = result.items.map(item => decodeJob(item)); return result }
   async job(id: string) { return decodeJob(await this.json(`/jobs/${encodeURIComponent(id)}`), id) }
   async cancelJob(id: string) { return decodeJob(await this.post(`/jobs/${encodeURIComponent(id)}/cancel`, {}), id) }
-  async jobResult(id: string) { const value = await this.json<JobResult>(`/jobs/${encodeURIComponent(id)}/result`); if (value.audit) { value.audit.findings = (value.audit.findings ?? []).map(item => finding(item)); value.audit.result.findings ??= []; value.audit.result.evidence ??= []; value.audit.result.coverage.limitations ??= [] }; if (value.recheck) { value.recheck.comparison.reasons ??= []; value.recheck.comparison.issues ??= [] }; return value }
+  async jobResult(id: string) {
+    const value = await this.json<JobResult>(`/jobs/${encodeURIComponent(id)}/result`)
+    if (!object(value) || !Number.isSafeInteger(value.view_seq) || value.view_seq < 0 || typeof value.is_final !== 'boolean') throw new ProtocolError('任务结果版本校验失败。')
+    if (value.audit) { value.audit.findings = (value.audit.findings ?? []).map(item => finding(item)); value.audit.result.findings ??= []; value.audit.result.evidence ??= []; value.audit.result.coverage.limitations ??= [] }
+    if (value.recheck) { value.recheck.comparison.reasons ??= []; value.recheck.comparison.issues ??= [] }
+    if (value.agent_result) value.agent_result = agentRecord(value.agent_result, id)
+    return value
+  }
+  async jobInput(id: string): Promise<unknown> {
+    const value: unknown = await this.json(`/jobs/${encodeURIComponent(id)}/input`)
+    if (!object(value) || value.schema_version !== 1 || !object(value.scope) || typeof value.scope.ref !== 'string') throw new ProtocolError('任务封存输入校验失败。')
+    // Keep exact field values. Applying current-head overlays or normalizing null
+    // arrays would change the evidence represented by a persisted JSON Pointer.
+    return value
+  }
   async findings(auditID = '', offset = 0) { const result = page<FindingRecord>(await this.json(`/findings?offset=${offset}&limit=100${auditID ? `&audit_id=${encodeURIComponent(auditID)}` : ''}`)); result.items = result.items.map(item => finding(item)); return result }
   async finding(id: string) { return finding(await this.json(`/findings/${encodeURIComponent(id)}`)) }
   async reviewHistory(id: string, after = 0) {

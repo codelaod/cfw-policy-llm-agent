@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Persistent offline audit and E0 task event v1",
-  "description": "Eight supported event types for committed local task observation. E2 emits offline rule/message/report references; tool event support is not proof of Agent execution. The complete UTF-8 JSON event is bounded to 4096 bytes by storage. No credential, raw tool response, reasoning, or model token stream belongs here.",
+  "description": "Persisted schema_version=1 events. SSE id is seq, event is type, data is this complete JSON object. The complete UTF-8 JSON event is bounded to 4096 bytes by storage. E3 tool payloads come from the app sink after actual Runner callbacks; no credential, raw tool response, reasoning, or model token stream belongs here.",
   "type": "object",
   "additionalProperties": false,
   "required": [
@@ -105,6 +105,10 @@
         "summary": {
           "type": "string",
           "maxLength": 2048
+        },
+        "agent_result_ref": {
+          "type": "string",
+          "pattern": "^agent_result_[a-f0-9]{32}$"
         }
       }
     },
@@ -112,42 +116,61 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "phase",
+        "tool",
         "call_id",
-        "tool_name"
+        "status",
+        "elapsed_ms",
+        "evidence_refs"
       ],
       "properties": {
-        "call_id": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 128
-        },
-        "tool_name": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 80
-        },
         "phase": {
+          "const": "L3"
+        },
+        "tool": {
           "enum": [
-            "L0",
-            "L1",
-            "L2",
-            "L3",
-            "L4"
+            "get_partition_context",
+            "get_asset_context",
+            "get_nat_association",
+            "get_security_group_rules",
+            "get_business_intent",
+            "get_policy",
+            "resolve_reference",
+            "get_finding_evidence",
+            "get_rule_definition"
           ]
         },
-        "summary": {
+        "call_id": {
           "type": "string",
-          "maxLength": 2048
+          "pattern": "^[A-Za-z0-9_-]{1,128}$"
         },
         "status": {
-          "type": "string",
-          "minLength": 1,
-          "maxLength": 80
+          "enum": [
+            "started",
+            "succeeded",
+            "failed",
+            "cancelled",
+            "truncated",
+            "rejected"
+          ]
         },
-        "error_code": {
-          "type": "string",
-          "maxLength": 80,
-          "pattern": "^[A-Z0-9_]*$"
+        "elapsed_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 9007199254740991
+        },
+        "evidence_refs": {
+          "type": [
+            "array",
+            "null"
+          ],
+          "maxItems": 32,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128
+          }
         }
       }
     },
@@ -305,7 +328,25 @@
       "then": {
         "properties": {
           "payload": {
-            "$ref": "#/$defs/toolPayload"
+            "allOf": [
+              {
+                "$ref": "#/$defs/toolPayload"
+              },
+              {
+                "properties": {
+                  "status": {
+                    "const": "started"
+                  },
+                  "elapsed_ms": {
+                    "const": 0
+                  },
+                  "evidence_refs": {
+                    "type": "array",
+                    "maxItems": 0
+                  }
+                }
+              }
+            ]
           }
         }
       }
@@ -321,7 +362,24 @@
       "then": {
         "properties": {
           "payload": {
-            "$ref": "#/$defs/toolPayload"
+            "allOf": [
+              {
+                "$ref": "#/$defs/toolPayload"
+              },
+              {
+                "properties": {
+                  "status": {
+                    "enum": [
+                      "succeeded",
+                      "failed",
+                      "cancelled",
+                      "truncated",
+                      "rejected"
+                    ]
+                  }
+                }
+              }
+            ]
           }
         }
       }

@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"cfw-policy-llm-agent/server/internal/app"
 	"errors"
 	"os"
 	"path/filepath"
@@ -10,7 +11,11 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type Options struct{ WebDir string }
+type Options struct {
+	WebDir          string
+	Plans           *app.PlanService
+	SensitiveValues []string
+}
 
 var spaRoute = regexp.MustCompile(`^/(?:overview|findings|e0|inventory(?:/[A-Za-z0-9_-]{1,128})?|audits(?:/[A-Za-z0-9_-]{1,128})?|reports(?:/[A-Za-z0-9_-]{1,128})?)$`)
 var bundledAsset = regexp.MustCompile(`^/assets/[A-Za-z0-9_-]+\.(?:js|css|woff2|svg|png|webp)$`)

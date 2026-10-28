@@ -1,6 +1,6 @@
 # 项目状态与已批准决策
 
-更新日期：2026-10-28。需求v0.6／B2与整体设计v0.6已通过；E0依赖契约、E1离线核心／持久闭环已有证据，E2正式离线服务／五视图已通过限定离线验证，后续E3受限Agent尚未完成。当前结果见[E2](../validation/evidence/e2-local.md)，前序见[E0](../validation/evidence/e0-local.md)／[E1](../validation/evidence/e1-local.md)；真实接入与完整业务仍未验收。
+更新日期：2026-10-28。需求v0.6／B2与整体设计v0.6已通过；E0依赖契约、E1离线核心／持久闭环已有证据，E2正式离线服务／五视图已通过限定离线验证，E3受限Agent已通过限定离线验证，继续推进E4可离线适配。当前实现与待验项见[E3](../validation/evidence/e3-local.md)，前序见[E0](../validation/evidence/e0-local.md)／[E1](../validation/evidence/e1-local.md)／[E2](../validation/evidence/e2-local.md)；真实接入与完整业务仍未验收。
 
 ## 1. 批准记录
 
@@ -28,12 +28,12 @@
 | 存储 | 纯Go SQLite WAL＋普通连接池；GORM不合格可退direct modernc；事务不跨网络 | [架构与存储](../design/architecture.md) |
 | 模型协议 | 非流式Chat Completions兼容首适配；真实多轮依赖、结构与失败能力需单独证据 | [Agent设计](../design/audit-and-agent.md)、[前期模型实验](../validation/experiments/live-model.md) |
 | 凭据与预算 | 显式CredentialProvider；不读机器其他profile；所有物理尝试统一准入、共享预算取严；预览零外呼 | [认证与准入](../design/credentials-and-permissions.md) |
-| API文档 | 固定Swag从Go注释／DTO生成并保留Swagger JSON／YAML；E2已注册正式离线接口与E0诊断接口均生成留存，SSE另有八类事件schema | [实际API](../api/README.md)、[数据与API](../design/data-and-api.md) |
+| API文档 | 固定Swag从Go注释／DTO生成并保留Swagger JSON／YAML；当前已注册业务接口与E0诊断接口均生成留存，SSE另有八类事件schema | [实际API](../api/README.md)、[数据与API](../design/data-and-api.md) |
 | 评价与真实资源 | 20～30独立人工案例，三组公平比较；优先同一台ECS／同一套防火墙串行复用，至少一次真实人工整改复审 | [评价计划](../validation/evaluation-plan.md) |
 
 ## 3. 批准、实现与外部操作分开
 
-G1／G2不再是未决事项。E0～E5入口／退出条件见[实施计划](../development/implementation-plan.md)。E0已取得依赖／SQLite／三会话／本机SSE证据，E1已取得三边界规则、输入／结果／审阅／报告／配置复审的实际离线证据；E2已接持久会话、确认和五视图，最终验证以E2记录为准。正式Agent、模型能力、账号接口、标准性能及真实整改仍未验收。
+G1／G2不再是未决事项。E0～E5入口／退出条件见[实施计划](../development/implementation-plan.md)。E0已取得依赖／SQLite／三会话／本机SSE证据，E1已取得三边界规则、输入／结果／审阅／报告／配置复审的实际离线证据；E2已接持久会话、确认和五视图，最终验证以E2记录为准。E3正式Agent已通过限定离线验证，实际本地fixture回归见E3记录；上游模型兼容与自主选择质量、账号接口、标准性能及真实整改仍未验收。E4仍有可离线实施的适配，不提前认定为外部阻塞。
 
 真实模型／云请求须有明确的数据、账号／资源、权限和预算；设计通过不自动采购、开通产品、增加云写或执行清理。此前一次普通推送和一次累计设计本地提交已完成，不能重复消费。2026-10-27用户明确授权将当前文档治理结果提交并普通推送一轮；仅本次，不强推、不改历史，完成后不重复消费。实际发布结果以Git记录为准。
 

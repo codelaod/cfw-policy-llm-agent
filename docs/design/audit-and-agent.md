@@ -153,11 +153,19 @@ CHK-01／03／07／08 的入向业务来源／角色基线不自动应用到出�
 
 首次／续聊／失败的推荐短语由本地 GuidanceCatalog 提供，不额外调模型。模型可同轮返回受控追问，不能因此注册新动作或直接云写；Web／CLI／TUI 的同意图和确认契约见[用户引导](guidance-and-entrypoints.md)。Agent 工具仅获 QueryService，不持云／模型凭据；采集时 CloudCredentialProvider 对 CFW／ECS 复用明确身份，启动／环境／STS／MCP 边界见[凭据与权限](credentials-and-permissions.md)。
 
+### 5.5 E3当前实现与离线证据边界
+
+正式业务服务已为每个任务新建Eino ChatModelAgent／Runner、模型实例与工具闭包，接入上表九个固定工具。工具只读不可变输入和可选原始规则结果；安全组尚未采集时明确返回not_collected，不在工具中隐式调云。来源、固定evaluation_at／collected_at及受控一致性进入初始上下文和分区查询；原IP／云ID、外部自由描述和例外理由不外发。
+
+同批工具调用在执行前整体校验名称、call ID及参数边界；成功返回的引用到下一模型轮才晋升可用，不能借批内执行先后冒充依赖补查。最终角色候选、四类建议及自然文案均经范围／版本／证据／业务确认约束校验，持久化与报告前用本地绑定重验；显式reasoning／wire标记拒绝。原始规则判定、严重程度和证据保持独立。
+
+当前E3模型均为in-memory或loopback人工脚本协议fixture；它们验证正式Runner／工具／持久链的工程约束，不证明上游MiniMax真实连续兼容、模型自主选择质量或审计效果提升。已通过的全量／浏览器／Review统计与未覆盖项见[E3记录](../validation/evidence/e3-local.md)。
+
 ## 6. 协议与输出约束
 
 首版仅接已配置的非流式 Chat Completions，复用固定 Eino 模型组件和应用 guard。OpenAI 官方工具调用指南（本方案复核 T-12）是协议概念依据，不代表所有第三方支持相同能力；Chat Completions 的工具结果关联与 Responses 字段不混用。
 
-保留用户当前模型配置，不把文档推荐模型替换进来。MiniMax 所需的完整 assistant 消息连续性按已验证路径在内存处理；`reasoning_split` 不被误当关闭思考。JSON 依靠 schema／本地校验，不预设原生 strict JSON Schema。截断、未知工具、非法 ID、越界参数或不合法最终结构均失败／降级，不静默换协议或无限重试。
+保留用户当前模型配置，不把文档推荐模型替换进来。完整assistant／工具关联及MiniMax协议要求的reasoning仅在当前执行内存转发；E3关联路径只以人工协议fixture验证，真实MiniMax连续性尚未验收；`reasoning_split` 不被误当关闭思考。JSON 依靠 schema／本地校验，不预设原生 strict JSON Schema。截断、未知工具、非法 ID、越界参数或不合法最终结构均失败／降级，不静默换协议或无限重试。
 
 角色输出至少含候选服务／角色、支持与反对证据、未知项和待确认问题；不能直接写 confirmed。审计推荐引用 `policy_scope_ref / rule_version / evidence_ids / business_ref`；针对已有发现时携带 finding_id，条件化组件评估不伪造发现或策略 ID，用声明来源引用代替编造字面网段，并给条件／影响／人工复核动作。
 
@@ -175,7 +183,7 @@ policy_change 类型的 `target_policy_ref` 或 `target_policy_set_ref` 必须�
 
 ## 7. 工程预算与限额（不是当前付费授权）
 
-以下是已随整体G2采用的工程默认上限，用于阻止无限执行；E0～E2只对执行记录中的离线规则、任务及传输边界取得证据，E3外呼账本和真实模型／云上限尚未验收；**不是模型服务费金额保证，也不授权现在按这些值发请求**。实际采用值取用户私有配置与项目上限中更严格者，不自动提高现有实验的次数／输出配置。
+以下是已随整体G2采用的工程默认上限，用于阻止无限执行；E0～E2已有对应离线规则、任务及传输证据；E3共享物理账本与有界Runner已通过限定人工协议验证，真实模型／云上限尚未验收；**不是模型服务费金额保证，也不授权现在按这些值发请求**。实际采用值取用户私有配置与项目上限中更严格者，不自动提高现有实验的次数／输出配置。
 
 | 项目 | 设计默认 | 说明 |
 | --- | --- | --- |
@@ -214,13 +222,13 @@ policy_change 类型的 `target_policy_ref` 或 `target_policy_set_ref` 必须�
 
 ## 9. 仍需后续验证而非假定成立的事项
 
-E1已实现并验证限定规则引擎及离线持久闭环；E2已接正式Web、会话／任务／确认持久化和business schema 2显式迁移，实际结果分别见[E1](../validation/evidence/e1-local.md)／[E2](../validation/evidence/e2-local.md)。正式领域Agent工具选择、依赖补查和外呼准入仍在E3，不能用现有Go／Eino模拟或两个真实小样例替代。真实账号版本、SDK字段映射、权限、完整性和模型连续链在授权后的E4分项验收，云安全中心和自动下发仍不在范围。
+E1规则和E2持久业务链已有各自限定证据；E3已接正式Eino Runner、领域工具／跨轮引用、有限上下文、结果持久和共享物理HTTP准入，要求business schema 3显式迁移。最终本地证据见[E3](../validation/evidence/e3-local.md)，不扩大[E1](../validation/evidence/e1-local.md)／[E2](../validation/evidence/e2-local.md)历史结论。E4的模型／云适配尚未实现／验收，先继续可离线完成的字段、权限、分页和协议适配，再在明确授权下分项真实验证；不能提前认定只有外部阻塞。云安全中心和自动下发仍不在范围。
 
-历史、数据策略、认证、纯Go存储和跨入口引导对应RC-21～31／AC-15～21。E0已固定依赖并验证限定本机协议，E1／E2已验证纯Go存储及部分业务／传输契约；完整Agent、持久外部预算、真实身份／字段与跨入口矩阵仍未完成，不以设计文本或供应商示例推导通过。
+历史、数据策略、认证、纯Go存储和跨入口引导对应RC-21～31／AC-15～21。E0已固定依赖并验证限定本机协议，E1／E2已验证纯Go存储及部分业务／传输契约；真实身份／字段、上游模型连续兼容与完整跨入口矩阵仍未完成，不以设计文本或供应商示例推导通过。
 
 ## 10. B2 覆盖与状态
 
-B2 专项 B2-01～18 与实施门槛见 [验证计划](../validation/verification-plan.md)。真实 NAT 字段与 WithContext 公开源码依据见 [云采集设计](aliyun-collector.md)。E1规则工程及E2正式离线服务／五视图已落地；E3正式Agent尚未完成，本轮未增加MiniMax或真实云调用。原两个小样例仍不能证明真实依赖链已通过。
+B2 专项 B2-01～18 与实施门槛见 [验证计划](../validation/verification-plan.md)。真实 NAT 字段与 WithContext 公开源码依据见 [云采集设计](aliyun-collector.md)。E1规则、E2持久业务链及E3正式有界Agent已通过限定离线验证；本轮未增加MiniMax或真实云调用。原两个小样例仍不能证明真实依赖链已通过。
 
 ## 11. 来源保证进入结果与工具
 

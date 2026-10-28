@@ -1,0 +1,17 @@
+{
+  "api_style": "chat_completions",
+  "provider_profile": "openai-compatible",
+  "base_url": "https://model.example.invalid/v1",
+  "model": "YOUR_EXISTING_MODEL",
+  "api_key_env": "CFW_MODEL_API_KEY",
+  "max_output_tokens": 512,
+  "timeout_seconds": 30,
+  "max_http_attempts": 3,
+  "enabled": false,
+  "budget": {
+    "ref": "set-explicit-authorization-period",
+    "expires_at": "2099-01-01T00:00:00Z",
+    "application_model_attempts": 20,
+    "session_model_attempts": 6
+  }
+}

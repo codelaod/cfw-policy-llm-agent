@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { reactive } from 'vue'
 import { ApiError } from './api.ts'
 import { WorkspaceClient } from './workspace-api.ts'
+import { agentFixture } from './test-fixtures/agent.ts'
 import { Mutation, PendingSubmissionError, PlanDraft, LatestRead, cloneData, isDefiniteRejection, mergeJobs, parsePorts, parseAddresses, missingDependencies } from './workspace-state.ts'
 
 test('accepted plans use an access header and a stable idempotency key without replaying POST', async t => {
@@ -195,4 +196,30 @@ test('recent jobs stay newest first and an older list read cannot roll back a ne
   assert.deepEqual(result.map(job => job.id), ['new', 'old'])
   assert.equal(result[1]?.status, 'completed')
   assert.equal(result[1]?.view_seq, 8)
+})
+
+test('an agent result cannot be accepted under a different job even if its aliases look valid', async t => {
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ audit: null, view_seq: 3, is_final: true, agent_result: agentFixture('other-job') }))
+  await assert.rejects(new WorkspaceClient(() => 'public-test-access').jobResult('job-one'), /任务/)
+})
+
+test('agent nullable lists normalize without inventing a successful model result or usage', async t => {
+  const record = agentFixture()
+  const value = record as unknown as { content: { output: { questions: unknown; roles: { supporting_evidence: unknown }[] } } }
+  value.content.output.questions = null
+  value.content.output.roles[0]!.supporting_evidence = null
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ audit: null, view_seq: 3, is_final: true, agent_result: record, attempt_usage: { model_attempts: 2, reported_tokens: null } }))
+  const result = await new WorkspaceClient(() => 'public-test-access').jobResult('job-one')
+  assert.deepEqual(result.agent_result?.content.output?.questions, [])
+  assert.deepEqual(result.agent_result?.content.output?.roles[0]?.supporting_evidence, [])
+  assert.equal(result.attempt_usage?.reported_tokens, null)
+})
+
+test('protected sealed input reads preserve exact null field values rather than current overlays', async t => {
+  let called = ''
+  const input = { schema_version: 1, source_kind: 'synthetic', scope: { ref: 'scope-one' }, assets: [{ id: 'asset-one', services: null }] }
+  t.mock.method(globalThis, 'fetch', async (url: string, init: RequestInit) => { called = url; assert.equal(new Headers(init.headers).get('X-App-Token'), 'public-test-access'); return Response.json(input) })
+  const result = await new WorkspaceClient(() => 'public-test-access').jobInput('job-one')
+  assert.equal(called, '/api/v1/jobs/job-one/input')
+  assert.deepEqual(result, input)
 })

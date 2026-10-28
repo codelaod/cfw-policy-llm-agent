@@ -145,11 +145,18 @@ func (s *AuditService) Report(ctx context.Context, auditID, format, key string) 
 	if err != nil {
 		return storage.ReportRecord{}, err
 	}
-	execution := report.Execution{Mode: plan.Mode, ModelStage: "not_requested"}
+	execution := report.Execution{Mode: plan.Mode, ModelStage: "not_requested", JobStatus: job.Status}
 	if plan.Mode == "rules_and_agent" {
 		execution.ModelStage = "not_completed"
 		if job.ErrorCode == "MODEL_NOT_CONFIGURED" {
 			execution.ModelStage = "not_configured"
+		}
+		agent, e := s.Store.GetJobAgentResult(ctx, job.ID)
+		if e != nil {
+			return storage.ReportRecord{}, e
+		}
+		if agent != nil && agent.Content.Output != nil && agent.Content.ErrorCode == "" {
+			execution.ModelStage = "completed"
 		}
 	}
 	return s.ReportWithExecution(ctx, auditID, format, key, execution)
@@ -179,7 +186,30 @@ func (s *AuditService) prepareReport(ctx context.Context, auditID, format string
 		publicHeads = append(publicHeads, report.ReviewHead{FindingID: head.FindingKey, Revision: head.Revision, Plan: head.Plan})
 	}
 	var content []byte
-	if execution == nil {
+	var supplement *report.AgentSupplement
+	if execution != nil && execution.Mode == "rules_and_agent" {
+		job, found, e := s.Store.JobForAudit(ctx, run.ID)
+		if e != nil {
+			return nil, nil, e
+		}
+		if found {
+			agent, e := s.Store.GetJobAgentResult(ctx, job.ID)
+			if e != nil {
+				return nil, nil, e
+			}
+			if agent != nil {
+				usage, e := s.Store.BudgetUsage(ctx, job.BudgetRef, job.ConversationID, job.ID)
+				if e != nil {
+					return nil, nil, e
+				}
+				supplement = &report.AgentSupplement{Output: agent.Content.Output, Bindings: agent.Content.Bindings, ModelCalls: agent.Content.ModelCalls, ToolCalls: agent.Content.ToolCalls, ErrorCode: agent.Content.ErrorCode}
+				supplement.Usage = &report.AgentUsage{PhysicalAttempts: usage.ModelAttempts, KnownUsageResponses: usage.KnownUsageResponses, UnknownUsageAttempts: usage.UnknownUsageAttempts, ReportedTokens: usage.ReportedTokens, UsageTotalsOverflow: usage.UsageTotalsOverflow}
+			}
+		}
+	}
+	if supplement != nil {
+		content, err = report.BuildWithAgent(ctx, run.Input, run.Result, publicHeads, format, *execution, *supplement)
+	} else if execution == nil {
 		content, err = report.Build(ctx, run.Result, publicHeads, format)
 	} else {
 		content, err = report.BuildWithExecution(ctx, run.Result, publicHeads, format, *execution)

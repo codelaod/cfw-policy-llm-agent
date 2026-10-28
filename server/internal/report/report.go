@@ -110,18 +110,19 @@ type Evidence struct {
 	Explanation   string `json:"explanation"`
 }
 type Document struct {
-	SchemaVersion     int        `json:"schema_version"`
-	ProjectionVersion string     `json:"projection_version"`
-	SourceKind        string     `json:"source_kind"`
-	Qualification     string     `json:"qualification"`
-	EvaluationAt      string     `json:"evaluation_at"`
-	CollectedAt       string     `json:"collected_at"`
-	Versions          Versions   `json:"versions"`
-	Scope             Scope      `json:"scope"`
-	Coverage          Coverage   `json:"coverage"`
-	Findings          []Finding  `json:"findings"`
-	Evidence          []Evidence `json:"evidence"`
-	Execution         *Execution `json:"execution,omitempty"`
+	SchemaVersion     int         `json:"schema_version"`
+	ProjectionVersion string      `json:"projection_version"`
+	SourceKind        string      `json:"source_kind"`
+	Qualification     string      `json:"qualification"`
+	EvaluationAt      string      `json:"evaluation_at"`
+	CollectedAt       string      `json:"collected_at"`
+	Versions          Versions    `json:"versions"`
+	Scope             Scope       `json:"scope"`
+	Coverage          Coverage    `json:"coverage"`
+	Findings          []Finding   `json:"findings"`
+	Evidence          []Evidence  `json:"evidence"`
+	Execution         *Execution  `json:"execution,omitempty"`
+	Agent             *AgentLayer `json:"agent,omitempty"`
 }
 
 // Execution records only controlled workflow facts, separately from immutable
@@ -129,6 +130,7 @@ type Document struct {
 type Execution struct {
 	Mode       string `json:"mode"`
 	ModelStage string `json:"model_stage"`
+	JobStatus  string `json:"job_status,omitempty"`
 }
 
 var ruleText = map[string]string{
@@ -259,6 +261,9 @@ func Build(ctx context.Context, result domain.Result, reviews []ReviewHead, form
 }
 
 func BuildWithExecution(ctx context.Context, result domain.Result, reviews []ReviewHead, format string, execution Execution) ([]byte, error) {
+	if !member(execution.JobStatus, "", "completed", "partial", "failed", "cancelled", "interrupted") {
+		return nil, ErrInvalidResult
+	}
 	if (execution.Mode != "rules_only" || execution.ModelStage != "not_requested") &&
 		(execution.Mode != "rules_and_agent" || !member(execution.ModelStage, "not_configured", "not_completed", "completed")) {
 		return nil, ErrInvalidResult
@@ -485,6 +490,15 @@ func markdown(ctx context.Context, d Document) ([]byte, error) {
 	if d.Execution != nil {
 		stageText := map[string]string{"not_requested": "仅规则模式；未请求模型。", "not_configured": "模型未配置或未获授权，模型阶段未执行；规则结果保留。", "not_completed": "模型阶段未完成；已保存规则结果保留。", "completed": "模型阶段流程已结束；模型补充仍需人工核实。"}[d.Execution.ModelStage]
 		fmt.Fprintf(&out, "执行模式：%s。%s\n\n", d.Execution.Mode, stageText)
+		if d.Execution.JobStatus != "" {
+			jobText := map[string]string{"completed": "整体任务流程已结束；这不表示所有检查通过或风险已修复。", "partial": "整体任务部分完成；已保存规则或模型结果保留，未完成阶段仍需核对。", "failed": "整体任务未完成；已有阶段结果不代表全流程成功。", "cancelled": "整体任务已取消；已有阶段结果保留，未自动恢复执行。", "interrupted": "整体任务中断；模型阶段完成不表示整个流程已完成。"}[d.Execution.JobStatus]
+			fmt.Fprintf(&out, "任务终态：%s。%s\n\n", d.Execution.JobStatus, jobText)
+		}
+	}
+	if d.Agent != nil {
+		if err := agentMarkdown(ctx, &out, d.Agent); err != nil {
+			return nil, err
+		}
 	}
 	fmt.Fprintf(&out, "评估时点：%s。范围：%s / %s（%s）。\n\n", d.EvaluationAt, d.Scope.Boundary, d.Scope.Direction, d.Scope.Alias)
 	fmt.Fprintf(&out, "采集／构造时点：%s。\n\n", d.CollectedAt)

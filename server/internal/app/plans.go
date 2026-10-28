@@ -67,11 +67,13 @@ type RecheckRequest struct {
 // PlanService previews and freezes local effects. Presence of credentials or a
 // URL is never a permission source; availability is explicitly wired by runtime.
 type PlanService struct {
-	Store          *storage.Store
-	ConfigRevision string
-	BudgetRef      string
-	ModelReady     bool
-	ModelMode      string
+	Store             *storage.Store
+	ConfigRevision    string
+	BudgetRef         string
+	ModelReady        bool
+	ModelConfigured   bool
+	ModelHTTPAttempts int
+	ModelMode         string
 }
 
 func NewPlanService(store *storage.Store) *PlanService {
@@ -161,8 +163,12 @@ func (s *PlanService) Preview(ctx context.Context, req PlanRequest) (PlanPreview
 	}
 	if req.Mode == "rules_and_agent" {
 		if s.ModelReady {
+			allowance, e := s.modelAllowance(6)
+			if e != nil {
+				return PlanPreview{}, e
+			}
 			effects.AllowModelRequests = true
-			effects.ModelHTTPAttempts = 6
+			effects.ModelHTTPAttempts = allowance
 		} else {
 			gaps = append(gaps, "MODEL_NOT_CONFIGURED")
 			warnings = append(warnings, "模型未配置或未获授权；将保留规则结果并标记部分完成。")
@@ -174,6 +180,17 @@ func (s *PlanService) Preview(ctx context.Context, req PlanRequest) (PlanPreview
 	}
 	plan, err := s.Store.SavePlan(ctx, storage.ExecutionPlan{Kind: "audit", ConversationID: conversation.ID, DataSourceID: "local-offline", PolicyScopeRef: in.Scope.Ref, SnapshotID: snapshot.ID, Mode: req.Mode, ConversationRevision: conversation.Revision, RecheckOfJobID: req.RecheckOfJobID, EvaluationAt: req.EvaluationAt, Request: encoded, EffectCeiling: effects, PreparedInput: in, Heads: heads, ConfigRevision: s.ConfigRevision, BudgetRef: s.BudgetRef})
 	return PlanPreview{ExecutionPlan: plan, Gaps: gaps, Warnings: warnings}, err
+}
+
+func (s *PlanService) modelAllowance(hardLimit int) (int, error) {
+	limit := s.ModelHTTPAttempts
+	if limit == 0 {
+		limit = 6
+	}
+	if limit < 1 || limit > 6 {
+		return 0, storage.ErrInputInvalid
+	}
+	return min(limit, hardLimit), nil
 }
 
 func requestedVersions(ids []string, aggregate string, heads []storage.AssetHeadVersion, profile bool) bool {
@@ -276,6 +293,10 @@ func (s *PlanService) StartAssistant(ctx context.Context, engine *Engine, conver
 	if !s.ModelReady || engine == nil {
 		return invalid(ErrModelNotConfigured)
 	}
+	allowance, err := s.modelAllowance(4)
+	if err != nil {
+		return invalid(err)
+	}
 	conversation, err := s.Store.GetConversation(ctx, conversationID)
 	if err != nil {
 		return invalid(err)
@@ -320,7 +341,7 @@ func (s *PlanService) StartAssistant(ctx context.Context, engine *Engine, conver
 	plan.Heads = heads
 	plan.ConfigRevision = s.ConfigRevision
 	plan.BudgetRef = s.BudgetRef
-	plan.EffectCeiling = storage.EffectCeiling{AllowModelRequests: true, ModelHTTPAttempts: 4}
+	plan.EffectCeiling = storage.EffectCeiling{AllowModelRequests: true, ModelHTTPAttempts: allowance}
 	if req.ReportID != "" {
 		plan.EvaluationAt = input.EvaluationAt
 	}

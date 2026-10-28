@@ -27,7 +27,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
-        "docs/validation/evidence/e2-local.md"
+        "docs/validation/evidence/e2-local.md",
+        "docs/validation/evidence/e3-local.md"
       ]
     },
     {
@@ -80,7 +81,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
-        "docs/validation/evidence/e2-local.md"
+        "docs/validation/evidence/e2-local.md",
+        "docs/validation/evidence/e3-local.md"
       ]
     },
     {
@@ -104,8 +106,11 @@
       "planned_checks": [
         "B2-05"
       ],
-      "status": "design_defined_full_acceptance_pending",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e3-local.md"
+      ]
     },
     {
       "id": "AC-05",
@@ -156,8 +161,11 @@
       "planned_checks": [
         "V4-08"
       ],
-      "status": "design_defined_full_acceptance_pending",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e3-local.md"
+      ]
     },
     {
       "id": "AC-07",
@@ -184,7 +192,8 @@
       "status": "local_subset_verified_full_acceptance_pending",
       "implementation_verified": false,
       "local_evidence": [
-        "docs/validation/evidence/e2-local.md"
+        "docs/validation/evidence/e2-local.md",
+        "docs/validation/evidence/e3-local.md"
       ]
     },
     {
@@ -213,7 +222,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
-        "docs/validation/evidence/e2-local.md"
+        "docs/validation/evidence/e2-local.md",
+        "docs/validation/evidence/e3-local.md"
       ]
     },
     {
@@ -241,8 +251,11 @@
         "B2-17",
         "V5-02"
       ],
-      "status": "design_defined_full_acceptance_pending",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e3-local.md"
+      ]
     },
     {
       "id": "AC-10",
@@ -302,7 +315,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
-        "docs/validation/evidence/e2-local.md"
+        "docs/validation/evidence/e2-local.md",
+        "docs/validation/evidence/e3-local.md"
       ]
     },
     {
@@ -326,8 +340,11 @@
         "V4-13",
         "B2-13"
       ],
-      "status": "design_defined_full_acceptance_pending",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e3-local.md"
+      ]
     },
     {
       "id": "AC-13",
@@ -387,7 +404,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
-        "docs/validation/evidence/e2-local.md"
+        "docs/validation/evidence/e2-local.md",
+        "docs/validation/evidence/e3-local.md"
       ]
     },
     {
@@ -419,7 +437,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
-        "docs/validation/evidence/e2-local.md"
+        "docs/validation/evidence/e2-local.md",
+        "docs/validation/evidence/e3-local.md"
       ]
     },
     {
@@ -486,7 +505,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
-        "docs/validation/evidence/e2-local.md"
+        "docs/validation/evidence/e2-local.md",
+        "docs/validation/evidence/e3-local.md"
       ]
     },
     {
@@ -514,8 +534,11 @@
         "V4-07",
         "V5-02"
       ],
-      "status": "design_defined_full_acceptance_pending",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e3-local.md"
+      ]
     },
     {
       "id": "AC-19",
@@ -547,7 +570,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
-        "docs/validation/evidence/e2-local.md"
+        "docs/validation/evidence/e2-local.md",
+        "docs/validation/evidence/e3-local.md"
       ]
     },
     {
@@ -576,8 +600,11 @@
         "V4-11",
         "V5-05"
       ],
-      "status": "design_defined_full_acceptance_pending",
-      "implementation_verified": false
+      "status": "local_subset_verified_full_acceptance_pending",
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/e3-local.md"
+      ]
     },
     {
       "id": "AC-21",
@@ -713,7 +740,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
-        "docs/validation/evidence/e2-local.md"
+        "docs/validation/evidence/e2-local.md",
+        "docs/validation/evidence/e3-local.md"
       ]
     }
   ],
@@ -723,10 +751,12 @@
     "date": "2026-10-27"
   },
   "updated_at": "2026-10-28",
-  "implementation_stage": "E2_local_service_web_validation_in_progress",
+  "implementation_stage": "E3_limited_offline_passed_E4_offline_adapter_work_remaining",
   "runtime_evidence": [
     "docs/validation/evidence/e0-local.md",
     "docs/validation/evidence/e1-local.md",
-    "docs/validation/evidence/e2-local.md"
-  ]
+    "docs/validation/evidence/e2-local.md",
+    "docs/validation/evidence/e3-local.md"
+  ],
+  "e3_validation_status": "passed_limited_offline"
 }

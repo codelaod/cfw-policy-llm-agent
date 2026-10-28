@@ -2,9 +2,9 @@
 
 基线：需求v0.6／B2、设计v0.6，G1／G2已通过。本文为该领域的现行详细设计；实际运行验收另行取证。
 
-E0保留独立的`/api/v1/e0/*`人工联调子集；E2已注册正式离线业务API并生成[实际规范](../api/README.md)。两类任务按kind隔离，不得把人工任务入口替代计划消费或业务确认。
+E0保留独立的`/api/v1/e0/*`人工联调子集；当前正式业务API已按实际注册生成[实际规范](../api/README.md)。两类任务按kind隔离，不得把人工任务入口替代计划消费或业务确认。
 
-E1已实现输入、原始规则／证据、审阅、固定公开报告和配置复审的Go应用／持久层，限定结果见[E1记录](../validation/evidence/e1-local.md)。E2已接业务HTTP、持久会话、确认和五视图，当前验证范围见[E2记录](../validation/evidence/e2-local.md)；API规范只记录实际已注册路由。
+E1已实现输入、原始规则／证据、审阅、固定公开报告和配置复审的Go应用／持久层，限定结果见[E1记录](../validation/evidence/e1-local.md)。E2已接业务HTTP、持久会话、确认和五视图；E3新增正式有界Agent、持久产品结果与共享物理HTTP账本，已通过的限定离线证据见[E3记录](../validation/evidence/e3-local.md)。API规范只记录实际已注册路由，不扩大[E2记录](../validation/evidence/e2-local.md)历史结论。
 
 ## 1. 身份、版本与来源
 
@@ -24,7 +24,7 @@ E1已实现输入、原始规则／证据、审阅、固定公开报告和配置
 
 ## 2. 逻辑实体与主要字段
 
-这是数据契约而非最终 DDL。JSON 结构需版本化并受长度／数量约束，SQLite 用外键与检查约束维护必要一致性；每个连接显式启用并验证 foreign_keys，不能以 ORM 声明关系代替实际约束。迁移在 G2 后实现。
+下表为逻辑数据契约，实际物理结构见storage显式迁移。当前business schema 3已增加共享预算、物理尝试usage与Agent产品结果；旧版或缺表／usage列的非完整库拒启，正常启动不AutoMigrate。JSON结构受版本／长度／数量约束；每连接启用并验证foreign_keys，不能以ORM关系代替实际约束。
 
 | 实体 | 核心内容 | 不变性／约束 |
 | --- | --- | --- |
@@ -48,6 +48,8 @@ E1已实现输入、原始规则／证据、审阅、固定公开报告和配置
 | `confirmation_previews` | 草稿修订号、目标基版本、规范化差异、可确认部分、摘要 | 一次确认对应一份有效预览；改变草稿需重新预览，无需再次调用模型 |
 | `baseline_versions` | 启用检查、风险端口／模板、语义支持、例外政策、版本 | 模型只读；B0 的 M1 默认未启用 |
 | `jobs` | 会话／消息引用、计划引用／请求／sealed输入、policy_scope_ref、阶段／耗时／预算与取消 | 请求先固定，准备后实际输入只封存一次；不隐式重复执行 |
+| `budget_policies`／`outbound_attempts` | 显式预算周期、应用／会话／任务预记、物理结果／受控错误和可空usage | 先提交预记再发送，未知或预记后未发仍占用；重启／换密钥不清零 |
+| `job_agent_results` | job绑定的固定manifest、经校验产品输出、本地证据绑定、逻辑计数与上下文覆盖 | 不含原始wire／reasoning；保存与公开投影前重验，模型不覆盖规则 |
 | `job_events` | schema_version、job_id＋严格递增 seq、type、occurred_at、受控 payload／证据引用 | 状态／引用与事件同事务、提交后发送；终态最后；SSE 与轮询同源，不存 Eino 原始消息／reasoning，见[前端与事件](frontend-and-events.md) |
 | `evidence` | 来源类别、同版本对象引用、字段路径／受控片段、时间与摘要 | 引用受快照／业务／基线版本约束；不向客户端返回可任意读的文件路径 |
 | `findings` | origin、检查／问题族、资产服务、verdict、assessment_basis、severity、remediation_priority、范围证据 | 原始规则发现不可被模型或审阅删除；模型疑点另 origin，不能覆盖规则风险分布 |
@@ -165,7 +167,7 @@ queued→running→completed／partial／failed／cancelled；queued 取消直�
 
 ## 6. 业务 API 清单与实现边界
 
-前缀 `/api/v1`。所有数据／任务接口需要本地应用访问保护，云／模型凭据不进入这些 DTO。列表有界分页；响应可带 request_id／版本，不输出原始错误正文。下表保留完整目标契约；E2实际支持范围以[生成规范](../api/README.md)为准。当前仅`local-offline`与`pinned_snapshot`可执行，collect／connection_check／刷新返回未配置，不产生真实外呼。
+前缀 `/api/v1`。所有数据／任务接口需要本地应用访问保护，云／模型凭据不进入这些 DTO。列表有界分页；响应可带 request_id／版本，不输出原始错误正文。下表保留完整目标契约；当前实际支持范围以[生成规范](../api/README.md)为准。资料来源仍仅`local-offline`与`pinned_snapshot`，collect／connection_check／刷新未实现，不产生云请求；E3模型可由显式私有配置启用，接受计划或明确发送后才有受预算约束的请求。
 
 | 方法与路径 | 作用 | 关键契约 |
 | --- | --- | --- |
@@ -187,7 +189,8 @@ queued→running→completed／partial／failed／cancelled；queued 取消直�
 | GET `/jobs/{id}`、`/jobs/{id}/events` | 状态和有界事件页 | 状态带同读快照 view_seq；事件 seq>after_seq，最多 100 条，next_seq／has_more／last_seq；见[前端与事件](frontend-and-events.md) |
 | GET `/jobs/{id}/events/stream` | fetch SSE 订阅与补发 | 同应用访问头；after_seq、text/event-stream；终态尾部 204；只读、不隐式执行或取消，见[前端与事件](frontend-and-events.md) |
 | POST `/jobs/{id}/cancel` | 请求取消 | 终态不能恢复；合作停止与上游撤回区别明确 |
-| GET `/jobs/{id}/result` | 结果及覆盖 | 响应带同读快照 view_seq；运行中返回 is_final=false、completed_phases 与 L2；recheck返回已保存比较关系／状态／原因，无记录时为null；事实、模型补充和阶段缺口分开 |
+| GET `/jobs/{id}/result` | 结果及覆盖 | 同读快照view_seq；返回snapshot_id、agent_result、attempt_usage与原audit；运行中is_final=false；recheck读取已保存比较，无记录为null；模型阶段与job终态分开 |
+| GET `/jobs/{id}/input` | 本任务sealed固定输入 | 受相同应用访问保护，只读任务封存输入；不以当前快照／业务头或其他任务别名替换 |
 | POST `/profile-drafts`、PATCH `/profile-drafts/{id}` | 人工／对话共用草稿 | 源自当前可访问对象；PATCH 带草稿修订条件 |
 | POST `/profile-drafts/{id}/preview` | 无模型的规范化差异 | 返回 preview_id／草稿修订／基版本／可确认部分，未知不自动补全 |
 | POST `/profile-drafts/{id}/confirm` | 本地确认 | preview_id＋expected_draft_revision＋明确确认部分＋幂等；409 冲突无部分写入 |
@@ -258,7 +261,7 @@ queued→running→completed／partial／failed／cancelled；queued 取消直�
 
 RC-17 的条件更新／批量原子性和显式空集合；RC-18 的重复点击／网络超时／幂等冲突；RC-19 的请求账本／重启不重放；RC-20 的访问、范围和字段投影；导入来源伪造、路径引用、分页中断和大响应；取消后不再请求；旧报告和新资料独立。
 
-这些是完整契约要求。E1已执行输入／结果／审阅／报告／复审的离线子集；E2已接会话、确认、正式任务API及五视图，实际结果见E2记录；E3受限Agent／持久外呼准入与E4真实接入仍待取证。
+这些是完整契约要求。E1已执行输入／结果／审阅／报告／复审的离线子集；E2已接会话、确认、正式任务API及五视图，实际结果见E2记录；E3有界Runner／工具／持久账本已接入，已通过的人工协议回归见E3记录；E4真实接入仍待实现与取证。
 
 历史、缓存、累计耗时、专用认证和跨入口引导验收见RC-21～31、AC-15～20。GORM与有限持久实体已有E1证据；E2会话／调度／业务接口已有离线实现，外部源和模型配置仍由服务端显式注入。
 

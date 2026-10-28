@@ -1,0 +1,480 @@
+{
+  "date": "2026-10-28",
+  "stage": "E3",
+  "status": "passed_limited_offline",
+  "execution": "bounded_eino_agent_with_scripted_local_model_fixtures",
+  "source_kind": "synthetic_and_imported_assumptions",
+  "business_schema_version": 3,
+  "real_cloud_requests": 0,
+  "upstream_provider_model_requests": 0,
+  "model_fixtures": {
+    "kinds": [
+      "in_memory",
+      "loopback_scripted_protocol"
+    ],
+    "autonomous_tool_selection_quality_verified": false,
+    "real_minimax_continuity_verified": false
+  },
+  "implemented_contracts": {
+    "explicit_schema_migration_and_incomplete_schema_rejection": true,
+    "fresh_eino_chat_model_agent_and_runner_per_job": true,
+    "fixed_query_tools": 9,
+    "same_batch_call_id_validation": true,
+    "reference_promotion_next_model_turn": true,
+    "context_message_limit": 20,
+    "context_bytes_limit": 24576,
+    "disclosure_version": "minimal-v1",
+    "validated_product_result_persistence": true,
+    "raw_wire_or_reasoning_persisted": false,
+    "shared_physical_http_attempt_ledger": true,
+    "known_unknown_overflow_usage_separated": true,
+    "model_stage_separate_from_job_status": true,
+    "explicit_model_config_only": true,
+    "dotenv_or_default_profile_discovery": false,
+    "startup_config_check_preview_provider_requests": 0,
+    "public_agent_report_fixed_projection_only": true,
+    "protected_task_result_keeps_validated_explanation": true,
+    "original_rule_results_overwritten": false,
+    "job_result_fields": [
+      "snapshot_id",
+      "agent_result",
+      "attempt_usage"
+    ],
+    "sealed_job_input_read_route": true
+  },
+  "go_tests": {
+    "status": "passed",
+    "cgo_enabled": false,
+    "passed_top_level_tests": 287,
+    "passed_including_subtests": 678,
+    "failed": 0,
+    "vet": "passed",
+    "build": "passed"
+  },
+  "api": {
+    "status": "passed_actual_generation_and_bidirectional_check",
+    "generator": "swaggo/swag v1.16.6",
+    "format": "Swagger 2.0",
+    "registered_paths": 41,
+    "registered_operations": 49,
+    "route_method_bidirectional_check": "passed",
+    "event_types_supported": 8,
+    "actual_committed_events_schema_validated": 57,
+    "route_check_test": "TestGeneratedSwaggerMatchesActualRoutes",
+    "event_schema_validation": "passed_Draft202012",
+    "event_validation_sources": [
+      "sqlite_e0_events",
+      "http_event_pages"
+    ],
+    "actual_event_types": {
+      "job_status": 10,
+      "stage_changed": 21,
+      "findings_available": 2,
+      "tool_started": 6,
+      "tool_finished": 6,
+      "report_available": 2,
+      "message_available": 5,
+      "job_terminal": 5
+    }
+  },
+  "web_final_tests": {
+    "status": "passed",
+    "passed": 51,
+    "failed": 0,
+    "typecheck": "passed",
+    "production_build": "passed"
+  },
+  "browser_evidence": {
+    "status": "passed_limited_local_scripted_protocol",
+    "browser": "Chromium 155.0.8059.12",
+    "environment": "Linux/WSL headless Chromium; real local Store/Eino/tools/HTTP/SSE with artificial protocol model",
+    "browser_check_groups": 26,
+    "checks": [
+      {
+        "id": 1,
+        "check": "明确预览并接受 rules_and_agent 计划；服务显示 local_protocol_fixture",
+        "passed": true
+      },
+      {
+        "id": 2,
+        "check": "入向审计重开后观察到已提交 completed 终态",
+        "passed": true
+      },
+      {
+        "id": 3,
+        "check": "L2 规则结果显示通过9／不符合7／不适用5",
+        "passed": true
+      },
+      {
+        "id": 4,
+        "check": "模型解释、候选和条件建议独立显示，候选保持待确认",
+        "passed": true
+      },
+      {
+        "id": 5,
+        "check": "封存输入证据包含审计前人工确认的 application 角色覆盖",
+        "passed": true
+      },
+      {
+        "id": 6,
+        "check": "候选表单链接使用实际 asset_id、snapshot_id 和 service_id",
+        "passed": true
+      },
+      {
+        "id": 7,
+        "check": "打开候选表单不发 POST 且不自动创建草稿",
+        "passed": true
+      },
+      {
+        "id": 8,
+        "check": "人工新确认 background 后旧任务证据仍为 application",
+        "passed": true
+      },
+      {
+        "id": 9,
+        "check": "当前业务版本变化不改写旧任务 L2 计数",
+        "passed": true
+      },
+      {
+        "id": 10,
+        "check": "入向审计显示2物理请求／2逻辑模型轮／1工具和10模拟token",
+        "passed": true
+      },
+      {
+        "id": 11,
+        "check": "持久工具事件的实际 tool 字段规范映射后显示真实call_id和成功状态",
+        "passed": true
+      },
+      {
+        "id": 12,
+        "check": "NAT 先查询资产上下文再查NAT关联证据，两次call_id不同",
+        "passed": true
+      },
+      {
+        "id": 13,
+        "check": "NAT 显示3物理模型请求／2工具和15模拟token",
+        "passed": true
+      },
+      {
+        "id": 14,
+        "check": "助手发送受理后关闭抽屉并进入该助手任务观察页",
+        "passed": true
+      },
+      {
+        "id": 15,
+        "check": "普通助手公开消息由持久记录读取，内容为经校验解释而非结构JSON",
+        "passed": true
+      },
+      {
+        "id": 16,
+        "check": "后续助手轮次历史披露纳入消息数由3增至5、7",
+        "passed": true
+      },
+      {
+        "id": 17,
+        "check": "助手证据点击实际触发受保护GET /jobs/{id}/input",
+        "passed": true
+      },
+      {
+        "id": 18,
+        "check": "助手固定输入读到本轮开始前的background角色覆盖",
+        "passed": true
+      },
+      {
+        "id": 19,
+        "check": "未知用量任务reported_tokens为null，UI无token数字表且显示未知与2次未报告",
+        "passed": true
+      },
+      {
+        "id": 20,
+        "check": "无效输出终态为failed／AGENT_OUTPUT_INVALID，不显示模型解释或候选",
+        "passed": true
+      },
+      {
+        "id": 21,
+        "check": "无效输出不新增origin=model公开消息，模型消息数保持3",
+        "passed": true
+      },
+      {
+        "id": 22,
+        "check": "失败助手后重开旧审计，L2与application固定字段保持不变",
+        "passed": true
+      },
+      {
+        "id": 23,
+        "check": "1440、768、390宽度下document和body scrollWidth均不超过视口",
+        "passed": true
+      },
+      {
+        "id": 24,
+        "check": "已执行检查无pageerror且无浏览器跨origin HTTP请求",
+        "passed": true
+      },
+      {
+        "id": 25,
+        "check": "localStorage与sessionStorage均为空",
+        "passed": true
+      },
+      {
+        "id": 26,
+        "check": "只读重开、证据查看和布局检查未发POST",
+        "passed": true
+      }
+    ],
+    "viewport_widths": [
+      1440,
+      768,
+      390
+    ],
+    "job_count": 5,
+    "physical_loopback_model_attempts": 11,
+    "physical_model_attempts_by_case": {
+      "inbound_audit": 2,
+      "nat_audit": 3,
+      "assistant": 2,
+      "unknown_usage": 2,
+      "invalid_output": 2
+    },
+    "cloud_attempts": 0,
+    "upstream_provider_model_attempts": 0,
+    "case_summaries": {
+      "inbound_audit": {
+        "status": "completed",
+        "error_code": null,
+        "is_final": true,
+        "completed_phases": [
+          "L1",
+          "L2",
+          "L3",
+          "L4"
+        ],
+        "agent_output_present": true,
+        "agent_error_code": null,
+        "model_calls": 2,
+        "tool_calls": 1,
+        "context": {
+          "included_messages": 1,
+          "excluded_messages": 0,
+          "truncated": false,
+          "disclosure_version": "minimal-v1"
+        },
+        "attempt_usage": {
+          "cloud_attempts": 0,
+          "model_attempts": 2,
+          "unknown_delivery": 0,
+          "known_usage_responses": 2,
+          "unknown_usage_attempts": 0,
+          "reported_tokens": {
+            "prompt_tokens": 6,
+            "completion_tokens": 4,
+            "total_tokens": 10
+          },
+          "usage_totals_overflow": false
+        }
+      },
+      "nat_audit": {
+        "status": "completed",
+        "error_code": null,
+        "is_final": true,
+        "completed_phases": [
+          "L1",
+          "L2",
+          "L3",
+          "L4"
+        ],
+        "agent_output_present": true,
+        "agent_error_code": null,
+        "model_calls": 3,
+        "tool_calls": 2,
+        "context": {
+          "included_messages": 1,
+          "excluded_messages": 0,
+          "truncated": false,
+          "disclosure_version": "minimal-v1"
+        },
+        "attempt_usage": {
+          "cloud_attempts": 0,
+          "model_attempts": 3,
+          "unknown_delivery": 0,
+          "known_usage_responses": 3,
+          "unknown_usage_attempts": 0,
+          "reported_tokens": {
+            "prompt_tokens": 9,
+            "completion_tokens": 6,
+            "total_tokens": 15
+          },
+          "usage_totals_overflow": false
+        }
+      },
+      "assistant": {
+        "status": "completed",
+        "error_code": null,
+        "is_final": true,
+        "completed_phases": [
+          "L1",
+          "L3"
+        ],
+        "agent_output_present": true,
+        "agent_error_code": null,
+        "model_calls": 2,
+        "tool_calls": 1,
+        "context": {
+          "included_messages": 3,
+          "excluded_messages": 0,
+          "truncated": false,
+          "disclosure_version": "minimal-v1"
+        },
+        "attempt_usage": {
+          "cloud_attempts": 0,
+          "model_attempts": 2,
+          "unknown_delivery": 0,
+          "known_usage_responses": 2,
+          "unknown_usage_attempts": 0,
+          "reported_tokens": {
+            "prompt_tokens": 6,
+            "completion_tokens": 4,
+            "total_tokens": 10
+          },
+          "usage_totals_overflow": false
+        }
+      },
+      "unknown_usage": {
+        "status": "completed",
+        "error_code": null,
+        "is_final": true,
+        "completed_phases": [
+          "L1",
+          "L3"
+        ],
+        "agent_output_present": true,
+        "agent_error_code": null,
+        "model_calls": 2,
+        "tool_calls": 1,
+        "context": {
+          "included_messages": 5,
+          "excluded_messages": 0,
+          "truncated": false,
+          "disclosure_version": "minimal-v1"
+        },
+        "attempt_usage": {
+          "cloud_attempts": 0,
+          "model_attempts": 2,
+          "unknown_delivery": 0,
+          "known_usage_responses": 0,
+          "unknown_usage_attempts": 2,
+          "reported_tokens": null,
+          "usage_totals_overflow": false
+        }
+      },
+      "invalid_output": {
+        "status": "failed",
+        "error_code": "AGENT_OUTPUT_INVALID",
+        "is_final": true,
+        "completed_phases": [
+          "L1"
+        ],
+        "agent_output_present": false,
+        "agent_error_code": "AGENT_OUTPUT_INVALID",
+        "model_calls": 2,
+        "tool_calls": 1,
+        "context": {
+          "included_messages": 7,
+          "excluded_messages": 0,
+          "truncated": false,
+          "disclosure_version": "minimal-v1"
+        },
+        "attempt_usage": {
+          "cloud_attempts": 0,
+          "model_attempts": 2,
+          "unknown_delivery": 0,
+          "known_usage_responses": 2,
+          "unknown_usage_attempts": 0,
+          "reported_tokens": {
+            "prompt_tokens": 6,
+            "completion_tokens": 4,
+            "total_tokens": 10
+          },
+          "usage_totals_overflow": false
+        }
+      }
+    },
+    "dom_observations": {
+      "candidate_form_auto_posts": 0,
+      "sealed_audit_role": "application",
+      "later_current_role": "background",
+      "sealed_assistant_role": "background",
+      "prior_audit_verdicts": {
+        "pass": 9,
+        "fail": 7,
+        "not_applicable": 5
+      },
+      "public_model_messages_before_invalid": 3,
+      "public_model_messages_after_invalid": 3,
+      "history_included_messages": [
+        3,
+        5,
+        7
+      ],
+      "layouts": [
+        {
+          "width": 1440,
+          "document_scroll_width": 1440,
+          "body_scroll_width": 1440
+        },
+        {
+          "width": 768,
+          "document_scroll_width": 768,
+          "body_scroll_width": 768
+        },
+        {
+          "width": 390,
+          "document_scroll_width": 390,
+          "body_scroll_width": 390
+        }
+      ],
+      "page_errors": [],
+      "external_http_origins": [],
+      "local_storage_keys": 0,
+      "session_storage_keys": 0,
+      "read_only_observation_posts": 0
+    },
+    "simulated_usage_is_not_provider_usage_or_cost": true,
+    "local_fixture_shutdown": "normal_automatic_exit_after_20_minutes",
+    "token_and_state_cleaned": true,
+    "private_ignored_artifacts": [
+      "output/playwright/e3-browser-checks.json",
+      "output/playwright/e3-event-schema.json",
+      "output/playwright/e3-*.png"
+    ]
+  },
+  "independent_review": {
+    "status": "no_remaining_substantive_blocker_after_fixes",
+    "application_review": "no_new_substantive_issue",
+    "documentation_review": "passed_after_wording_fixes",
+    "final_regression_includes_health_stage_metadata_fix": true
+  },
+  "documentation_checks": {
+    "status": "passed_static_only",
+    "design_docs": "passed",
+    "references": "passed",
+    "json": "passed",
+    "json_schema_structure": "passed",
+    "diff_check": "passed"
+  },
+  "unverified": [
+    "Actual configured upstream MiniMax multi-round tool and reasoning continuity.",
+    "Autonomous model tool choice quality and audit effect improvement.",
+    "Real read-only CFW/ECS/NAT identity, permission, fields and pagination.",
+    "20 to 30 independent formal cases and fair three-group evaluation.",
+    "Real human remediation, recollection and recheck evidence.",
+    "2 CPU / 4 GiB standard performance acceptance.",
+    "All target browsers and long-running proxy/transport exception matrix."
+  ],
+  "next_stage": {
+    "stage": "E4",
+    "status": "not_implemented_or_accepted",
+    "offline_adapter_work_remaining": true,
+    "external_only_blocker": false,
+    "offline_adapter_research": "in_progress"
+  }
+}

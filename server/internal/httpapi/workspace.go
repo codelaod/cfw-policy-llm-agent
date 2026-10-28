@@ -100,6 +100,9 @@ type JobResult struct {
 	ViewSeq         int64                `json:"view_seq"`
 	CompletedPhases []string             `json:"completed_phases"`
 	Recheck         *RecheckView         `json:"recheck"`
+	SnapshotID      string               `json:"snapshot_id"`
+	AgentResult     *storage.AgentRecord `json:"agent_result"`
+	AttemptUsage    storage.AttemptUsage `json:"attempt_usage"`
 }
 type RecheckView struct {
 	ID         string             `json:"id"`
@@ -142,6 +145,7 @@ func (a *API) workspaceRoutes(r *gin.Engine) {
 	v.GET("/jobs", a.jobs)
 	v.GET("/jobs/:id", a.checkJobKind, a.job)
 	v.GET("/jobs/:id/result", a.checkJobKind, a.result)
+	v.GET("/jobs/:id/input", a.checkJobKind, a.jobInput)
 	v.GET("/jobs/:id/events", a.checkJobKind, a.events)
 	v.GET("/jobs/:id/events/stream", a.checkJobKind, a.stream)
 	v.POST("/jobs/:id/cancel", a.checkJobKind, a.cancel)
@@ -242,7 +246,7 @@ func reply(c *gin.Context, status int, value any, err error) {
 // @Failure 401,403 {object} Error
 // @Router /capabilities [get]
 func (a *API) capabilities(c *gin.Context) {
-	c.JSON(200, Capabilities{true, 3, false, a.plans.ModelReady, a.plans.ModelMode, a.plans.ModelReady})
+	c.JSON(200, Capabilities{true, 3, false, a.plans.ModelConfigured || a.plans.ModelReady, a.plans.ModelMode, a.plans.ModelReady})
 }
 
 // sources godoc
@@ -632,7 +636,7 @@ func (a *API) jobs(c *gin.Context) {
 }
 
 // result godoc
-// @Summary Read saved L2 results and finality from one database snapshot
+// @Summary Read saved rule/Agent results, attempt usage and finality from one database snapshot
 // @Tags Execution
 // @Produce json
 // @Security AppToken
@@ -640,17 +644,41 @@ func (a *API) jobs(c *gin.Context) {
 // @Success 200 {object} JobResult
 // @Router /jobs/{id}/result [get]
 func (a *API) result(c *gin.Context) {
-	j, v, saved, e := a.engine.Store.ReadJobResult(c.Request.Context(), c.Param("id"))
+	view, e := a.engine.Store.ReadJobWorkspace(c.Request.Context(), c.Param("id"))
 	phases := []string{}
-	if v != nil {
-		phases = append(phases, "L1", "L2")
+	if view.InputSealed {
+		phases = append(phases, "L1")
+	}
+	if view.Audit != nil {
+		phases = append(phases, "L2")
+	}
+	if view.AgentResult != nil && view.AgentResult.Content.Output != nil && view.AgentResult.Content.ErrorCode == "" {
+		phases = append(phases, "L3")
+	}
+	if view.ReportPublished {
+		phases = append(phases, "L4")
 	}
 	var comparison *RecheckView
-	if e == nil && saved != nil {
-		comparison = &RecheckView{ID: saved.ID, OldAuditID: saved.OldAuditID, NewAuditID: saved.NewAuditID, CreatedAt: saved.CreatedAt}
-		e = json.Unmarshal(saved.Comparison, &comparison.Comparison)
+	if e == nil && view.Recheck != nil {
+		comparison = &RecheckView{ID: view.Recheck.ID, OldAuditID: view.Recheck.OldAuditID, NewAuditID: view.Recheck.NewAuditID, CreatedAt: view.Recheck.CreatedAt}
+		e = json.Unmarshal(view.Recheck.Comparison, &comparison.Comparison)
 	}
-	reply(c, 200, JobResult{v, storage.Terminal(j.Status), j.ViewSeq, phases, comparison}, e)
+	reply(c, 200, JobResult{Audit: view.Audit, IsFinal: storage.Terminal(view.Job.Status), ViewSeq: view.Job.ViewSeq, CompletedPhases: phases, Recheck: comparison, SnapshotID: view.SnapshotID, AgentResult: view.AgentResult, AttemptUsage: view.AttemptUsage}, e)
+}
+
+// jobInput godoc
+// @Summary Read the immutable effective input sealed for this task
+// @Description Protected local view only. Never substitutes current snapshot declarations or business heads. Unsealed input returns INPUT_NOT_SEALED.
+// @Tags Execution
+// @Produce json
+// @Security AppToken
+// @Param id path string true "Formal job ID"
+// @Success 200 {object} domain.Input
+// @Failure 401,403,404,409,503 {object} Error
+// @Router /jobs/{id}/input [get]
+func (a *API) jobInput(c *gin.Context) {
+	input, err := a.engine.Store.GetJobInput(c.Request.Context(), c.Param("id"))
+	reply(c, 200, input, err)
 }
 
 // audit godoc

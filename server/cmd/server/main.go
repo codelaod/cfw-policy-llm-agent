@@ -17,12 +17,13 @@ import (
 
 	"cfw-policy-llm-agent/server/internal/app"
 	"cfw-policy-llm-agent/server/internal/httpapi"
+	"cfw-policy-llm-agent/server/internal/modelconfig"
 	"cfw-policy-llm-agent/server/internal/storage"
 )
 
 // @title CFW offline audit workspace
-// @version 0.2.0
-// @description Persistent offline rule audits, confirmations, reports and task observation. Cloud and model adapters are not configured.
+// @version 0.3.0
+// @description Persistent fixed-input rule audits, bounded Eino supplements, confirmations, reports and durable attempt accounting. Runtime is offline unless an explicit private model configuration is enabled; previews and config-check never call providers. Real provider capability remains separately verified.
 // @BasePath /api/v1
 // @securityDefinitions.apikey AppToken
 // @in header
@@ -38,7 +39,12 @@ func run() error {
 	db := flag.String("db", "../data/private/e0.sqlite", "private business database path")
 	migrate := flag.Bool("migrate", false, "explicitly apply the local SQL schema and exit")
 	webDir := flag.String("web-dir", "", "optional built web/dist directory; serves only public bundle files and business routes")
+	modelPath := flag.String("model-config", "", "explicit private model JSON configuration; no dotenv or profile discovery")
+	configCheck := flag.Bool("config-check", false, "validate the explicitly selected model configuration locally and print a redacted summary")
 	flag.Parse()
+	if *configCheck {
+		return checkModelConfig(*modelPath, os.Stdout)
+	}
 	// Startup/config validation is local; no dotenv, cloud, or model credential reads.
 	token := os.Getenv("CFW_APP_TOKEN")
 	if !*migrate && len(token) < 16 {
@@ -50,12 +56,24 @@ func run() error {
 	}
 	defer store.Close()
 	if *migrate {
-		fmt.Println("Local business schema version 2 ready")
+		fmt.Printf("Local business schema version %d ready\n", storage.BusinessSchemaVersion)
 		return nil
 	}
 	if err = store.Recover(context.Background()); err != nil {
 		return fmt.Errorf("task recovery failed")
 	}
+	var selectedModel modelconfig.Config
+	if *modelPath != "" {
+		selectedModel, err = modelconfig.Load(*modelPath)
+		if err != nil {
+			return fmt.Errorf("explicit model configuration is unavailable: %w", err)
+		}
+	}
+	modelRuntime, err := app.NewModelRuntime(store, selectedModel)
+	if err != nil {
+		return fmt.Errorf("model runtime initialization failed; check the explicit configuration and persisted budget")
+	}
+	defer modelRuntime.Close()
 	// A process-owned loopback endpoint supplies bounded artificial work. No user
 	// supplied URL, proxy environment, credential, retry, or real model is involved.
 	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -72,6 +90,10 @@ func run() error {
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
 	workflow := app.NewWorkflow(store)
+	if modelRuntime.Factory != nil {
+		workflow.Agent = app.NewAgentService(store, modelRuntime.Factory, modelRuntime.Plans.ConfigRevision, modelRuntime.SensitiveValues)
+		workflow.Agent.ModelTimeout = selectedModel.Timeout()
+	}
 	engine := app.New(store, func(ctx context.Context, j storage.Job) error {
 		if j.Kind != "e0_probe" {
 			return workflow.Run(ctx, j)
@@ -91,7 +113,11 @@ func run() error {
 		}
 		return nil
 	})
-	router, err := httpapi.New(engine, token, httpapi.Options{WebDir: *webDir})
+	privateValues := append([]string{token}, modelRuntime.SensitiveValues...)
+	if workflow.Agent != nil {
+		workflow.Agent.SensitiveValues = privateValues
+	}
+	router, err := httpapi.New(engine, token, httpapi.Options{WebDir: *webDir, Plans: modelRuntime.Plans, SensitiveValues: privateValues})
 	if err != nil {
 		return err
 	}

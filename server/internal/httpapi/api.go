@@ -35,14 +35,14 @@ type CreateJob struct {
 }
 
 type API struct {
-	engine        *app.Engine
-	token         [32]byte
-	secret        string
-	webDir        string
-	plans         *app.PlanService
-	audits        *app.AuditService
-	confirmations *app.ConfirmationService
-	streams       chan struct{}
+	engine          *app.Engine
+	token           [32]byte
+	sensitiveValues []string
+	webDir          string
+	plans           *app.PlanService
+	audits          *app.AuditService
+	confirmations   *app.ConfirmationService
+	streams         chan struct{}
 }
 
 func New(engine *app.Engine, token string, options ...Options) (*gin.Engine, error) {
@@ -52,9 +52,22 @@ func New(engine *app.Engine, token string, options ...Options) (*gin.Engine, err
 	if engine == nil || engine.Store == nil {
 		return nil, errors.New("execution store required")
 	}
-	a := &API{engine: engine, token: sha256.Sum256([]byte(token)), secret: token, streams: make(chan struct{}, 8), plans: app.NewPlanService(engine.Store), audits: app.NewAuditService(engine.Store), confirmations: app.NewConfirmationService(engine.Store)}
+	a := &API{engine: engine, token: sha256.Sum256([]byte(token)), sensitiveValues: []string{token}, streams: make(chan struct{}, 8), plans: app.NewPlanService(engine.Store), audits: app.NewAuditService(engine.Store), confirmations: app.NewConfirmationService(engine.Store)}
 	if err := a.configureStatic(options); err != nil {
 		return nil, err
+	}
+	if len(options) > 0 {
+		if options[0].Plans != nil {
+			if options[0].Plans.Store != engine.Store {
+				return nil, errors.New("plan service must use the execution store")
+			}
+			a.plans = options[0].Plans
+		}
+		for _, value := range options[0].SensitiveValues {
+			if value != "" {
+				a.sensitiveValues = append(a.sensitiveValues, value)
+			}
+		}
 	}
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
@@ -127,9 +140,11 @@ func (a *API) protect(c *gin.Context) {
 	}
 	// Reject the known application credential before business writes, including
 	// JSON escapes. Neither errors nor logs contain the rejected content.
-	if strings.Contains(c.Request.URL.String(), a.secret) || strings.Contains(c.GetHeader("Idempotency-Key"), a.secret) {
-		fail(c, 422, "CREDENTIAL_IN_PAYLOAD", "application credential cannot enter business data")
-		return
+	for _, value := range a.sensitiveValues {
+		if strings.Contains(c.Request.URL.String(), value) || strings.Contains(c.GetHeader("Idempotency-Key"), value) {
+			fail(c, 422, "CREDENTIAL_IN_PAYLOAD", "server credentials or private connection values cannot enter business data")
+			return
+		}
 	}
 	if c.Request.Body != nil && c.Request.ContentLength != 0 {
 		maximum := int64(32 << 10)
@@ -147,9 +162,11 @@ func (a *API) protect(c *gin.Context) {
 				fail(c, 422, "INVALID_REQUEST", "one JSON value required")
 				return
 			}
-			if hasSecret(tree, a.secret) {
-				fail(c, 422, "CREDENTIAL_IN_PAYLOAD", "application credential cannot enter business data")
-				return
+			for _, value := range a.sensitiveValues {
+				if hasSecret(tree, value) {
+					fail(c, 422, "CREDENTIAL_IN_PAYLOAD", "server credentials or private connection values cannot enter business data")
+					return
+				}
 			}
 		}
 		c.Request.Body = io.NopCloser(bytes.NewReader(body))
@@ -193,6 +210,8 @@ func storeError(c *gin.Context, err error) {
 		fail(c, 409, "CONVERSATION_ARCHIVED", "conversation is archived")
 	case errors.Is(err, storage.ErrJobTerminal):
 		fail(c, 409, "JOB_STATE_CONFLICT", "operation is not available in this task state")
+	case errors.Is(err, storage.ErrInputNotSealed):
+		fail(c, 409, "INPUT_NOT_SEALED", "the accepted task has not sealed its effective input yet")
 	case errors.Is(err, app.ErrSourceNotConfigured):
 		fail(c, 409, "SOURCE_NOT_CONFIGURED", "read-only source is not configured")
 	case errors.Is(err, app.ErrModelNotConfigured):
@@ -224,7 +243,7 @@ func storeError(c *gin.Context, err error) {
 // @Success 200 {object} Health
 // @Failure 401,403 {object} Error
 // @Router /health [get]
-func (a *API) health(c *gin.Context) { c.JSON(200, Health{"E2", "local-offline", "ok"}) }
+func (a *API) health(c *gin.Context) { c.JSON(200, Health{"E3", "local-offline", "ok"}) }
 
 // create godoc
 // @Summary Start a synthetic local E0 probe; never a business audit

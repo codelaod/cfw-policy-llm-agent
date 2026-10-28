@@ -13,13 +13,14 @@ export type Job = {
   result_ref?: string
   error_code?: string
 }
+export type ToolStatus = 'started' | 'succeeded' | 'rejected' | 'truncated' | 'failed' | 'cancelled'
 export type JobEvent = {
   schema_version: 1
   job_id: string
   seq: number
   type: 'job_status' | 'stage_changed' | 'job_terminal' | 'tool_started' | 'tool_finished' | 'findings_available' | 'message_available' | 'report_available'
   occurred_at: string
-  payload: { status?: JobStatus; stage?: string; result_ref?: string; message_ref?: string; report_ref?: string; call_id?: string; tool_name?: string; summary?: string; finding_count?: number; [key: string]: unknown }
+  payload: { status?: JobStatus | ToolStatus; elapsed_ms?: number; duration_ms?: number; evidence_refs?: string[]; agent_result_ref?: string; stage?: string; result_ref?: string; message_ref?: string; report_ref?: string; call_id?: string; tool_name?: string; summary?: string; finding_count?: number; [key: string]: unknown }
 }
 export type EventPage = { events: JobEvent[]; next_seq: number; has_more: boolean; last_seq: number }
 
@@ -72,7 +73,9 @@ export function decodeEvent(value: unknown, jobId: string, business = false): Jo
   } else if (value.type === 'job_status' || value.type === 'job_terminal') {
     if (!(value.type === 'job_terminal' ? terminalStatuses : progressStatuses).includes(value.payload.status as JobStatus)) throw new ProtocolError()
   } else if (value.type === 'tool_started' || value.type === 'tool_finished') {
-    if (typeof value.payload.call_id !== 'string' || typeof value.payload.tool_name !== 'string') throw new ProtocolError()
+    const name = value.payload.tool_name ?? value.payload.tool
+    if (value.payload.tool_name !== undefined && value.payload.tool !== undefined && value.payload.tool_name !== value.payload.tool || typeof value.payload.call_id !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(value.payload.call_id) || typeof name !== 'string' || !/^[A-Za-z_][A-Za-z0-9_]{0,63}$/.test(name)) throw new ProtocolError()
+    return { ...value, payload: { ...value.payload, tool_name: name } } as JobEvent
   } else if (typeof value.payload[value.type === 'findings_available' ? 'result_ref' : value.type === 'message_available' ? 'message_ref' : 'report_ref'] !== 'string') {
     throw new ProtocolError()
   }

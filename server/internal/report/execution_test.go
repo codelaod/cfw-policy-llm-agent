@@ -33,3 +33,28 @@ func TestExecutionProjectionUsesControlledStageMetadata(t *testing.T) {
 		}
 	}
 }
+func TestExecutionSeparatesSuccessfulModelStageFromInterruptedJob(t *testing.T) {
+	for _, format := range []string{"json", "markdown"} {
+		in, result, supp, _ := supplementCase(t)
+		body, err := BuildWithAgent(context.Background(), in, result, nil, format, Execution{Mode: "rules_and_agent", ModelStage: "completed", JobStatus: "interrupted"}, supp)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if format == "json" {
+			var doc Document
+			if json.Unmarshal(body, &doc) != nil || doc.Execution == nil || doc.Execution.ModelStage != "completed" || doc.Execution.JobStatus != "interrupted" || doc.Agent == nil || doc.Agent.ModelStage != "completed" {
+				t.Fatal("L3 and job terminal state merged")
+			}
+		} else {
+			if !strings.Contains(string(body), "模型阶段流程已结束") || !strings.Contains(string(body), "整体任务中断") {
+				t.Fatal("markdown hid independent stage/job outcome")
+			}
+		}
+	}
+	for _, status := range []string{"queued", "running", "cancelling", "PRIVATE_JOB_STATUS"} {
+		body, err := BuildWithExecution(context.Background(), privateResult(), nil, "json", Execution{Mode: "rules_and_agent", ModelStage: "completed", JobStatus: status})
+		if body != nil || !errors.Is(err, ErrInvalidResult) {
+			t.Fatal("nonterminal/free job status entered report", err)
+		}
+	}
+}

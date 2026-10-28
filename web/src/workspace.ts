@@ -2,6 +2,7 @@ import { computed, inject, ref, type Ref, type InjectionKey } from 'vue'
 import { ApiError, ProtocolError, isTerminal } from './api'
 import { WorkspaceClient } from './workspace-api'
 import { LatestRead, mergeJobs } from './workspace-state'
+import { modelCapability } from './agent-view'
 import type { Capabilities, Conversation, ConversationMessage, Job, Page, ReportRecord, Snapshot } from './workspace-types'
 
 export function errorText(error: unknown): string {
@@ -46,7 +47,8 @@ export function createWorkspace() {
   const currentSnapshot = computed(() => snapshots.value.find(item => item.id === snapshotID.value) ?? null)
   const currentConversation = computed(() => conversations.value.find(item => item.id === conversationID.value) ?? null)
   const activeJobs = computed(() => jobs.value.filter(job => !isTerminal(job.status)))
-  const modelAvailable = computed(() => capabilities.value.model_available === true || capabilities.value.model_configured === true || (capabilities.value.models ?? []).some(model => model.available === true))
+  const modelState = computed(() => modelCapability(capabilities.value))
+  const modelAvailable = computed(() => modelState.value.ready)
   const drafts = new Map<string, unknown>()
   type ListKind = 'snapshots' | 'conversations' | 'jobs' | 'reports'
   const listHasMore = ref<Record<ListKind, boolean>>({snapshots:false,conversations:false,jobs:false,reports:false}), listsLoading = ref(false)
@@ -149,7 +151,7 @@ export function createWorkspace() {
   async function importInput(value: unknown) { const item = await api.importSnapshot(value); snapshots.value.unshift(item); snapshotID.value = item.id; return item }
   function updateJob(job: Job) { jobs.value = mergeJobs(jobs.value, [job]) }
   function setSourceGuard(guard: (() => boolean) | null) { sourceGuard = guard }
-  return { api, unlocked, loading, error, snapshots, conversations, jobs, reports, capabilities, snapshotID, conversationID, messages, messagesHasMore, currentSnapshot, currentConversation, activeJobs, modelAvailable, drafts, listHasMore, listsLoading, loadMore, unlock, lock, refresh, selectSnapshot, selectConversation, newConversation, ensureConversation, loadMessages, addExample, importInput, updateJob, setSourceGuard }
+  return { api, unlocked, loading, error, snapshots, conversations, jobs, reports, capabilities, snapshotID, conversationID, messages, messagesHasMore, currentSnapshot, currentConversation, activeJobs, modelAvailable, modelState, drafts, listHasMore, listsLoading, loadMore, unlock, lock, refresh, selectSnapshot, selectConversation, newConversation, ensureConversation, loadMessages, addExample, importInput, updateJob, setSourceGuard }
 }
 
 export type Workspace = ReturnType<typeof createWorkspace>

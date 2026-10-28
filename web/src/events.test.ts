@@ -203,3 +203,14 @@ test('business observation restores findings and a partial terminal through the 
   assert.equal(states.at(-1), 'ended')
   assert.ok(paths.every(path => path.startsWith('/api/v1/jobs/')))
 })
+
+test('formal tool events require a real bounded call identity and tool name', () => {
+  const event = { schema_version: 1, job_id: 'job-one', seq: 1, type: 'tool_started', occurred_at: '2026-10-28T00:00:00Z', payload: { call_id: '', tool_name: 'get_asset_context' } }
+  assert.throws(() => decodeEvent(event, 'job-one', true), ProtocolError)
+  event.payload.call_id = 'actual-call-one'; event.payload.tool_name = ''
+  assert.throws(() => decodeEvent(event, 'job-one', true), ProtocolError)
+  const persisted = { ...event, payload: { call_id: 'actual-call-one', tool: 'get_asset_context' } }
+  assert.equal(decodeEvent(persisted, 'job-one', true).payload.tool_name, 'get_asset_context')
+  assert.ok(!Object.prototype.hasOwnProperty.call(persisted.payload, 'tool_name'))
+  assert.throws(() => decodeEvent({ ...persisted, payload: { ...persisted.payload, tool_name: 'get_policy' } }, 'job-one', true), ProtocolError)
+})
