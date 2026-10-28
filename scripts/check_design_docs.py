@@ -19,7 +19,7 @@ def require(value: bool, message: str) -> None:
 
 def check_markdown() -> tuple[int, int]:
     links = json_blocks = 0
-    paths = [ROOT / "README.md", ROOT / "AGENTS.md", *(ROOT / "docs").rglob("*.md"), *(ROOT / "experiments").rglob("*.md")]
+    paths = [ROOT / "README.md", ROOT / "AGENTS.md", ROOT / "server/README.md", ROOT / "web/README.md", *(ROOT / "docs").rglob("*.md"), *(ROOT / "experiments").rglob("*.md")]
     for path in paths:
         text = path.read_text(encoding="utf-8")
         prose: list[str] = []

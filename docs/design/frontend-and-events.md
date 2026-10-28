@@ -2,6 +2,8 @@
 
 基线：需求v0.6／B2、设计v0.6，G1／G2已通过。本文为该领域的现行详细设计；实际运行验收另行取证。
 
+E0已建立Vue／Vite／Router／Nuxt UI最小联调台和真实本机SSE客户端，固定版本、实际结果与限制见[E0记录](../validation/evidence/e0-local.md)。五个业务页面和下文完整异常矩阵尚未交付。
+
 ## 1. 选择与非目标
 
 | 层次 | 本方案设计 | 边界／依据 |
@@ -12,7 +14,7 @@
 | 后端 | Go＋Gin＋Eino、纯Go SQLite WAL、3任务槽位 | 无新增 Node 服务、消息中间件、多 Agent 或数据库引擎 |
 | 模型协议 | 维持非流式 Chat Completions 设计 | SSE 推送任务事件不证明模型 token 流式／流式工具调用兼容；本方案不增加这项验收声明 |
 
-Nuxt UI v4 官方 Vue 示例提供 Vite／Vue 插件、CSS 导入及 UApp，路由可接 Vue Router；本项目明确保留 Router，不使用 router:false 来自行实现页面切换。ChatMessages 的 messages/status 属于展示契约，可映射项目自己的公开消息，不必因官方示例出现 AI SDK 就引入其服务端协议（D5-01／03）。这些是资料结论，**不是已安装依赖或完成构建的证据**。
+Nuxt UI v4 官方 Vue 示例提供 Vite／Vue 插件、CSS 导入及 UApp，路由可接 Vue Router；本项目明确保留 Router，不使用 router:false 来自行实现页面切换。ChatMessages 的 messages/status 属于展示契约，可映射项目自己的公开消息，不必因官方示例出现 AI SDK 就引入其服务端协议（D5-01／03）。官方示例属于资料依据，实际构建只以E0执行记录为准。
 
 框架小版本、Node／浏览器环境、锁文件在 G2 后 E0 固定，并验证实际 peer dependencies；不把移动的 v4 文档分支当锁定版本。Tailwind v4 的官方浏览器基线见 D5-06：Chrome 111／Safari 16.4／Firefox 128。项目演示使用受支持现代浏览器，具体实测版本须记录；不声称兼容旧内核。
 

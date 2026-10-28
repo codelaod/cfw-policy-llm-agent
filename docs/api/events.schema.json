@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "E0 synthetic task event v1",
+  "description": "Implemented E0 event subset only. No model token stream, audit findings, or business result is represented.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "job_id", "seq", "type", "occurred_at", "payload"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "job_id": {"type": "string", "pattern": "^e0_[a-f0-9]{32}$"},
+    "seq": {"type": "integer", "minimum": 1, "maximum": 9007199254740991},
+    "type": {"enum": ["job_status", "stage_changed", "job_terminal"]},
+    "occurred_at": {"type": "string", "format": "date-time"},
+    "payload": {"type": "object", "additionalProperties": {"type": "string"}}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"type": {"const": "stage_changed"}}},
+      "then": {"properties": {"payload": {"required": ["stage"], "properties": {"stage": {"const": "local_mock"}, "source": {"const": "synthetic"}}}}}
+    },
+    {
+      "if": {"properties": {"type": {"const": "job_status"}}},
+      "then": {"properties": {"payload": {"required": ["status"], "properties": {"status": {"enum": ["queued", "running", "cancelling"]}}}}}
+    },
+    {
+      "if": {"properties": {"type": {"const": "job_terminal"}}},
+      "then": {"properties": {"payload": {"required": ["status"], "properties": {"status": {"enum": ["completed", "failed", "cancelled", "interrupted"]}}}}}
+    }
+  ]
+}

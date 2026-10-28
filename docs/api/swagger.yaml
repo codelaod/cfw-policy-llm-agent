@@ -1,0 +1,340 @@
+basePath: /api/v1
+definitions:
+  httpapi.CreateJob:
+    properties:
+      client_request_id:
+        type: string
+      conversation_id:
+        type: string
+    required:
+    - client_request_id
+    - conversation_id
+    type: object
+  httpapi.Error:
+    properties:
+      code:
+        type: string
+      message:
+        type: string
+    type: object
+  httpapi.Health:
+    properties:
+      source:
+        type: string
+      stage:
+        type: string
+      status:
+        type: string
+    type: object
+  storage.Event:
+    properties:
+      job_id:
+        type: string
+      occurred_at:
+        type: string
+      payload:
+        additionalProperties:
+          type: string
+        type: object
+      schema_version:
+        type: integer
+      seq:
+        type: integer
+      type:
+        type: string
+    type: object
+  storage.EventPage:
+    properties:
+      events:
+        items:
+          $ref: '#/definitions/storage.Event'
+        type: array
+      has_more:
+        type: boolean
+      last_seq:
+        type: integer
+      next_seq:
+        type: integer
+    type: object
+  storage.Job:
+    properties:
+      conversation_id:
+        type: string
+      created_at:
+        type: string
+      finished_at:
+        type: string
+      id:
+        type: string
+      started_at:
+        type: string
+      status:
+        type: string
+      view_seq:
+        type: integer
+    type: object
+info:
+  contact: {}
+  description: Synthetic E0 endpoints only; no cloud/model integration or business
+    audit.
+  title: CFW E0 local contract probe
+  version: 0.1.0
+paths:
+  /e0/jobs:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Synthetic conversation and idempotency identifiers
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.CreateJob'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Same input replay
+          schema:
+            $ref: '#/definitions/storage.Job'
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/storage.Job'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Start a synthetic local E0 probe; never a business audit
+      tags:
+      - E0
+  /e0/jobs/{id}:
+    get:
+      parameters:
+      - description: E0 job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.Job'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Get a persisted E0 job and its view_seq
+      tags:
+      - E0
+  /e0/jobs/{id}/cancel:
+    post:
+      parameters:
+      - description: E0 job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.Job'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Explicitly cancel an E0 job (disconnecting observation does not cancel)
+      tags:
+      - E0
+  /e0/jobs/{id}/events:
+    get:
+      parameters:
+      - description: E0 job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 0
+        description: Nonnegative decimal safe integer, no greater than last_seq
+        in: query
+        name: after_seq
+        type: integer
+      - default: 100
+        description: Page size 1..100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.EventPage'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Read a consistent persisted event page; no execution side effects
+      tags:
+      - E0
+  /e0/jobs/{id}/events/stream:
+    get:
+      description: See events.schema.json and the SSE contract. Lifetime 120s, heartbeat
+        15s, per-write deadline 10s. No model token streaming.
+      parameters:
+      - description: E0 job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 0
+        description: Last contiguous seq, nonnegative safe integer
+        in: query
+        name: after_seq
+        type: integer
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE frames (id=seq, event=type, data=complete event JSON)
+          headers:
+            X-Subscription-Lifetime-Seconds:
+              description: "120"
+              type: integer
+          schema:
+            type: string
+        "204":
+          description: Terminal job cursor already at event tail
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Observe committed E0 events; reconnect only reads persisted history
+      tags:
+      - E0
+  /health:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Health'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Read local E0 status (no outbound requests)
+      tags:
+      - E0
+securityDefinitions:
+  AppToken:
+    in: header
+    name: X-App-Token
+    type: apiKey
+swagger: "2.0"

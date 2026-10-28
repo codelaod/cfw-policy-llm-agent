@@ -1,0 +1,526 @@
+{
+    "swagger": "2.0",
+    "info": {
+        "description": "Synthetic E0 endpoints only; no cloud/model integration or business audit.",
+        "title": "CFW E0 local contract probe",
+        "contact": {},
+        "version": "0.1.0"
+    },
+    "basePath": "/api/v1",
+    "paths": {
+        "/e0/jobs": {
+            "post": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "E0"
+                ],
+                "summary": "Start a synthetic local E0 probe; never a business audit",
+                "parameters": [
+                    {
+                        "description": "Synthetic conversation and idempotency identifiers",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.CreateJob"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Same input replay",
+                        "schema": {
+                            "$ref": "#/definitions/storage.Job"
+                        }
+                    },
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/storage.Job"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/e0/jobs/{id}": {
+            "get": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "E0"
+                ],
+                "summary": "Get a persisted E0 job and its view_seq",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "E0 job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/storage.Job"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/e0/jobs/{id}/cancel": {
+            "post": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "E0"
+                ],
+                "summary": "Explicitly cancel an E0 job (disconnecting observation does not cancel)",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "E0 job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/storage.Job"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/e0/jobs/{id}/events": {
+            "get": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "E0"
+                ],
+                "summary": "Read a consistent persisted event page; no execution side effects",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "E0 job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Nonnegative decimal safe integer, no greater than last_seq",
+                        "name": "after_seq",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 100,
+                        "description": "Page size 1..100",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/storage.EventPage"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/e0/jobs/{id}/events/stream": {
+            "get": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "description": "See events.schema.json and the SSE contract. Lifetime 120s, heartbeat 15s, per-write deadline 10s. No model token streaming.",
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "E0"
+                ],
+                "summary": "Observe committed E0 events; reconnect only reads persisted history",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "E0 job ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "integer",
+                        "default": 0,
+                        "description": "Last contiguous seq, nonnegative safe integer",
+                        "name": "after_seq",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "SSE frames (id=seq, event=type, data=complete event JSON)",
+                        "schema": {
+                            "type": "string"
+                        },
+                        "headers": {
+                            "X-Subscription-Lifetime-Seconds": {
+                                "type": "integer",
+                                "description": "120"
+                            }
+                        }
+                    },
+                    "204": {
+                        "description": "Terminal job cursor already at event tail"
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "429": {
+                        "description": "Too Many Requests",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/health": {
+            "get": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "E0"
+                ],
+                "summary": "Read local E0 status (no outbound requests)",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Health"
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        }
+    },
+    "definitions": {
+        "httpapi.CreateJob": {
+            "type": "object",
+            "required": [
+                "client_request_id",
+                "conversation_id"
+            ],
+            "properties": {
+                "client_request_id": {
+                    "type": "string"
+                },
+                "conversation_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.Error": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                }
+            }
+        },
+        "httpapi.Health": {
+            "type": "object",
+            "properties": {
+                "source": {
+                    "type": "string"
+                },
+                "stage": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.Event": {
+            "type": "object",
+            "properties": {
+                "job_id": {
+                    "type": "string"
+                },
+                "occurred_at": {
+                    "type": "string"
+                },
+                "payload": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "schema_version": {
+                    "type": "integer"
+                },
+                "seq": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.EventPage": {
+            "type": "object",
+            "properties": {
+                "events": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.Event"
+                    }
+                },
+                "has_more": {
+                    "type": "boolean"
+                },
+                "last_seq": {
+                    "type": "integer"
+                },
+                "next_seq": {
+                    "type": "integer"
+                }
+            }
+        },
+        "storage.Job": {
+            "type": "object",
+            "properties": {
+                "conversation_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "view_seq": {
+                    "type": "integer"
+                }
+            }
+        }
+    },
+    "securityDefinitions": {
+        "AppToken": {
+            "type": "apiKey",
+            "name": "X-App-Token",
+            "in": "header"
+        }
+    }
+}

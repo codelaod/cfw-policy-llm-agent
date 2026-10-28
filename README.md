@@ -2,7 +2,7 @@
 
 以云防火墙策略审计为业务主线，以受限大模型Agent完成工具选择、证据补查、解释与条件推荐；结果由人审阅并在云端手动整改。
 
-**当前进度：需求v0.6／B2与整体设计v0.6均已审核通过，正式业务系统尚未实现，下一阶段为E0依赖与契约验证。** 已有Go＋Eino实验和离线原型只是前期证据，不代表正式后端、前端或真实云接入验收。
+**当前进度：需求v0.6／B2与整体设计v0.6已通过；E0最小前后端骨架和本机依赖／契约验证已建立，业务离线闭环待E1实现。** E0只使用人工数据与本机端点；已有实验、原型和本轮探针均不代表真实云／模型或完整业务验收。实际结果见[E0记录](docs/validation/evidence/e0-local.md)。
 
 ## 文档入口
 
@@ -29,6 +29,8 @@
 
 ## 现有可运行内容
 
+- [E0后端](server/README.md)／[Vue联调台](web/README.md)：纯Go SQLite、三任务槽位、真实本机SSE／轮询及固定依赖；不是完整审计系统。
+- [已生成API规范](docs/api/README.md)：固定Swag生成Swagger JSON／YAML，另附E0事件schema。
 - [Go＋Eino独立实验](experiments/eino-offline/README.md)：模拟模式、受限真实模型适配、私有配置规则及实际验证边界。
 - [离线交互原型](docs/prototypes/audit-workflow/README.md)：原生HTML／CSS／JS、人工数据、内存事件模拟，不是正式组件工程。
 
@@ -40,6 +42,18 @@ python3 scripts/check_references.py
 node docs/prototypes/audit-workflow/prototype-smoke.cjs
 ```
 
-模型私有配置保留在被忽略的`.env.local`，空白模板为[.env.example](.env.example)；仅通过`bash scripts/eino-offline.sh config-check`查看脱敏摘要，不发送请求。正式业务系统尚无安装、构建或启动命令，不用实验命令冒充。
+E0检查与构建：
+
+```bash
+bash scripts/e0.sh test
+bash scripts/e0.sh build
+bash scripts/e0.sh api
+cd web
+npm ci
+npm test
+npm run build
+```
+
+本机启动、显式迁移和应用访问口令见[后端说明](server/README.md)；E0不读取`.env.local`。已有实验的模型私有配置仍保留在忽略路径，空白模板为[.env.example](.env.example)，只通过`bash scripts/eino-offline.sh config-check`查看脱敏摘要。
 
 许可证：[Apache License 2.0](LICENSE)。

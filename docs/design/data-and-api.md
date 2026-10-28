@@ -2,6 +2,8 @@
 
 基线：需求v0.6／B2、设计v0.6，G1／G2已通过。本文为该领域的现行详细设计；实际运行验收另行取证。
 
+E0已实现独立的`/api/v1/e0/*`人工联调子集，并生成[实际规范](../api/README.md)。本篇的正式业务实体／路由仍按后续阶段实现；不得把人工任务入口替代计划消费或业务确认。
+
 ## 1. 身份、版本与来源
 
 - 内部对象使用后端生成的不透明 ID。云对象另保留 provider、账号标识、地域、资源类型、原始资源 ID；不能只按名称／标签／公网 IP 关联。
@@ -60,7 +62,7 @@ SQLite常规连接池下，仓储在序列化／网络响应前关闭行游标�
 
 事务是业务原子提交边界，WAL是日志模式选择。本文件沿用[架构设计](architecture.md)的“WAL＋普通共享连接池＋短事务”；不强制单写连接／读写分池，多会话正常提交读写，由SQLite协调写锁。
 
-仓储建议 GORM＋纯 Go libtnb/sqlite／modernc，尚未构建。Updates(struct) 可能跳过零值，确认必须显式列字段／map；false／空集合不能省略。禁用通用 Save 覆盖不可变版本，以修订 WHERE＋RowsAffected 检查竞争，使用同一 Tx，不把网络／模型等待放事务里。不在启动时隐式 AutoMigrate；SQL 日志不输出历史正文／参数。
+仓储采用 GORM＋纯 Go libtnb/sqlite／modernc，E0已构建和验证人工任务子集。Updates(struct) 可能跳过零值，确认必须显式列字段／map；false／空集合不能省略。禁用通用 Save 覆盖不可变版本，以修订 WHERE＋RowsAffected 检查竞争，使用同一 Tx，不把网络／模型等待放事务里。不在启动时隐式 AutoMigrate；SQL 日志不输出历史正文／参数。
 
 纯 Go 是硬约束：G2 后验证 CGO_ENABLED=0、驱动／JSON／bool、外键、事务和重启；不为 ORM 回退 CGO。适配不满足则通过仓储接口回退直接 modernc，不改变业务历史。
 

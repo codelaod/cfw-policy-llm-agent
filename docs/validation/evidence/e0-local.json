@@ -1,0 +1,91 @@
+{
+  "date": "2026-10-28",
+  "stage": "E0",
+  "input_source": "synthetic",
+  "execution": "actual_local_http_sqlite_browser",
+  "real_cloud_requests": 0,
+  "real_model_requests": 0,
+  "business_acceptance": false,
+  "environment": {
+    "os": "Debian 13 tool runtime on Linux 6.18.54.1-microsoft-standard-WSL2 x86_64",
+    "logical_cpus": 16,
+    "cpu_quota": "unlimited",
+    "memory_cgroup_limit": "unlimited",
+    "performance_profile_tested": false,
+    "go": "1.26.10",
+    "node": "24.22.0",
+    "npm": "11.19.1",
+    "visible_memory_mib": 15868
+  },
+  "go_tests": {
+    "passed_tests_including_subtests": 25,
+    "passed_top_level_tests": 15,
+    "failed": 0,
+    "packages": [
+      {
+        "package": "cfw-policy-llm-agent/server/internal/storage",
+        "seconds": 0.017
+      },
+      {
+        "package": "cfw-policy-llm-agent/server/internal/protocolprobe",
+        "seconds": 0.42
+      },
+      {
+        "package": "cfw-policy-llm-agent/server/internal/httpapi",
+        "seconds": 0.486
+      }
+    ],
+    "cgo_enabled": false
+  },
+  "frontend": {
+    "event_tests_passed": 8,
+    "strict_typecheck": true,
+    "production_build": true
+  },
+  "browser": {
+    "browser": "155.0.8059.12",
+    "checks": [
+      "unlock clears credential field",
+      "three real HTTP tasks displayed running simultaneously",
+      "polling catches up all four committed events after pause",
+      "contiguous event sequence without duplicates",
+      "three distinct persisted task identities",
+      "second session has isolated complete event projection",
+      "observation controls create no duplicate execution",
+      "terminal SSE reconnect keeps projection deduplicated",
+      "controls support keyboard focus",
+      "390px layout contains horizontal overflow",
+      "reload requires fresh unlock",
+      "no credentials or detached cursor stored in browser storage",
+      "persisted task restored through read-only history",
+      "reload and history recovery do not create tasks",
+      "all observed HTTP resources and API calls remain loopback",
+      "no page JavaScript errors"
+    ],
+    "passed": 16,
+    "page_errors": 0,
+    "external_http_requests": 0
+  },
+  "production_browser_startup": {
+    "external_http_requests": 0,
+    "automatic_api_requests": 0,
+    "page_errors": 0,
+    "local_resource_requests": 5
+  },
+  "cli_smoke": {
+    "missing_token_refuses_startup": true,
+    "actual_second_process_refused": true
+  },
+  "api": {
+    "generator": "swaggo/swag v1.16.6",
+    "swagger_json_and_yaml_generated": true,
+    "repeat_generation_identical": true,
+    "actual_routes_matched": true
+  },
+  "limits": [
+    "Synthetic E0 job/event subset only; no business audit workflow.",
+    "Not a formal 2 CPU / 4 GiB performance measurement.",
+    "No real model capability, cloud account permissions, official STS renewal or human remediation/recheck acceptance.",
+    "No full five-page UI, persistent paid-attempt ledger, production recovery, slow-client or reverse-proxy acceptance."
+  ]
+}

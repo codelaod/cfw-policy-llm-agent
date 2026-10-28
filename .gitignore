@@ -17,6 +17,10 @@
 # 项目内依赖/构建缓存与实验可执行文件
 /.cache/
 /experiments/eino-offline/eino-offline
+/server/cfw-server
+/web/node_modules/
+/web/dist/
+/web/*.tsbuildinfo
 
 # 开题报告的本地排版导出；Markdown源稿与文献题录正常版本管理
 /docs/thesis-proposal/*.docx
