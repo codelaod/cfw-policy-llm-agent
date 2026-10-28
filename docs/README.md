@@ -1,6 +1,6 @@
 # 项目文档导航
 
-**当前基线：需求v0.6／B2和整体设计v0.6已通过（G1／G2，2026-10-27）。** [E0依赖契约](validation/evidence/e0-local.md)和[E1离线核心／持久闭环](validation/evidence/e1-local.md)已有实际证据；下一阶段为E2正式服务／Web，完整业务和真实接入仍未验收。
+**当前基线：需求v0.6／B2和整体设计v0.6已通过（G1／G2，2026-10-27）。** [E0依赖契约](validation/evidence/e0-local.md)和[E1离线核心／持久闭环](validation/evidence/e1-local.md)已有实际证据；[E2持久服务／五视图](validation/evidence/e2-local.md)已通过限定离线验证，当前推进尚未完成的E3受限Agent。真实接入与完整业务验收仍未完成。
 
 ## 1. 推荐阅读
 
@@ -18,7 +18,7 @@
 | 系统设计 | [design/](design/) | 已批准的架构与详细契约；小并发/API增补已经并入对应正文 |
 | 研发与交接 | [development/](development/) | E0～E5入口／退出条件、环境恢复、交付物与权限边界 |
 | 验证与证据 | [validation/](validation/) | 验证计划、评价方法、追溯、人工契约样例与真实执行记录分开 |
-| 已实现API | [api/](api/README.md) | E0实际生成Swagger JSON／YAML与事件schema；不冒充完整业务API |
+| 已实现API | [api/](api/README.md) | E2实际生成Swagger JSON／YAML与八类事件schema；只记录已注册接口 |
 | 技术调研 | [research/](research/) | 选型依据、替代方案和云能力资料，不作为第二套待选技术栈 |
 | 一手来源 | [references/](references/README.md) | 来源编号、核读摘要、日期和哈希清单 |
 | 论文 | [thesis-proposal/](thesis-proposal/README.md) | 开题正文、正式题录、阅读指南与一份编写说明 |
@@ -44,5 +44,5 @@
 - 变更需求范围、核心技术或验收目标仍须明确记录；本次分类整理不改变业务基线。
 - 只维护现行正文；旧版本与审批过程使用Git追溯，不另建批准文件快照或专用哈希机制。
 - “业务待确认”“未实现／未实测”保留真实含义，不属于未完成G1／G2审批。
-- 新接口文档在实现后放`docs/api/`，由固定工具生成并保留；E0已生成实际联调接口产物，未实现的业务API不放占位规范。
+- 新接口文档在实现后放`docs/api/`，由固定工具生成并保留；E2正式离线接口与E0隔离诊断接口按实际注册生成，未实现接口不放占位规范。
 - 文档改动检查链接、JSON、需求对应关系与引用；涉及原型文案时运行现有离线状态回归，不冒称业务验收。

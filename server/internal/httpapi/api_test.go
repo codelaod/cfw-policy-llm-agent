@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -597,6 +598,9 @@ func TestGeneratedSwaggerMatchesActualRoutes(t *testing.T) {
 		BasePath            string                                     `json:"basePath"`
 		Paths               map[string]map[string]json.RawMessage      `json:"paths"`
 		SecurityDefinitions map[string]struct{ Type, Name, In string } `json:"securityDefinitions"`
+		Definitions         map[string]struct {
+			Properties map[string]json.RawMessage `json:"properties"`
+		} `json:"definitions"`
 	}
 	if err := json.Unmarshal(data, &spec); err != nil {
 		t.Fatal(err)
@@ -608,9 +612,13 @@ func TestGeneratedSwaggerMatchesActualRoutes(t *testing.T) {
 	if security.Type != "apiKey" || security.In != "header" || security.Name != "X-App-Token" {
 		t.Fatalf("missing application header security: %#v", security)
 	}
+	if _, ok := spec.Definitions["httpapi.JobResult"].Properties["recheck"]; !ok {
+		t.Error("generated job result omits the persisted recheck comparison")
+	}
 	actual := map[string]bool{}
+	pathParam := regexp.MustCompile(`:([A-Za-z_][A-Za-z0-9_]*)`)
 	for _, route := range h.router.Routes() {
-		path := strings.ReplaceAll(strings.TrimPrefix(route.Path, spec.BasePath), ":id", "{id}")
+		path := pathParam.ReplaceAllString(strings.TrimPrefix(route.Path, spec.BasePath), "{$1}")
 		method := strings.ToLower(route.Method)
 		key := method + " " + path
 		actual[key] = true

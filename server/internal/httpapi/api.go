@@ -1,6 +1,7 @@
 package httpapi
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/json"
@@ -34,27 +35,53 @@ type CreateJob struct {
 }
 
 type API struct {
-	engine  *app.Engine
-	token   [32]byte
-	streams chan struct{}
+	engine        *app.Engine
+	token         [32]byte
+	secret        string
+	webDir        string
+	plans         *app.PlanService
+	audits        *app.AuditService
+	confirmations *app.ConfirmationService
+	streams       chan struct{}
 }
 
-func New(engine *app.Engine, token string) (*gin.Engine, error) {
+func New(engine *app.Engine, token string, options ...Options) (*gin.Engine, error) {
 	if len(token) < 16 {
 		return nil, errors.New("CFW_APP_TOKEN must contain at least 16 characters")
 	}
-	a := &API{engine: engine, token: sha256.Sum256([]byte(token)), streams: make(chan struct{}, 8)}
+	if engine == nil || engine.Store == nil {
+		return nil, errors.New("execution store required")
+	}
+	a := &API{engine: engine, token: sha256.Sum256([]byte(token)), secret: token, streams: make(chan struct{}, 8), plans: app.NewPlanService(engine.Store), audits: app.NewAuditService(engine.Store), confirmations: app.NewConfirmationService(engine.Store)}
+	if err := a.configureStatic(options); err != nil {
+		return nil, err
+	}
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
 	r.Use(gin.CustomRecoveryWithWriter(io.Discard, func(c *gin.Context, _ any) { fail(c, 500, "INTERNAL_ERROR", "request failed") }), a.protect)
 	r.GET("/api/v1/health", a.health)
 	r.POST("/api/v1/e0/jobs", a.create)
-	r.GET("/api/v1/e0/jobs/:id", a.job)
-	r.GET("/api/v1/e0/jobs/:id/events", a.events)
-	r.GET("/api/v1/e0/jobs/:id/events/stream", a.stream)
-	r.POST("/api/v1/e0/jobs/:id/cancel", a.cancel)
-	r.NoRoute(func(c *gin.Context) { fail(c, 404, "NOT_FOUND", "route not found") })
+	r.GET("/api/v1/e0/jobs/:id", a.checkJobKind, a.job)
+	r.GET("/api/v1/e0/jobs/:id/events", a.checkJobKind, a.events)
+	r.GET("/api/v1/e0/jobs/:id/events/stream", a.checkJobKind, a.stream)
+	r.POST("/api/v1/e0/jobs/:id/cancel", a.checkJobKind, a.cancel)
+	a.workspaceRoutes(r)
+	r.NoRoute(a.noRoute)
 	return r, nil
+}
+
+func (a *API) checkJobKind(c *gin.Context) {
+	j, err := a.engine.Store.Get(c.Request.Context(), c.Param("id"))
+	if err != nil {
+		storeError(c, err)
+		return
+	}
+	probePath := strings.HasPrefix(c.Request.URL.Path, "/api/v1/e0/")
+	if probePath != (j.Kind == "e0_probe") {
+		fail(c, 404, "NOT_FOUND", "task is unavailable at this route")
+		return
+	}
+	c.Next()
 }
 
 func fail(c *gin.Context, status int, code, message string) {
@@ -89,40 +116,115 @@ func (a *API) protect(c *gin.Context) {
 			return
 		}
 	}
+	if a.webDir != "" && !strings.HasPrefix(c.Request.URL.Path, "/api/") {
+		c.Next()
+		return
+	}
 	actual := sha256.Sum256([]byte(c.GetHeader("X-App-Token")))
 	if subtle.ConstantTimeCompare(actual[:], a.token[:]) != 1 {
 		fail(c, 401, "AUTH_REQUIRED", "unlock with application token")
 		return
 	}
+	// Reject the known application credential before business writes, including
+	// JSON escapes. Neither errors nor logs contain the rejected content.
+	if strings.Contains(c.Request.URL.String(), a.secret) || strings.Contains(c.GetHeader("Idempotency-Key"), a.secret) {
+		fail(c, 422, "CREDENTIAL_IN_PAYLOAD", "application credential cannot enter business data")
+		return
+	}
+	if c.Request.Body != nil && c.Request.ContentLength != 0 {
+		maximum := int64(32 << 10)
+		if c.Request.URL.Path == "/api/v1/snapshots/import" {
+			maximum = 5 << 20
+		}
+		body, err := io.ReadAll(http.MaxBytesReader(c.Writer, c.Request.Body, maximum))
+		if err != nil {
+			fail(c, 413, "PAYLOAD_TOO_LARGE", "request body exceeds its bound")
+			return
+		}
+		if len(body) > 0 {
+			var tree any
+			if json.Unmarshal(body, &tree) != nil {
+				fail(c, 422, "INVALID_REQUEST", "one JSON value required")
+				return
+			}
+			if hasSecret(tree, a.secret) {
+				fail(c, 422, "CREDENTIAL_IN_PAYLOAD", "application credential cannot enter business data")
+				return
+			}
+		}
+		c.Request.Body = io.NopCloser(bytes.NewReader(body))
+	}
 	c.Next()
+}
+
+func hasSecret(value any, secret string) bool {
+	switch v := value.(type) {
+	case string:
+		return strings.Contains(v, secret)
+	case []any:
+		for _, item := range v {
+			if hasSecret(item, secret) {
+				return true
+			}
+		}
+	case map[string]any:
+		for key, item := range v {
+			if strings.Contains(key, secret) || hasSecret(item, secret) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func storeError(c *gin.Context, err error) {
 	switch {
 	case errors.Is(err, storage.ErrNotFound):
-		fail(c, 404, "NOT_FOUND", "job not found")
+		fail(c, 404, "NOT_FOUND", "record not found")
+	case errors.Is(err, storage.ErrInputInvalid):
+		fail(c, 422, "INVALID_REQUEST", "invalid or unsupported request")
+	case errors.Is(err, storage.ErrVersionConflict):
+		fail(c, 409, "VERSION_CONFLICT", "saved version changed; reload before confirming")
+	case errors.Is(err, storage.ErrPlanStale):
+		fail(c, 409, "PLAN_STALE", "preview expired or input changed; preview again")
+	case errors.Is(err, storage.ErrPlanConsumed):
+		fail(c, 409, "PLAN_CONSUMED", "plan was already consumed")
+	case errors.Is(err, storage.ErrConversationArchived):
+		fail(c, 409, "CONVERSATION_ARCHIVED", "conversation is archived")
+	case errors.Is(err, storage.ErrJobTerminal):
+		fail(c, 409, "JOB_STATE_CONFLICT", "operation is not available in this task state")
+	case errors.Is(err, app.ErrSourceNotConfigured):
+		fail(c, 409, "SOURCE_NOT_CONFIGURED", "read-only source is not configured")
+	case errors.Is(err, app.ErrModelNotConfigured):
+		fail(c, 409, "MODEL_NOT_CONFIGURED", "model is not configured or authorized")
+	case errors.Is(err, app.ErrScopeDenied):
+		fail(c, 422, "SCOPE_DENIED", "object or scope is outside the fixed input")
+	case errors.Is(err, app.ErrRecheckNotComparable):
+		fail(c, 409, "RECHECK_NOT_COMPARABLE", "object_missing: an original audit object is absent from the new input")
+	case errors.Is(err, app.ErrStopping):
+		fail(c, 503, "SERVER_STOPPING", "server is stopping; execution admission is closed")
 	case errors.Is(err, storage.ErrCursor):
 		fail(c, 422, "INVALID_EVENT_CURSOR", "cursor must be within this job's persisted events")
 	case errors.Is(err, storage.ErrBusy):
-		fail(c, 409, "CONVERSATION_BUSY", "conversation already has an unfinished E0 job")
+		fail(c, 409, "CONVERSATION_BUSY", "conversation already has an unfinished task")
 	case errors.Is(err, storage.ErrConflict):
 		fail(c, 409, "IDEMPOTENCY_CONFLICT", "client_request_id was used for different input")
 	case errors.Is(err, storage.ErrCapacity):
-		fail(c, 429, "QUEUE_FULL", "E0 queue is full")
+		fail(c, 429, "QUEUE_FULL", "waiting queue is full")
 	default:
 		fail(c, 503, "STORAGE_UNAVAILABLE", "durable operation failed")
 	}
 }
 
 // health godoc
-// @Summary Read local E0 status (no outbound requests)
+// @Summary Read local offline service status (no outbound requests)
 // @Tags E0
 // @Produce json
 // @Security AppToken
 // @Success 200 {object} Health
 // @Failure 401,403 {object} Error
 // @Router /health [get]
-func (a *API) health(c *gin.Context) { c.JSON(200, Health{"E0", "synthetic", "ok"}) }
+func (a *API) health(c *gin.Context) { c.JSON(200, Health{"E2", "local-offline", "ok"}) }
 
 // create godoc
 // @Summary Start a synthetic local E0 probe; never a business audit
@@ -178,14 +280,15 @@ func validID(s string) bool {
 }
 
 // job godoc
-// @Summary Get a persisted E0 job and its view_seq
+// @Summary Get a persisted task and its view_seq
 // @Tags E0
 // @Produce json
 // @Security AppToken
-// @Param id path string true "E0 job ID"
+// @Param id path string true "Task ID"
 // @Success 200 {object} storage.Job
 // @Failure 401,403,404,503 {object} Error
 // @Router /e0/jobs/{id} [get]
+// @Router /jobs/{id} [get]
 func (a *API) job(c *gin.Context) {
 	j, err := a.engine.Store.Get(c.Request.Context(), c.Param("id"))
 	if err != nil {
@@ -221,12 +324,13 @@ func cursor(c *gin.Context) (int64, int, error) {
 // @Tags E0
 // @Produce json
 // @Security AppToken
-// @Param id path string true "E0 job ID"
+// @Param id path string true "Task ID"
 // @Param after_seq query integer false "Nonnegative decimal safe integer, no greater than last_seq" default(0)
 // @Param limit query integer false "Page size 1..100" default(100)
 // @Success 200 {object} storage.EventPage
 // @Failure 401,403,404,422,503 {object} Error
 // @Router /e0/jobs/{id}/events [get]
+// @Router /jobs/{id}/events [get]
 func (a *API) events(c *gin.Context) {
 	n, l, err := cursor(c)
 	if err != nil {
@@ -242,14 +346,15 @@ func (a *API) events(c *gin.Context) {
 }
 
 // cancel godoc
-// @Summary Explicitly cancel an E0 job (disconnecting observation does not cancel)
+// @Summary Explicitly cancel a task (disconnecting observation does not cancel)
 // @Tags E0
 // @Produce json
 // @Security AppToken
-// @Param id path string true "E0 job ID"
+// @Param id path string true "Task ID"
 // @Success 200 {object} storage.Job
 // @Failure 401,403,404,503 {object} Error
 // @Router /e0/jobs/{id}/cancel [post]
+// @Router /jobs/{id}/cancel [post]
 func (a *API) cancel(c *gin.Context) {
 	j, err := a.engine.Cancel(c.Request.Context(), c.Param("id"))
 	if err != nil {
@@ -260,18 +365,19 @@ func (a *API) cancel(c *gin.Context) {
 }
 
 // stream godoc
-// @Summary Observe committed E0 events; reconnect only reads persisted history
+// @Summary Observe committed task events; reconnect only reads persisted history
 // @Description See events.schema.json and the SSE contract. Lifetime 120s, heartbeat 15s, per-write deadline 10s. No model token streaming.
 // @Tags E0
 // @Produce text/event-stream
 // @Security AppToken
-// @Param id path string true "E0 job ID"
+// @Param id path string true "Task ID"
 // @Param after_seq query integer false "Last contiguous seq, nonnegative safe integer" default(0)
 // @Success 200 {string} string "SSE frames (id=seq, event=type, data=complete event JSON)"
 // @Header 200 {integer} X-Subscription-Lifetime-Seconds "120"
 // @Success 204 "Terminal job cursor already at event tail"
 // @Failure 401,403,404,422,429,503 {object} Error
 // @Router /e0/jobs/{id}/events/stream [get]
+// @Router /jobs/{id}/events/stream [get]
 func (a *API) stream(c *gin.Context) {
 	n, _, err := cursor(c)
 	if err != nil {

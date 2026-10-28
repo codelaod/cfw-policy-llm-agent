@@ -1,5 +1,686 @@
 basePath: /api/v1
 definitions:
+  app.AssetView:
+    properties:
+      asset:
+        $ref: '#/definitions/domain.Asset'
+      declared_asset:
+        $ref: '#/definitions/domain.Asset'
+      head:
+        $ref: '#/definitions/storage.AssetHeadVersion'
+      local_confirmed_sections:
+        items:
+          type: string
+        type: array
+      source_kind:
+        type: string
+    type: object
+  app.AssetViewPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/app.AssetView'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+      total:
+        type: integer
+    type: object
+  app.AssistantRequest:
+    properties:
+      client_message_id:
+        type: string
+      model_use_accepted:
+        type: boolean
+      policy_scope_ref:
+        type: string
+      report_id:
+        type: string
+      snapshot_id:
+        type: string
+      text:
+        type: string
+    type: object
+  app.DataPolicy:
+    properties:
+      allow_stale_fallback:
+        type: boolean
+      fresh_after:
+        type: string
+      mode:
+        enum:
+        - pinned_snapshot
+        - prefer_fresh
+        - force_refresh
+        type: string
+      snapshot_id:
+        type: string
+    type: object
+  app.PlanPreview:
+    properties:
+      budget_ref:
+        type: string
+      consumed_job_id:
+        type: string
+      context_report_id:
+        type: string
+      conversation_id:
+        type: string
+      conversation_revision:
+        type: integer
+      created_at:
+        type: string
+      data_source_id:
+        type: string
+      effect_ceiling:
+        $ref: '#/definitions/storage.EffectCeiling'
+      evaluation_at:
+        type: string
+      expires_at:
+        type: string
+      gaps:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      kind:
+        type: string
+      mode:
+        type: string
+      policy_scope_ref:
+        type: string
+      recheck_of_job_id:
+        type: string
+      request: {}
+      snapshot_id:
+        type: string
+      warnings:
+        items:
+          type: string
+        type: array
+    type: object
+  app.PlanRequest:
+    properties:
+      baseline_version_id:
+        type: string
+      conversation_id:
+        type: string
+      data_policy:
+        $ref: '#/definitions/app.DataPolicy'
+      data_source_id:
+        type: string
+      disclosure_policy_id:
+        type: string
+      evaluation_at:
+        type: string
+      intent_version_ids:
+        items:
+          type: string
+        type: array
+      kind:
+        enum:
+        - audit
+        - collect
+        - connection_check
+        type: string
+      mode:
+        enum:
+        - rules_only
+        - rules_and_agent
+        type: string
+      policy_scope_ref:
+        type: string
+      profile_version_ids:
+        items:
+          type: string
+        type: array
+      selection:
+        $ref: '#/definitions/app.PlanSelection'
+    type: object
+  app.PlanSelection:
+    properties:
+      asset_ids:
+        items:
+          type: string
+        type: array
+      gateway_ref:
+        type: string
+      kind:
+        enum:
+        - assets
+        - gateway_policy
+        type: string
+    type: object
+  app.RecheckRequest:
+    properties:
+      conversation_id:
+        type: string
+      reuse_evaluation_at:
+        type: boolean
+      snapshot_id:
+        type: string
+    type: object
+  domain.Access:
+    properties:
+      addresses:
+        items:
+          type: string
+        type: array
+      applicability:
+        type: string
+      ports:
+        items:
+          $ref: '#/definitions/domain.PortRange'
+        type: array
+      protocol:
+        type: string
+      scope_ref:
+        type: string
+    type: object
+  domain.AddressReference:
+    properties:
+      complete:
+        type: boolean
+      members:
+        items:
+          type: string
+        type: array
+      scope_ref:
+        type: string
+    type: object
+  domain.AddressSet:
+    properties:
+      ref:
+        type: string
+      values:
+        items:
+          type: string
+        type: array
+    type: object
+  domain.Asset:
+    properties:
+      address:
+        type: string
+      address_observed:
+        type: boolean
+      allowed:
+        items:
+          $ref: '#/definitions/domain.Access'
+        type: array
+      allowed_complete:
+        type: boolean
+      allowed_confirmed:
+        type: boolean
+      association:
+        $ref: '#/definitions/domain.Association'
+      deny_all:
+        type: boolean
+      id:
+        type: string
+      scope_ref:
+        type: string
+      services:
+        items:
+          $ref: '#/definitions/domain.Service'
+        type: array
+    type: object
+  domain.Association:
+    properties:
+      evidence_ref:
+        type: string
+      gateway_ref:
+        type: string
+      observation_point:
+        type: string
+      observed_at:
+        type: string
+      status:
+        type: string
+    type: object
+  domain.Baseline:
+    properties:
+      enabled_checks:
+        items:
+          type: string
+        type: array
+      exceptions:
+        items:
+          $ref: '#/definitions/domain.Exception'
+        type: array
+      risk_ports:
+        items:
+          $ref: '#/definitions/domain.RiskPort'
+        type: array
+      version:
+        type: string
+    type: object
+  domain.Cell:
+    properties:
+      action:
+        type: string
+      address_from:
+        type: string
+      address_to:
+        type: string
+      broad:
+        type: boolean
+      policy_ref:
+        type: string
+      port_from:
+        type: integer
+      port_to:
+        type: integer
+      reason:
+        type: string
+    type: object
+  domain.Completeness:
+    properties:
+      declared:
+        type: boolean
+      enumeration_complete:
+        type: boolean
+      known_gaps:
+        items:
+          type: string
+        type: array
+      observation_consistency:
+        type: string
+    type: object
+  domain.Coverage:
+    properties:
+      complete:
+        type: boolean
+      evaluated_cells:
+        type: integer
+      evaluated_queries:
+        type: integer
+      limitations:
+        items:
+          type: string
+        type: array
+    type: object
+  domain.Evidence:
+    properties:
+      field:
+        type: string
+      id:
+        type: string
+      observed_at:
+        type: string
+      policy_ref:
+        type: string
+      scope_ref:
+        type: string
+      snapshot_version:
+        type: string
+      subject_ref:
+        type: string
+      summary:
+        type: string
+    type: object
+  domain.Exception:
+    properties:
+      check_id:
+        type: string
+      confirmed:
+        type: boolean
+      expires_at:
+        type: string
+      reason:
+        type: string
+      scope_ref:
+        type: string
+      service_ref:
+        type: string
+      subcheck:
+        type: string
+      subject_ref:
+        type: string
+    type: object
+  domain.Finding:
+    properties:
+      accepted_exception:
+        type: boolean
+      assessment_basis:
+        type: string
+      assumptions:
+        items:
+          type: string
+        type: array
+      differences:
+        items:
+          $ref: '#/definitions/domain.Cell'
+        type: array
+      evidence_refs:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      issue_key:
+        type: string
+      limitations:
+        items:
+          type: string
+        type: array
+      origin:
+        type: string
+      policy_scope_ref:
+        type: string
+      query_scope:
+        $ref: '#/definitions/domain.Query'
+      remediation_priority:
+        type: string
+      rule_id:
+        type: string
+      rule_version:
+        type: string
+      service_ref:
+        type: string
+      severity:
+        type: string
+      subcheck:
+        type: string
+      subject_ref:
+        type: string
+      summary:
+        type: string
+      verdict:
+        type: string
+    type: object
+  domain.Input:
+    properties:
+      address_refs:
+        additionalProperties:
+          $ref: '#/definitions/domain.AddressReference'
+        type: object
+      assets:
+        items:
+          $ref: '#/definitions/domain.Asset'
+        type: array
+      baseline:
+        $ref: '#/definitions/domain.Baseline'
+      collected_at:
+        type: string
+      completeness:
+        $ref: '#/definitions/domain.Completeness'
+      evaluation_at:
+        type: string
+      intent_version:
+        type: string
+      kernel_version:
+        type: string
+      normalizer_version:
+        type: string
+      policies:
+        items:
+          $ref: '#/definitions/domain.Policy'
+        type: array
+      port_refs:
+        additionalProperties:
+          $ref: '#/definitions/domain.PortReference'
+        type: object
+      profile_version:
+        type: string
+      protection:
+        $ref: '#/definitions/domain.Protection'
+      provider_semantics:
+        $ref: '#/definitions/domain.Semantics'
+      schema_version:
+        type: integer
+      scope:
+        $ref: '#/definitions/domain.Scope'
+      selection:
+        $ref: '#/definitions/domain.Selection'
+      snapshot_version:
+        type: string
+      source_kind:
+        type: string
+    type: object
+  domain.InputManifest:
+    properties:
+      baseline_version:
+        type: string
+      collected_at:
+        type: string
+      evaluation_at:
+        type: string
+      intent_version:
+        type: string
+      kernel_version:
+        type: string
+      normalizer_version:
+        type: string
+      policy_scope:
+        $ref: '#/definitions/domain.Scope'
+      profile_version:
+        type: string
+      provider_semantics:
+        $ref: '#/definitions/domain.Semantics'
+      snapshot_version:
+        type: string
+      source_kind:
+        type: string
+    type: object
+  domain.Policy:
+    properties:
+      action:
+        type: string
+      conditions:
+        additionalProperties: {}
+        type: object
+      destination:
+        $ref: '#/definitions/domain.AddressSet'
+      enabled:
+        type: string
+      id:
+        type: string
+      order_known:
+        type: boolean
+      ports:
+        $ref: '#/definitions/domain.PortSet'
+      priority:
+        type: integer
+      protocol:
+        type: string
+      scope_ref:
+        type: string
+      source:
+        $ref: '#/definitions/domain.AddressSet'
+    type: object
+  domain.PortRange:
+    properties:
+      from:
+        type: integer
+      to:
+        type: integer
+    type: object
+  domain.PortReference:
+    properties:
+      complete:
+        type: boolean
+      members:
+        items:
+          $ref: '#/definitions/domain.PortRange'
+        type: array
+      scope_ref:
+        type: string
+    type: object
+  domain.PortSet:
+    properties:
+      ref:
+        type: string
+      values:
+        items:
+          $ref: '#/definitions/domain.PortRange'
+        type: array
+    type: object
+  domain.Protection:
+    properties:
+      applicable:
+        type: boolean
+      evidence_ref:
+        type: string
+      required:
+        type: boolean
+      state:
+        type: string
+    type: object
+  domain.Query:
+    properties:
+      addresses:
+        items:
+          type: string
+        type: array
+      fixed_address:
+        type: string
+      ports:
+        items:
+          $ref: '#/definitions/domain.PortRange'
+        type: array
+      protocol:
+        type: string
+      service_ref:
+        type: string
+      subject_ref:
+        type: string
+    type: object
+  domain.Result:
+    properties:
+      coverage:
+        $ref: '#/definitions/domain.Coverage'
+      evidence:
+        items:
+          $ref: '#/definitions/domain.Evidence'
+        type: array
+      findings:
+        items:
+          $ref: '#/definitions/domain.Finding'
+        type: array
+      input_manifest:
+        $ref: '#/definitions/domain.InputManifest'
+      schema_version:
+        type: integer
+    type: object
+  domain.RiskPort:
+    properties:
+      port:
+        type: integer
+      protocol:
+        type: string
+      topic:
+        type: string
+    type: object
+  domain.Scope:
+    properties:
+      account_ref:
+        type: string
+      boundary:
+        type: string
+      control_plane_ref:
+        type: string
+      direction:
+        type: string
+      gateway_ref:
+        type: string
+      ip_family:
+        type: string
+      policy_set_ref:
+        type: string
+      provider:
+        type: string
+      ref:
+        type: string
+    type: object
+  domain.Selection:
+    properties:
+      asset_ids:
+        items:
+          type: string
+        type: array
+      kind:
+        type: string
+    type: object
+  domain.Semantics:
+    properties:
+      default_action:
+        type: string
+      profile_id:
+        type: string
+      source_ref:
+        type: string
+      version:
+        type: string
+    type: object
+  domain.Service:
+    properties:
+      allowed:
+        items:
+          $ref: '#/definitions/domain.Access'
+        type: array
+      allowed_complete:
+        type: boolean
+      allowed_confirmed:
+        type: boolean
+      deny_all:
+        type: boolean
+      id:
+        type: string
+      ports:
+        items:
+          $ref: '#/definitions/domain.PortRange'
+        type: array
+      protocol:
+        type: string
+      public_access:
+        type: string
+      required:
+        items:
+          $ref: '#/definitions/domain.Access'
+        type: array
+      required_confirmed:
+        type: boolean
+      role:
+        type: string
+      role_status:
+        type: string
+    type: object
+  httpapi.Capabilities:
+    properties:
+      m1_enabled:
+        type: boolean
+      model_available:
+        type: boolean
+      model_configured:
+        type: boolean
+      model_mode:
+        type: string
+      offline_available:
+        type: boolean
+      worker_slots:
+        type: integer
+    type: object
+  httpapi.ConversationPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/storage.Conversation'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  httpapi.ConversationRequest:
+    properties:
+      policy_scope_ref:
+        type: string
+      title:
+        type: string
+    type: object
   httpapi.CreateJob:
     properties:
       client_request_id:
@@ -10,12 +691,86 @@ definitions:
     - client_request_id
     - conversation_id
     type: object
+  httpapi.DataSource:
+    properties:
+      available:
+        type: boolean
+      cloud_reads:
+        type: boolean
+      id:
+        type: string
+      kind:
+        type: string
+      label:
+        type: string
+    type: object
+  httpapi.DataSourcePage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/httpapi.DataSource'
+        type: array
+    type: object
   httpapi.Error:
     properties:
       code:
         type: string
       message:
         type: string
+    type: object
+  httpapi.EvidenceValue:
+    properties:
+      field:
+        type: string
+      id:
+        type: string
+      observed_at:
+        type: string
+      policy_ref:
+        type: string
+      scope_ref:
+        type: string
+      snapshot_version:
+        type: string
+      subject_ref:
+        type: string
+      summary:
+        type: string
+      value: {}
+    type: object
+  httpapi.FindingDetail:
+    properties:
+      audit_id:
+        type: string
+      evidence:
+        items:
+          $ref: '#/definitions/httpapi.EvidenceValue'
+        type: array
+      finding:
+        $ref: '#/definitions/domain.Finding'
+      finding_key:
+        type: string
+      id:
+        type: string
+      plan:
+        type: string
+      review_revision:
+        type: integer
+      snapshot_id:
+        type: string
+      source_kind:
+        type: string
+    type: object
+  httpapi.FindingPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/storage.FindingView'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
     type: object
   httpapi.Health:
     properties:
@@ -26,6 +781,384 @@ definitions:
       status:
         type: string
     type: object
+  httpapi.JobPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/storage.Job'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  httpapi.JobResult:
+    properties:
+      audit:
+        $ref: '#/definitions/storage.AuditRecord'
+      completed_phases:
+        items:
+          type: string
+        type: array
+      is_final:
+        type: boolean
+      recheck:
+        $ref: '#/definitions/httpapi.RecheckView'
+      view_seq:
+        type: integer
+    type: object
+  httpapi.PolicyPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.Policy'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  httpapi.RecheckView:
+    properties:
+      comparison:
+        $ref: '#/definitions/recheck.Comparison'
+      created_at:
+        type: string
+      id:
+        type: string
+      new_audit_id:
+        type: string
+      old_audit_id:
+        type: string
+    type: object
+  httpapi.RejectRequest:
+    properties:
+      expected_draft_revision:
+        type: integer
+    type: object
+  httpapi.ReportPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/storage.ReportView'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  httpapi.ReportRequest:
+    properties:
+      audit_id:
+        type: string
+      format:
+        type: string
+    type: object
+  httpapi.ReviewPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/storage.ReviewAction'
+        type: array
+    type: object
+  httpapi.ScopePage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/domain.Scope'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  httpapi.SendResponse:
+    properties:
+      job:
+        $ref: '#/definitions/storage.Job'
+      message:
+        $ref: '#/definitions/storage.ConversationMessage'
+      replayed:
+        type: boolean
+    type: object
+  httpapi.SnapshotPage:
+    properties:
+      items:
+        items:
+          $ref: '#/definitions/storage.SnapshotRecord'
+        type: array
+      limit:
+        type: integer
+      offset:
+        type: integer
+    type: object
+  httpapi.StartRequest:
+    properties:
+      plan_id:
+        type: string
+    type: object
+  httpapi.WorkspaceRequest:
+    properties:
+      conversation_id:
+        type: string
+      expected_revision:
+        type: integer
+    type: object
+  recheck.Comparison:
+    properties:
+      comparable:
+        type: boolean
+      issues:
+        items:
+          $ref: '#/definitions/recheck.IssueChange'
+        type: array
+      reasons:
+        items:
+          type: string
+        type: array
+      schema_version:
+        type: integer
+    type: object
+  recheck.IssueChange:
+    properties:
+      issue_key:
+        type: string
+      new_finding_ids:
+        items:
+          type: string
+        type: array
+      old_finding_ids:
+        items:
+          type: string
+        type: array
+      state:
+        type: string
+    type: object
+  storage.AssetAccessChange:
+    properties:
+      allowed:
+        items:
+          $ref: '#/definitions/domain.Access'
+        type: array
+      allowed_complete:
+        type: boolean
+      deny_all:
+        type: boolean
+      exceptions:
+        items:
+          $ref: '#/definitions/domain.Exception'
+        type: array
+      services:
+        items:
+          $ref: '#/definitions/storage.ServiceAccessChange'
+        type: array
+    type: object
+  storage.AssetDraftChange:
+    properties:
+      access:
+        $ref: '#/definitions/storage.AssetAccessChange'
+      asset_id:
+        type: string
+      roles:
+        items:
+          $ref: '#/definitions/storage.RoleChange'
+        type: array
+    type: object
+  storage.AssetHeadVersion:
+    properties:
+      asset_id:
+        type: string
+      intent_version_id:
+        type: string
+      profile_version_id:
+        type: string
+      revision:
+        type: integer
+    type: object
+  storage.AuditRecord:
+    properties:
+      created_at:
+        type: string
+      findings:
+        items:
+          $ref: '#/definitions/storage.FindingRecord'
+        type: array
+      id:
+        type: string
+      input:
+        $ref: '#/definitions/domain.Input'
+      result:
+        $ref: '#/definitions/domain.Result'
+      snapshot_id:
+        type: string
+    type: object
+  storage.ConfirmDraftRequest:
+    properties:
+      confirmed_sections:
+        items:
+          type: string
+        type: array
+      expected_draft_revision:
+        type: integer
+      preview_id:
+        type: string
+    type: object
+  storage.ConfirmationDiff:
+    properties:
+      after: {}
+      asset_id:
+        type: string
+      before: {}
+      section:
+        type: string
+    type: object
+  storage.ConfirmationPreview:
+    properties:
+      base_revisions:
+        items:
+          $ref: '#/definitions/storage.AssetHeadVersion'
+        type: array
+      confirmable_sections:
+        items:
+          type: string
+        type: array
+      created_at:
+        type: string
+      diff:
+        items:
+          $ref: '#/definitions/storage.ConfirmationDiff'
+        type: array
+      draft_id:
+        type: string
+      draft_revision:
+        type: integer
+      preview_id:
+        type: string
+      section_dependencies:
+        additionalProperties:
+          items:
+            type: string
+          type: array
+        type: object
+      validation_errors:
+        items:
+          $ref: '#/definitions/storage.DraftValidationError'
+        type: array
+    type: object
+  storage.ConfirmationResult:
+    properties:
+      action_id:
+        type: string
+      draft_id:
+        type: string
+      heads:
+        items:
+          $ref: '#/definitions/storage.AssetHeadVersion'
+        type: array
+      revision:
+        type: integer
+      saved_at:
+        type: string
+      status:
+        type: string
+    type: object
+  storage.Conversation:
+    properties:
+      archived:
+        type: boolean
+      created_at:
+        type: string
+      id:
+        type: string
+      last_seq:
+        type: integer
+      policy_scope_ref:
+        type: string
+      revision:
+        type: integer
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  storage.ConversationMessage:
+    properties:
+      conversation_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      job_id:
+        type: string
+      origin:
+        type: string
+      policy_scope_ref:
+        type: string
+      public_text:
+        type: string
+      ref_id:
+        type: string
+      ref_kind:
+        type: string
+      role:
+        type: string
+      seq:
+        type: integer
+    type: object
+  storage.ConversationMessagePage:
+    properties:
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/storage.ConversationMessage'
+        type: array
+      last_seq:
+        type: integer
+      next_seq:
+        type: integer
+    type: object
+  storage.ConversationPatch:
+    properties:
+      archived:
+        type: boolean
+      expected_revision:
+        type: integer
+      policy_scope_ref:
+        type: string
+      title:
+        type: string
+    type: object
+  storage.CreateDraftRequest:
+    properties:
+      asset_ids:
+        items:
+          type: string
+        type: array
+      snapshot_id:
+        type: string
+    type: object
+  storage.DraftValidationError:
+    properties:
+      asset_id:
+        type: string
+      code:
+        type: string
+      section:
+        type: string
+    type: object
+  storage.EffectCeiling:
+    properties:
+      allow_cloud_reads:
+        type: boolean
+      allow_model_requests:
+        type: boolean
+      cloud_http_attempts:
+        type: integer
+      model_http_attempts:
+        type: integer
+    type: object
   storage.Event:
     properties:
       job_id:
@@ -33,8 +1166,7 @@ definitions:
       occurred_at:
         type: string
       payload:
-        additionalProperties:
-          type: string
+        additionalProperties: {}
         type: object
       schema_version:
         type: integer
@@ -56,15 +1188,67 @@ definitions:
       next_seq:
         type: integer
     type: object
+  storage.FindingRecord:
+    properties:
+      audit_id:
+        type: string
+      finding:
+        $ref: '#/definitions/domain.Finding'
+      finding_key:
+        type: string
+      id:
+        type: string
+    type: object
+  storage.FindingView:
+    properties:
+      audit_id:
+        type: string
+      finding:
+        $ref: '#/definitions/domain.Finding'
+      finding_key:
+        type: string
+      id:
+        type: string
+      plan:
+        type: string
+      review_revision:
+        type: integer
+      snapshot_id:
+        type: string
+      source_kind:
+        type: string
+    type: object
   storage.Job:
     properties:
+      budget_ref:
+        type: string
       conversation_id:
         type: string
       created_at:
         type: string
+      error_code:
+        type: string
+      execution_deadline:
+        type: string
       finished_at:
         type: string
       id:
+        type: string
+      kind:
+        enum:
+        - e0_probe
+        - audit
+        - collect
+        - connection_check
+        - assistant_turn
+        type: string
+      plan_id:
+        type: string
+      queue_deadline:
+        type: string
+      result_ref:
+        type: string
+      root_deadline:
         type: string
       started_at:
         type: string
@@ -73,13 +1257,443 @@ definitions:
       view_seq:
         type: integer
     type: object
+  storage.ProfileDraft:
+    properties:
+      base_revisions:
+        items:
+          $ref: '#/definitions/storage.AssetHeadVersion'
+        type: array
+      changes:
+        items:
+          $ref: '#/definitions/storage.AssetDraftChange'
+        type: array
+      confirmation_id:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      policy_scope_ref:
+        type: string
+      preview_id:
+        type: string
+      revision:
+        type: integer
+      snapshot_id:
+        type: string
+      status:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  storage.ReportView:
+    properties:
+      audit_id:
+        type: string
+      created_at:
+        type: string
+      format:
+        type: string
+      id:
+        type: string
+      job_id:
+        type: string
+      reviews:
+        items:
+          $ref: '#/definitions/storage.ReviewHead'
+        type: array
+    type: object
+  storage.ReviewAction:
+    properties:
+      action_id:
+        type: string
+      comment:
+        type: string
+      finding_id:
+        type: string
+      kind:
+        type: string
+      plan:
+        type: string
+      reason:
+        type: string
+      review_revision:
+        type: integer
+      saved_at:
+        type: string
+    type: object
+  storage.ReviewHead:
+    properties:
+      finding_id:
+        type: string
+      finding_key:
+        type: string
+      plan:
+        type: string
+      review_revision:
+        type: integer
+    type: object
+  storage.ReviewRequest:
+    properties:
+      comment:
+        type: string
+      expected_review_revision:
+        type: integer
+      kind:
+        type: string
+      plan:
+        type: string
+      reason:
+        type: string
+    type: object
+  storage.RoleChange:
+    properties:
+      ports:
+        items:
+          $ref: '#/definitions/domain.PortRange'
+        type: array
+      protocol:
+        type: string
+      role:
+        type: string
+      service_id:
+        type: string
+    type: object
+  storage.ServiceAccessChange:
+    properties:
+      allowed:
+        items:
+          $ref: '#/definitions/domain.Access'
+        type: array
+      allowed_complete:
+        type: boolean
+      deny_all:
+        type: boolean
+      public_access:
+        type: string
+      required:
+        items:
+          $ref: '#/definitions/domain.Access'
+        type: array
+      required_confirmed:
+        type: boolean
+      service_id:
+        type: string
+    type: object
+  storage.SnapshotRecord:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: string
+      input:
+        $ref: '#/definitions/domain.Input'
+      policy_scope_ref:
+        type: string
+      source_kind:
+        type: string
+    type: object
+  storage.UpdateDraftRequest:
+    properties:
+      changes:
+        items:
+          $ref: '#/definitions/storage.AssetDraftChange'
+        type: array
+      expected_draft_revision:
+        type: integer
+    type: object
+  storage.WorkspaceState:
+    properties:
+      current_conversation_id:
+        type: string
+      id:
+        type: string
+      revision:
+        type: integer
+    type: object
 info:
   contact: {}
-  description: Synthetic E0 endpoints only; no cloud/model integration or business
-    audit.
-  title: CFW E0 local contract probe
-  version: 0.1.0
+  description: Persistent offline rule audits, confirmations, reports and task observation.
+    Cloud and model adapters are not configured.
+  title: CFW offline audit workspace
+  version: 0.2.0
 paths:
+  /audits/{id}:
+    get:
+      parameters:
+      - description: Audit result ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.AuditRecord'
+      security:
+      - AppToken: []
+      summary: Read an immutable audit result and its sealed effective input
+      tags:
+      - Findings
+  /audits/{id}/rechecks:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Old audit job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: New fixed snapshot and evaluation time policy
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app.RecheckRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/app.PlanPreview'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Preview a new audit linked to the old job; explicit plan acceptance
+        still required
+      tags:
+      - Execution
+  /capabilities:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.Capabilities'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Read configured local capabilities without external calls
+      tags:
+      - Workspace
+  /conversations:
+    get:
+      parameters:
+      - default: 0
+        description: Offset
+        in: query
+        name: offset
+        type: integer
+      - default: 100
+        description: Page size 1..100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.ConversationPage'
+      security:
+      - AppToken: []
+      summary: List durable conversations
+      tags:
+      - Conversations
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Title and known scope, or empty scope
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.ConversationRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/storage.Conversation'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Create and select a conversation without starting a task
+      tags:
+      - Conversations
+  /conversations/{id}:
+    get:
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.Conversation'
+      security:
+      - AppToken: []
+      summary: Reopen a durable conversation
+      tags:
+      - Conversations
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Revision and changed fields
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/storage.ConversationPatch'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.Conversation'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Edit title, scope or archive state with revision check
+      tags:
+      - Conversations
+  /conversations/{id}/messages:
+    get:
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 0
+        description: Last contiguous message seq
+        in: query
+        name: after_seq
+        type: integer
+      - default: 100
+        description: Page size 1..100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.ConversationMessagePage'
+      security:
+      - AppToken: []
+      summary: Read public messages without replaying model calls
+      tags:
+      - Conversations
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Explicit model acceptance and fixed input
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app.AssistantRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Idempotent replay
+          schema:
+            $ref: '#/definitions/httpapi.SendResponse'
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/httpapi.SendResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Explicitly send a bounded assistant turn, with no cloud reads
+      tags:
+      - Conversations
+  /data-sources:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.DataSourcePage'
+      security:
+      - AppToken: []
+      summary: List local configured sources without credential discovery
+      tags:
+      - Workspace
   /e0/jobs:
     post:
       consumes:
@@ -134,7 +1748,7 @@ paths:
   /e0/jobs/{id}:
     get:
       parameters:
-      - description: E0 job ID
+      - description: Task ID
         in: path
         name: id
         required: true
@@ -164,13 +1778,13 @@ paths:
             $ref: '#/definitions/httpapi.Error'
       security:
       - AppToken: []
-      summary: Get a persisted E0 job and its view_seq
+      summary: Get a persisted task and its view_seq
       tags:
       - E0
   /e0/jobs/{id}/cancel:
     post:
       parameters:
-      - description: E0 job ID
+      - description: Task ID
         in: path
         name: id
         required: true
@@ -200,13 +1814,13 @@ paths:
             $ref: '#/definitions/httpapi.Error'
       security:
       - AppToken: []
-      summary: Explicitly cancel an E0 job (disconnecting observation does not cancel)
+      summary: Explicitly cancel a task (disconnecting observation does not cancel)
       tags:
       - E0
   /e0/jobs/{id}/events:
     get:
       parameters:
-      - description: E0 job ID
+      - description: Task ID
         in: path
         name: id
         required: true
@@ -258,7 +1872,7 @@ paths:
       description: See events.schema.json and the SSE contract. Lifetime 120s, heartbeat
         15s, per-write deadline 10s. No model token streaming.
       parameters:
-      - description: E0 job ID
+      - description: Task ID
         in: path
         name: id
         required: true
@@ -307,9 +1921,159 @@ paths:
             $ref: '#/definitions/httpapi.Error'
       security:
       - AppToken: []
-      summary: Observe committed E0 events; reconnect only reads persisted history
+      summary: Observe committed task events; reconnect only reads persisted history
       tags:
       - E0
+  /execution-plans:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Fixed offline scope and selection
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app.PlanRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/app.PlanPreview'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Preview and freeze bounded effects without starting execution
+      tags:
+      - Execution
+  /findings:
+    get:
+      parameters:
+      - description: Audit result filter
+        in: query
+        name: audit_id
+        type: string
+      - default: 0
+        description: Offset
+        in: query
+        name: offset
+        type: integer
+      - default: 100
+        description: Page size 1..100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.FindingPage'
+      security:
+      - AppToken: []
+      summary: List original findings with durable review heads
+      tags:
+      - Findings
+  /findings/{id}:
+    get:
+      parameters:
+      - description: Finding record ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.FindingDetail'
+      security:
+      - AppToken: []
+      summary: Read evidence values from this audit's fixed effective input
+      tags:
+      - Findings
+  /findings/{id}/review-actions:
+    get:
+      parameters:
+      - description: Finding record ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 0
+        description: Revision cursor
+        in: query
+        name: after_revision
+        type: integer
+      - default: 100
+        description: Page size 1..100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.ReviewPage'
+      security:
+      - AppToken: []
+      summary: Read immutable review actions
+      tags:
+      - Findings
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Finding record ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Stable review operation key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Expected revision and action
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/storage.ReviewRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/storage.ReviewAction'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Append a review with CAS and idempotency
+      tags:
+      - Findings
   /health:
     get:
       produces:
@@ -329,9 +2093,825 @@ paths:
             $ref: '#/definitions/httpapi.Error'
       security:
       - AppToken: []
-      summary: Read local E0 status (no outbound requests)
+      summary: Read local offline service status (no outbound requests)
       tags:
       - E0
+  /jobs:
+    get:
+      parameters:
+      - description: Conversation filter
+        in: query
+        name: conversation_id
+        type: string
+      - default: 0
+        description: Offset
+        in: query
+        name: offset
+        type: integer
+      - default: 100
+        description: Page size 1..100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.JobPage'
+      security:
+      - AppToken: []
+      summary: List bounded persisted tasks
+      tags:
+      - Execution
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Stable key retained on unknown response
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Only plan_id is accepted
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.StartRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Idempotent replay
+          schema:
+            $ref: '#/definitions/storage.Job'
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/storage.Job'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Accept a previously previewed plan
+      tags:
+      - Execution
+  /jobs/{id}:
+    get:
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.Job'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Get a persisted task and its view_seq
+      tags:
+      - E0
+  /jobs/{id}/cancel:
+    post:
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.Job'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Explicitly cancel a task (disconnecting observation does not cancel)
+      tags:
+      - E0
+  /jobs/{id}/events:
+    get:
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 0
+        description: Nonnegative decimal safe integer, no greater than last_seq
+        in: query
+        name: after_seq
+        type: integer
+      - default: 100
+        description: Page size 1..100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.EventPage'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Read a consistent persisted event page; no execution side effects
+      tags:
+      - E0
+  /jobs/{id}/events/stream:
+    get:
+      description: See events.schema.json and the SSE contract. Lifetime 120s, heartbeat
+        15s, per-write deadline 10s. No model token streaming.
+      parameters:
+      - description: Task ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 0
+        description: Last contiguous seq, nonnegative safe integer
+        in: query
+        name: after_seq
+        type: integer
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE frames (id=seq, event=type, data=complete event JSON)
+          headers:
+            X-Subscription-Lifetime-Seconds:
+              description: "120"
+              type: integer
+          schema:
+            type: string
+        "204":
+          description: Terminal job cursor already at event tail
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "403":
+          description: Forbidden
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "429":
+          description: Too Many Requests
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Observe committed task events; reconnect only reads persisted history
+      tags:
+      - E0
+  /jobs/{id}/result:
+    get:
+      parameters:
+      - description: Job ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.JobResult'
+      security:
+      - AppToken: []
+      summary: Read saved L2 results and finality from one database snapshot
+      tags:
+      - Execution
+  /policy-scopes:
+    get:
+      parameters:
+      - default: 0
+        description: Offset
+        in: query
+        name: offset
+        type: integer
+      - default: 100
+        description: Page size 1..100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.ScopePage'
+      security:
+      - AppToken: []
+      summary: List locally known policy scopes
+      tags:
+      - Workspace
+  /profile-drafts:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Fixed snapshot and asset IDs
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/storage.CreateDraftRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/storage.ProfileDraft'
+      security:
+      - AppToken: []
+      summary: Create a business confirmation draft for explicit assets
+      tags:
+      - Confirmation
+  /profile-drafts/{id}:
+    get:
+      parameters:
+      - description: Draft ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.ProfileDraft'
+      security:
+      - AppToken: []
+      summary: Reload a durable business draft
+      tags:
+      - Confirmation
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Draft ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Expected revision and explicit changes
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/storage.UpdateDraftRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.ProfileDraft'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Save draft changes with revision check
+      tags:
+      - Confirmation
+  /profile-drafts/{id}/confirm:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Draft ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Stable confirmation key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Preview identity, revision and selected sections
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/storage.ConfirmDraftRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.ConfirmationResult'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Atomically confirm only explicitly selected business sections
+      tags:
+      - Confirmation
+  /profile-drafts/{id}/preview:
+    post:
+      parameters:
+      - description: Draft ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.ConfirmationPreview'
+      security:
+      - AppToken: []
+      summary: Preview normalized differences without confirming any section
+      tags:
+      - Confirmation
+  /profile-drafts/{id}/reject:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Draft ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Stable rejection key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Expected draft revision
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.RejectRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.ConfirmationResult'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Reject a candidate while preserving old confirmed versions
+      tags:
+      - Confirmation
+  /reports:
+    get:
+      parameters:
+      - description: Audit result filter
+        in: query
+        name: audit_id
+        type: string
+      - default: 0
+        description: Offset
+        in: query
+        name: offset
+        type: integer
+      - default: 100
+        description: Page size 1..100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.ReportPage'
+      security:
+      - AppToken: []
+      summary: List fixed public report versions
+      tags:
+      - Reports
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Stable report operation key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Audit ID and json or markdown format
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.ReportRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/storage.ReportView'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Create a fixed public projection from saved results and review heads
+      tags:
+      - Reports
+  /reports/{id}:
+    get:
+      parameters:
+      - description: Report ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.ReportView'
+      security:
+      - AppToken: []
+      summary: Read fixed report metadata and its originating job if present
+      tags:
+      - Reports
+  /reports/{id}/content:
+    get:
+      parameters:
+      - description: Report ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      - text/markdown
+      responses:
+        "200":
+          description: OK
+          schema:
+            type: file
+      security:
+      - AppToken: []
+      summary: Download a fixed public report with application access protection
+      tags:
+      - Reports
+  /snapshots:
+    get:
+      parameters:
+      - default: 0
+        description: Offset
+        in: query
+        name: offset
+        type: integer
+      - default: 100
+        description: Page size 1..100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.SnapshotPage'
+      security:
+      - AppToken: []
+      summary: List immutable local inputs
+      tags:
+      - Inputs
+  /snapshots/{id}:
+    get:
+      parameters:
+      - description: Snapshot ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.SnapshotRecord'
+      security:
+      - AppToken: []
+      summary: Read one immutable input
+      tags:
+      - Inputs
+  /snapshots/{id}/assets:
+    get:
+      parameters:
+      - description: Snapshot ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 0
+        description: Offset
+        in: query
+        name: offset
+        type: integer
+      - default: 100
+        description: Page size 1..100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.AssetViewPage'
+      security:
+      - AppToken: []
+      summary: Read assets with declared and locally confirmed business context separated
+      tags:
+      - Inputs
+  /snapshots/{id}/assets/{asset_id}:
+    get:
+      parameters:
+      - description: Snapshot ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Asset ID
+        in: path
+        name: asset_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.AssetView'
+      security:
+      - AppToken: []
+      summary: Read a selected asset and current local confirmation versions
+      tags:
+      - Inputs
+  /snapshots/{id}/policies:
+    get:
+      parameters:
+      - description: Snapshot ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - default: 0
+        description: Offset
+        in: query
+        name: offset
+        type: integer
+      - default: 100
+        description: Page size 1..100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.PolicyPage'
+      security:
+      - AppToken: []
+      summary: Read fixed policy configuration evidence
+      tags:
+      - Inputs
+  /snapshots/examples/{name}:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: internet-in, internet-out or nat-out
+        in: path
+        name: name
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/storage.SnapshotRecord'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Load a server-owned public synthetic example
+      tags:
+      - Inputs
+  /snapshots/import:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Fixed input, maximum 5 MiB; source is server assigned
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/domain.Input'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/storage.SnapshotRecord'
+        "413":
+          description: Request Entity Too Large
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Import a bounded JSON artifact with unverified imported provenance
+      tags:
+      - Inputs
+  /workspaces/current:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.WorkspaceState'
+      security:
+      - AppToken: []
+      summary: Read persistent current conversation
+      tags:
+      - Workspace
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Explicit selection
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/httpapi.WorkspaceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.WorkspaceState'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Select the current conversation with revision check
+      tags:
+      - Workspace
 securityDefinitions:
   AppToken:
     in: header

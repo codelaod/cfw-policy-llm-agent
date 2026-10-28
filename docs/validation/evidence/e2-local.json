@@ -1,0 +1,190 @@
+{
+  "date": "2026-10-28",
+  "stage": "E2",
+  "status": "passed_limited_offline",
+  "execution": "actual_offline_persistent_service_web",
+  "source_kind": "synthetic_and_imported_assumptions",
+  "real_cloud_requests": 0,
+  "real_model_requests": 0,
+  "business_schema_version": 2,
+  "go_tests": {
+    "cgo_enabled": false,
+    "passed_top_level_tests": 140,
+    "passed_including_subtests": 289,
+    "failed": 0,
+    "including_subtests_by_package": {
+      "app": 47,
+      "audit": 79,
+      "httpapi": 25,
+      "report": 39,
+      "recheck": 27,
+      "storage": 62,
+      "protocolprobe": 10
+    }
+  },
+  "api": {
+    "generator": "swaggo/swag v1.16.6",
+    "format": "Swagger 2.0",
+    "registered_paths": 40,
+    "registered_operations": 48,
+    "route_method_bidirectional_check": "passed",
+    "raw_json_override": "json.RawMessage interface{}",
+    "event_types_supported": 8,
+    "agent_tool_execution_verified": false,
+    "actual_committed_events_schema_validated": 41
+  },
+  "review_regressions": {
+    "historic_report_binding": "passed",
+    "confirmed_access_missing_candidate": "passed",
+    "exception_expiry_and_partial_confirmation": "passed",
+    "assistant_replay_before_mutable_state": "passed",
+    "missing_old_object_recheck": "passed",
+    "formal_e0_kind_isolation": "passed",
+    "finding_fixed_input_evidence": "passed",
+    "transactional_report_finalization": "passed"
+  },
+  "web_final_tests": {
+    "passed": 30,
+    "failed": 0,
+    "typecheck": "passed",
+    "production_build": "passed"
+  },
+  "browser_evidence": {
+    "browser": "Chromium 155.0.8059.12",
+    "environment": "Linux/WSL headless Chromium; existing project browser sysroot; local Windows Chinese fonts; no system install",
+    "browser_check_groups": 22,
+    "checks": [
+      {
+        "name": "人工资料真实保存与来源标注",
+        "passed": true
+      },
+      {
+        "name": "明确仅确认roles且本地确认头相符",
+        "passed": true
+      },
+      {
+        "name": "正式rules_only任务completed并保留规则结果",
+        "passed": true
+      },
+      {
+        "name": "发现详情DOM实际显示不可变证据字段值",
+        "passed": true
+      },
+      {
+        "name": "审阅todo保存为revision1且原规则判定独立",
+        "passed": true
+      },
+      {
+        "name": "固定报告生成及带访问头Blob下载",
+        "passed": true
+      },
+      {
+        "name": "新资料复审预览明确reuse_evaluation_at=true",
+        "passed": true
+      },
+      {
+        "name": "持久复审不可比较原因展示且不标为已修复",
+        "passed": true
+      },
+      {
+        "name": "模型未配置rules_and_agent终态partial及规则结果保留",
+        "passed": true
+      },
+      {
+        "name": "提问409时文本保留且无伪模型回复",
+        "passed": true
+      },
+      {
+        "name": "会话抽屉Tab焦点保持",
+        "passed": true
+      },
+      {
+        "name": "发送完成后Escape关闭与焦点返回触发按钮",
+        "passed": true
+      },
+      {
+        "name": "任务已受理后丢响应以原正文原键返回同一job",
+        "passed": true
+      },
+      {
+        "name": "审阅已保存后丢响应离页重开仍用原对象正文原键",
+        "passed": true
+      },
+      {
+        "name": "1440/768/390屏宽无横向溢出",
+        "passed": true
+      },
+      {
+        "name": "窄屏导航明确关闭及选页收起",
+        "passed": true
+      },
+      {
+        "name": "单Go8080生产同源五视图与资源可访问",
+        "passed": true
+      },
+      {
+        "name": "生产资源与请求观察外部HTTP为零",
+        "passed": true
+      },
+      {
+        "name": "SSE切换轮询连续10事件且只读导航POST为零",
+        "passed": true
+      },
+      {
+        "name": "刷新要求重新解锁并恢复同一持久复审任务",
+        "passed": true
+      },
+      {
+        "name": "服务端当前会话指针及8条持久公开消息恢复",
+        "passed": true
+      },
+      {
+        "name": "localStorage/sessionStorage为空且生产页面脚本错误为零",
+        "passed": true
+      }
+    ],
+    "viewport_widths": [
+      1440,
+      768,
+      390
+    ],
+    "production_page_errors": 0,
+    "production_external_http": 0,
+    "read_only_navigation_posts": 0,
+    "continuous_terminal_event_count": 10,
+    "persisted_message_count": 8,
+    "evidence_dom": {
+      "items": 7,
+      "first_value_characters": 3436,
+      "fallback_present": false
+    },
+    "recheck_display": {
+      "comparable": false,
+      "reasons": [
+        "资料或计算覆盖不完整",
+        "原问题本次未得到充分检查"
+      ]
+    },
+    "notes": [
+      "未知响应测试真实提交至本机后端，再人为丢弃浏览器响应；这些注入故障产生预期网络控制台错误。",
+      "这些是浏览器检查分组，不是正式20~30独立人工评价案例。",
+      "未调用真实云或上游模型，不代表云接入、真实整改闭环或模型效果验收。"
+    ]
+  },
+  "documentation_checks": {
+    "local_links": 324,
+    "balanced_fences": true,
+    "design_json_blocks": 4,
+    "acceptance_scope_mappings": 25,
+    "reference_files": 82,
+    "reference_sources_sizes_hashes": "passed",
+    "event_json_schema": "passed_static_shapes_only"
+  },
+  "next_stage": "E3_restricted_agent_not_complete",
+  "formal_evaluation_cases_frozen": false,
+  "limits": [
+    "No real cloud/model adapters are configured by the E2 offline service.",
+    "Tool event protocol support is not Agent tool execution evidence.",
+    "Real human remediation/recollection/recheck, standard performance, and formal evaluation remain unverified."
+  ]
+}

@@ -1,20 +1,20 @@
 # 开发交接与环境恢复
 
-更新日期：2026-10-28。需求B2、整体设计v0.6已通过；E0依赖契约及[E1离线核心／持久闭环](../validation/evidence/e1-local.md)已有实际证据，当前推进E2正式服务／Web。当前任务状态与授权见[项目决策](../project/decisions.md)。
+更新日期：2026-10-28。需求B2、整体设计v0.6已通过；E0依赖契约及[E1离线核心／持久闭环](../validation/evidence/e1-local.md)已有实际证据，E2正式离线服务／五视图已通过限定离线验证，当前推进尚未完成的E3受限Agent。当前任务状态与授权见[项目决策](../project/decisions.md)。
 
 ## 1. 推荐恢复顺序
 
 1. 读根目录[AGENTS](../../AGENTS.md)、[文档导航](../README.md)、实施计划和当前任务相关设计。
 2. 先检查Git状态，保留已有未提交改动；旧提交／推送授权不重复使用。
 3. 只运行当前任务需要的现有离线检查，不能把独立实验命令当正式系统命令。
-4. E1实际内核与持久闭环已有证据；E2将其接入会话／确认／任务API及五视图，遵循TDD、Review修复和本地阶段提交，不重开G2或扩存储框架。
+4. E1内核和E2会话／确认／任务API及五视图已接通；先核对[E2记录](../validation/evidence/e2-local.md)的已测边界，再按实施计划进入E3。继续TDD、Review修复与本地阶段提交，不重开G2或扩存储框架。
 
 ## 2. 可复用的现有成果
 
 | 成果 | 范围与入口 |
 | --- | --- |
 | Go＋Eino独立实验 | [实验README](../../experiments/eino-offline/README.md)；模拟协议与受限真实模型适配，不是正式后端 |
-| E0最小工程 | [后端](../../server/README.md)、[Web](../../web/README.md)、[生成API](../api/README.md)；只验证人工任务与本机契约，尚无业务规则闭环 |
+| 正式离线工程 | [后端](../../server/README.md)、[Web](../../web/README.md)、[实际API](../api/README.md)；E2已接持久业务链，E0人工诊断保持隔离 |
 | 已执行证据 | [离线记录](../validation/experiments/offline-eino.md)、[模型初测](../validation/experiments/live-model.md)；不扩大已有结论 |
 | 离线原型 | [原型README](../prototypes/audit-workflow/README.md)；人工数据、内存模拟，不验正式3会话或SSE |
 | 一手资料 | [资料索引](../references/README.md)及manifest；可离线核对，不等于目标账号能力 |

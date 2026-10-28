@@ -1,4 +1,4 @@
-// E0 server is a local synthetic dependency/transport probe, not an audit system.
+// Local offline audit service with persistent collaboration and bounded jobs.
 package main
 
 import (
@@ -20,9 +20,9 @@ import (
 	"cfw-policy-llm-agent/server/internal/storage"
 )
 
-// @title CFW E0 local contract probe
-// @version 0.1.0
-// @description Synthetic E0 endpoints only; no cloud/model integration or business audit.
+// @title CFW offline audit workspace
+// @version 0.2.0
+// @description Persistent offline rule audits, confirmations, reports and task observation. Cloud and model adapters are not configured.
 // @BasePath /api/v1
 // @securityDefinitions.apikey AppToken
 // @in header
@@ -35,8 +35,9 @@ func main() {
 }
 
 func run() error {
-	db := flag.String("db", "../data/private/e0.sqlite", "private E0 database path")
-	migrate := flag.Bool("migrate", false, "explicitly apply E0 SQL schema and exit")
+	db := flag.String("db", "../data/private/e0.sqlite", "private business database path")
+	migrate := flag.Bool("migrate", false, "explicitly apply the local SQL schema and exit")
+	webDir := flag.String("web-dir", "", "optional built web/dist directory; serves only public bundle files and business routes")
 	flag.Parse()
 	// Startup/config validation is local; no dotenv, cloud, or model credential reads.
 	token := os.Getenv("CFW_APP_TOKEN")
@@ -49,11 +50,11 @@ func run() error {
 	}
 	defer store.Close()
 	if *migrate {
-		fmt.Println("E0 schema version 1 ready")
+		fmt.Println("Local business schema version 2 ready")
 		return nil
 	}
 	if err = store.Recover(context.Background()); err != nil {
-		return fmt.Errorf("E0 recovery failed")
+		return fmt.Errorf("task recovery failed")
 	}
 	// A process-owned loopback endpoint supplies bounded artificial work. No user
 	// supplied URL, proxy environment, credential, retry, or real model is involved.
@@ -70,7 +71,11 @@ func run() error {
 	transport := &http.Transport{Proxy: nil}
 	defer transport.CloseIdleConnections()
 	client := &http.Client{Transport: transport, Timeout: 5 * time.Second, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}
+	workflow := app.NewWorkflow(store)
 	engine := app.New(store, func(ctx context.Context, j storage.Job) error {
+		if j.Kind != "e0_probe" {
+			return workflow.Run(ctx, j)
+		}
 		req, err := http.NewRequestWithContext(ctx, http.MethodPost, mock.URL, nil)
 		if err != nil {
 			return err
@@ -86,7 +91,7 @@ func run() error {
 		}
 		return nil
 	})
-	router, err := httpapi.New(engine, token)
+	router, err := httpapi.New(engine, token, httpapi.Options{WebDir: *webDir})
 	if err != nil {
 		return err
 	}
@@ -97,7 +102,7 @@ func run() error {
 	defer stop()
 	errors := make(chan error, 1)
 	go func() { errors <- server.ListenAndServe() }()
-	fmt.Println("E0 synthetic API listening on 127.0.0.1:8080; web development entry is port 5173")
+	fmt.Println("Offline audit API listening on 127.0.0.1:8080; web development entry is port 5173")
 	select {
 	case err = <-errors:
 		if err != http.ErrServerClosed {
@@ -112,7 +117,7 @@ func run() error {
 		server.Close()
 	}
 	if err = store.Recover(context.Background()); err != nil {
-		return fmt.Errorf("E0 stop state could not be persisted")
+		return fmt.Errorf("stop state could not be persisted")
 	}
 	return nil
 }

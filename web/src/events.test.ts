@@ -187,3 +187,19 @@ test('cancelling remains non-terminal and event types enforce their status trans
   assert.throws(() => decodeEvent({ ...cancelling, payload: { status: 'completed' } }, jobId), ProtocolError)
   assert.throws(() => decodeEvent({ ...cancelled, payload: { status: 'cancelling' } }, jobId), ProtocolError)
 })
+
+test('business observation restores findings and a partial terminal through the formal job path', async t => {
+  const formal = [events[0], { schema_version: 1, job_id: jobId, seq: 2, type: 'findings_available', occurred_at: at, payload: { result_ref: 'audit-1', finding_count: 2 } }, { ...events[2], payload: { status: 'partial' } }] as unknown as JobEvent[]
+  const paths: string[] = [], received: JobEvent[] = [], states: ObservationState[] = []
+  t.mock.method(globalThis, 'fetch', async (input: string) => {
+    paths.push(input)
+    return input.includes('/stream') ? stream(formal.map(frame).join('')) : Response.json({ ...job, status: 'partial' })
+  })
+  const observer = new EventObserver(new ApiClient(() => 'public-test-token', '/jobs'), jobId, 0, {
+    event: event => received.push(event), job: () => {}, state: state => states.push(state), error: () => {},
+  })
+  await observer.start('sse')
+  assert.deepEqual(received.map(event => event.seq), [1, 2, 3])
+  assert.equal(states.at(-1), 'ended')
+  assert.ok(paths.every(path => path.startsWith('/api/v1/jobs/')))
+})

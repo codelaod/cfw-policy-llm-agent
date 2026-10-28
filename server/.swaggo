@@ -1,0 +1,2 @@
+// Raw JSON contains a JSON value, never a base64 byte array.
+replace json.RawMessage interface{}

@@ -68,7 +68,7 @@ export class EventObserver {
     const resetWatchdog = () => { clearTimeout(watchdog); watchdog = setTimeout(() => streamController.abort(), 45000) }
     resetWatchdog()
     try {
-      const response = await this.api.request(`/e0/jobs/${encodeURIComponent(this.jobId)}/events/stream?after_seq=${this.cursor}`, {
+      const response = await this.api.request(`${this.api.jobPath(this.jobId)}/events/stream?after_seq=${this.cursor}`, {
         headers: { Accept: 'text/event-stream' }, signal: scope.signal,
       }, 0)
       if (response.status === 204) {
@@ -89,7 +89,7 @@ export class EventObserver {
           if (new TextEncoder().encode(frame.data).byteLength > 4096) throw new ProtocolError('事件超过长度限制。')
           let data: unknown
           try { data = JSON.parse(frame.data) } catch { throw new ProtocolError('事件内容不是有效 JSON。') }
-          const event = decodeEvent(data, this.jobId)
+          const event = decodeEvent(data, this.jobId, this.api.businessEvents)
           if (frame.id !== String(event.seq) || frame.event !== event.type) throw new ProtocolError('事件头与正文不一致。')
           this.apply(event)
         },

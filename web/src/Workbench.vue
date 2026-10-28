@@ -31,7 +31,7 @@ const stateLabels: Record<ObservationState, string> = {
   connecting: '连接中', live: 'SSE 实时观察', reconnecting: '连接中断，正在重连', polling: 'JSON 轮询兜底',
   paused: '观察已暂停', ended: '已读完终态', auth_required: '需要重新解锁', forbidden: '记录不可访问', protocol_error: '事件协议错误',
 }
-const eventLabels = { job_status: '任务状态', stage_changed: '人工阶段', job_terminal: '任务终态' }
+const eventLabels: Record<string, string> = { job_status: '任务状态', stage_changed: '人工阶段', job_terminal: '任务终态' }
 function describe(error: unknown): string {
   if (error instanceof ProtocolError) return error.message
   if (error instanceof ApiError) {

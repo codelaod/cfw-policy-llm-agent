@@ -25,7 +25,7 @@ case "${1:-help}" in
     ;;
   api)
     cd "$task_root/server"
-    exec go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g main.go -d cmd/server,internal/httpapi,internal/storage --output ../docs/api --outputTypes json,yaml --parseInternal
+    exec go run github.com/swaggo/swag/cmd/swag@v1.16.6 init -g main.go -d cmd/server,internal/httpapi,internal/storage,internal/app,internal/domain,internal/recheck --output ../docs/api --outputTypes json,yaml --parseInternal
     ;;
   *)
     printf '%s\n' 'Usage: bash scripts/e0.sh {migrate|server|test|build|api}'

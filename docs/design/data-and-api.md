@@ -2,9 +2,9 @@
 
 基线：需求v0.6／B2、设计v0.6，G1／G2已通过。本文为该领域的现行详细设计；实际运行验收另行取证。
 
-E0已实现独立的`/api/v1/e0/*`人工联调子集，并生成[实际规范](../api/README.md)。本篇的正式业务实体／路由仍按后续阶段实现；不得把人工任务入口替代计划消费或业务确认。
+E0保留独立的`/api/v1/e0/*`人工联调子集；E2已注册正式离线业务API并生成[实际规范](../api/README.md)。两类任务按kind隔离，不得把人工任务入口替代计划消费或业务确认。
 
-E1已实现输入、原始规则／证据、审阅、固定公开报告和配置复审的Go应用／持久层，限定结果见[E1记录](../validation/evidence/e1-local.md)。业务HTTP、会话与确认流程在E2接入；API规范只记录实际已注册路由。
+E1已实现输入、原始规则／证据、审阅、固定公开报告和配置复审的Go应用／持久层，限定结果见[E1记录](../validation/evidence/e1-local.md)。E2已接业务HTTP、持久会话、确认和五视图，当前验证范围见[E2记录](../validation/evidence/e2-local.md)；API规范只记录实际已注册路由。
 
 ## 1. 身份、版本与来源
 
@@ -157,15 +157,15 @@ request_manifest 受理即固定会话／意图、scope、资料基版、数据�
 
 queued→running→completed／partial／failed／cancelled；queued 取消直接 cancelled，运行中取消才置 cancelling。独占进程锁取得后才能把上次遗留运行中置 interrupted，不自动重放。completed 是流程结束而非整体安全。历史保留后用户可继续新轮次，不是恢复上次付费请求。
 
-初版一个长任务工作器、队列 10，前台优先、定时默认关。后台使用服务根 context＋任务剩余时间，不保留 Gin 请求 context 或池化对象。总时间／阶段上限以 20 为准。
+单进程3个任务槽位、最多10个待执行任务，同会话1个未结束任务；可选定时默认关。后台使用服务根 context＋任务剩余时间，不保留 Gin 请求 context 或池化对象。总时间／阶段上限以 20 为准。
 
 持久 jobs 是队列事实来源，容量／会话槽位与插入同事务；内存通知仅用于唤醒。排队过期在凭据解析前落 failed／QUEUE_DEADLINE_EXCEEDED，零外呼；状态终结释放会话槽位。
 
 同幂等键同内容返回原对象、异内容 409，键／摘要／消息／轮次／任务同一短事务及唯一约束；防止客户端重发，不保证供应商网络重试计费恰一次。尝试预记并计失败，共用任务／会话／应用更严限额，会话汇总不是货币账单，新会话不能清空应用已用量。
 
-## 6. 拟议 API 清单
+## 6. 业务 API 清单与实现边界
 
-前缀 `/api/v1`。所有数据／任务接口需要本地应用访问保护，云／模型凭据不进入这些 DTO。列表有界分页；响应可带 request_id／版本，不输出原始错误正文。
+前缀 `/api/v1`。所有数据／任务接口需要本地应用访问保护，云／模型凭据不进入这些 DTO。列表有界分页；响应可带 request_id／版本，不输出原始错误正文。下表保留完整目标契约；E2实际支持范围以[生成规范](../api/README.md)为准。当前仅`local-offline`与`pinned_snapshot`可执行，collect／connection_check／刷新返回未配置，不产生真实外呼。
 
 | 方法与路径 | 作用 | 关键契约 |
 | --- | --- | --- |
@@ -187,7 +187,7 @@ queued→running→completed／partial／failed／cancelled；queued 取消直�
 | GET `/jobs/{id}`、`/jobs/{id}/events` | 状态和有界事件页 | 状态带同读快照 view_seq；事件 seq>after_seq，最多 100 条，next_seq／has_more／last_seq；见[前端与事件](frontend-and-events.md) |
 | GET `/jobs/{id}/events/stream` | fetch SSE 订阅与补发 | 同应用访问头；after_seq、text/event-stream；终态尾部 204；只读、不隐式执行或取消，见[前端与事件](frontend-and-events.md) |
 | POST `/jobs/{id}/cancel` | 请求取消 | 终态不能恢复；合作停止与上游撤回区别明确 |
-| GET `/jobs/{id}/result` | 结果及覆盖 | 响应带同读快照 view_seq；运行中返回 is_final=false、completed_phases 与 L2；事实、模型补充和阶段缺口分开 |
+| GET `/jobs/{id}/result` | 结果及覆盖 | 响应带同读快照 view_seq；运行中返回 is_final=false、completed_phases 与 L2；recheck返回已保存比较关系／状态／原因，无记录时为null；事实、模型补充和阶段缺口分开 |
 | POST `/profile-drafts`、PATCH `/profile-drafts/{id}` | 人工／对话共用草稿 | 源自当前可访问对象；PATCH 带草稿修订条件 |
 | POST `/profile-drafts/{id}/preview` | 无模型的规范化差异 | 返回 preview_id／草稿修订／基版本／可确认部分，未知不自动补全 |
 | POST `/profile-drafts/{id}/confirm` | 本地确认 | preview_id＋expected_draft_revision＋明确确认部分＋幂等；409 冲突无部分写入 |
@@ -195,7 +195,7 @@ queued→running→completed／partial／failed／cancelled；queued 取消直�
 | GET／POST `/findings/{id}/review-actions` | 读取审阅历史／追加意见与本地计划 | expected_review_revision＋幂等；成功返回 action_id 和新 revision；失败不提示已保存 |
 | POST `/reports` | 从结果及审阅头生成固定导出版本 | Markdown／JSON，默认公开白名单投影，无模型调用 |
 | GET `/reports/{id}`、`/reports/{id}/content` | 元信息与受保护下载 | 前端带访问头获取后本地保存，口令不放下载 URL |
-| POST `/audits/{job_id}/rechecks` | 用新快照／新资料新建审计 | 相同幂等规则；服务端对比范围与版本，不修改旧报告 |
+| POST `/audits/{job_id}/rechecks` | 用新快照／新资料预览独立复审 | 只返回新plan，仍须POST `/jobs`幂等消费；服务端对比范围与版本，不修改旧报告；缺旧对象返回409 RECHECK_NOT_COMPARABLE／object_missing，不缩成剩余对象或全量 |
 
 外发授权不足／模型未配置时，候选任务返回可回人工的错误；审计可显式选仅规则，或在请求 Agent 模式后保留规则并标模型阶段未执行／部分完成，不静默冒充完整 Agent。
 
@@ -258,9 +258,9 @@ queued→running→completed／partial／failed／cancelled；queued 取消直�
 
 RC-17 的条件更新／批量原子性和显式空集合；RC-18 的重复点击／网络超时／幂等冲突；RC-19 的请求账本／重启不重放；RC-20 的访问、范围和字段投影；导入来源伪造、路径引用、分页中断和大响应；取消后不再请求；旧报告和新资料独立。
 
-这些是完整契约要求。E1已执行输入／结果／审阅／报告／复审的离线子集；会话、确认、正式任务API及真实准入仍需后续阶段取证。
+这些是完整契约要求。E1已执行输入／结果／审阅／报告／复审的离线子集；E2已接会话、确认、正式任务API及五视图，实际结果见E2记录；E3受限Agent／持久外呼准入与E4真实接入仍待取证。
 
-历史、缓存、累计耗时、专用认证和跨入口引导验收见RC-21～31、AC-15～20。GORM与有限持久实体已有E1证据；完整会话／调度／业务接口继续按计划实现，源配置仍由服务端注入。
+历史、缓存、累计耗时、专用认证和跨入口引导验收见RC-21～31、AC-15～20。GORM与有限持久实体已有E1证据；E2会话／调度／业务接口已有离线实现，外部源和模型配置仍由服务端显式注入。
 
 ## 10. B2 示例与新增契约验证
 

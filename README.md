@@ -2,7 +2,7 @@
 
 以云防火墙策略审计为业务主线，以受限大模型Agent完成工具选择、证据补查、解释与条件推荐；结果由人审阅并在云端手动整改。
 
-**当前进度：需求v0.6／B2与整体设计v0.6已通过；E0依赖契约和E1离线核心／持久闭环已通过限定验证，下一阶段为E2正式服务／Web。** E1含三边界确定性规则、审阅、固定公开报告和配置复审比较；尚未接五业务页面或真实云／模型。实际结果见[E0记录](docs/validation/evidence/e0-local.md)与[E1记录](docs/validation/evidence/e1-local.md)。
+**当前进度：需求v0.6／B2与整体设计v0.6已通过；E2持久服务／Web已通过限定离线验证，当前推进E3受限Agent。** 五业务路由已接正式离线API，会话、确认、任务、审阅、固定报告和复审关系持久化；真实云／模型及真实人工整改仍未验收。实际边界见[E2记录](docs/validation/evidence/e2-local.md)，前序见[E0](docs/validation/evidence/e0-local.md)／[E1](docs/validation/evidence/e1-local.md)。
 
 ## 文档入口
 
@@ -29,9 +29,9 @@
 
 ## 现有可运行内容
 
-- [E0后端](server/README.md)／[Vue联调台](web/README.md)：纯Go SQLite、三任务槽位、真实本机SSE／轮询及固定依赖；不是完整审计系统。
+- [正式离线后端](server/README.md)／[五视图Web工作区](web/README.md)：会话、资产与业务确认、计划消费、三任务槽位、持久事件、审阅和报告复审；E0诊断页独立保留。
 - [E1离线业务链](docs/validation/evidence/e1-local.md)：实际规则→保存发现／证据→审阅→公开JSON／Markdown→复审比较；三份[公开人工输入](testdata/public/README.md)。
-- [已生成API规范](docs/api/README.md)：固定Swag生成Swagger JSON／YAML，另附E0事件schema。
+- [实际API规范](docs/api/README.md)：固定Swag生成Swagger JSON／YAML，覆盖已注册E2接口，另附八类事件schema。
 - [Go＋Eino独立实验](experiments/eino-offline/README.md)：模拟模式、受限真实模型适配、私有配置规则及实际验证边界。
 - [离线交互原型](docs/prototypes/audit-workflow/README.md)：原生HTML／CSS／JS、人工数据、内存事件模拟，不是正式组件工程。
 
@@ -55,6 +55,6 @@ npm test
 npm run build
 ```
 
-本机启动、显式迁移和应用访问口令见[后端说明](server/README.md)；E0不读取`.env.local`。已有实验的模型私有配置仍保留在忽略路径，空白模板为[.env.example](.env.example)，只通过`bash scripts/eino-offline.sh config-check`查看脱敏摘要。
+本机启动、business schema 2显式迁移和应用访问口令见[后端说明](server/README.md)；正式离线服务不读取`.env.local`或云／模型凭据。已有实验的模型私有配置仍保留在忽略路径，空白模板为[.env.example](.env.example)，只通过`bash scripts/eino-offline.sh config-check`查看脱敏摘要。
 
 许可证：[Apache License 2.0](LICENSE)。

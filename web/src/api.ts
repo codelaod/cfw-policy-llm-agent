@@ -1,6 +1,6 @@
 import { abortScope } from './abort.ts'
 
-export type JobStatus = 'queued' | 'running' | 'cancelling' | 'completed' | 'failed' | 'cancelled' | 'interrupted'
+export type JobStatus = 'queued' | 'running' | 'cancelling' | 'completed' | 'partial' | 'failed' | 'cancelled' | 'interrupted'
 export type Job = {
   id: string
   conversation_id: string
@@ -9,19 +9,22 @@ export type Job = {
   created_at: string
   started_at?: string | null
   finished_at?: string | null
+  kind?: string
+  result_ref?: string
+  error_code?: string
 }
 export type JobEvent = {
   schema_version: 1
   job_id: string
   seq: number
-  type: 'job_status' | 'stage_changed' | 'job_terminal'
+  type: 'job_status' | 'stage_changed' | 'job_terminal' | 'tool_started' | 'tool_finished' | 'findings_available' | 'message_available' | 'report_available'
   occurred_at: string
-  payload: { status?: JobStatus; stage?: string }
+  payload: { status?: JobStatus; stage?: string; result_ref?: string; message_ref?: string; report_ref?: string; call_id?: string; tool_name?: string; summary?: string; finding_count?: number; [key: string]: unknown }
 }
 export type EventPage = { events: JobEvent[]; next_seq: number; has_more: boolean; last_seq: number }
 
 const progressStatuses: JobStatus[] = ['queued', 'running', 'cancelling']
-const terminalStatuses: JobStatus[] = ['completed', 'failed', 'cancelled', 'interrupted']
+const terminalStatuses: JobStatus[] = ['completed', 'partial', 'failed', 'cancelled', 'interrupted']
 const statuses: JobStatus[] = [...progressStatuses, ...terminalStatuses]
 export const isTerminal = (status: JobStatus) => terminalStatuses.includes(status)
 export class ApiError extends Error {
@@ -58,15 +61,19 @@ export function decodeJob(value: unknown, id?: string): Job {
   }
   return value as Job
 }
-export function decodeEvent(value: unknown, jobId: string): JobEvent {
+export function decodeEvent(value: unknown, jobId: string, business = false): JobEvent {
   if (!record(value) || value.schema_version !== 1 || value.job_id !== jobId
     || !Number.isSafeInteger(value.seq) || Number(value.seq) < 1 || !validTime(value.occurred_at)
-    || !['job_status', 'stage_changed', 'job_terminal'].includes(String(value.type)) || !record(value.payload)) {
+    || !(business ? ['job_status', 'stage_changed', 'job_terminal', 'tool_started', 'tool_finished', 'findings_available', 'message_available', 'report_available'] : ['job_status', 'stage_changed', 'job_terminal']).includes(String(value.type)) || !record(value.payload)) {
     throw new ProtocolError()
   }
   if (value.type === 'stage_changed') {
     if (typeof value.payload.stage !== 'string') throw new ProtocolError()
-  } else if (!(value.type === 'job_terminal' ? terminalStatuses : progressStatuses).includes(value.payload.status as JobStatus)) {
+  } else if (value.type === 'job_status' || value.type === 'job_terminal') {
+    if (!(value.type === 'job_terminal' ? terminalStatuses : progressStatuses).includes(value.payload.status as JobStatus)) throw new ProtocolError()
+  } else if (value.type === 'tool_started' || value.type === 'tool_finished') {
+    if (typeof value.payload.call_id !== 'string' || typeof value.payload.tool_name !== 'string') throw new ProtocolError()
+  } else if (typeof value.payload[value.type === 'findings_available' ? 'result_ref' : value.type === 'message_available' ? 'message_ref' : 'report_ref'] !== 'string') {
     throw new ProtocolError()
   }
   return value as JobEvent
@@ -74,7 +81,13 @@ export function decodeEvent(value: unknown, jobId: string): JobEvent {
 
 export class ApiClient {
   private readonly token: () => string
-  constructor(token: () => string) { this.token = token }
+  private readonly jobBase: string
+  readonly businessEvents: boolean
+  constructor(token: () => string, jobBase = '/e0/jobs') {
+    if (!['/e0/jobs', '/jobs'].includes(jobBase)) throw new Error('Unknown job namespace')
+    this.token = token; this.jobBase = jobBase; this.businessEvents = jobBase === '/jobs'
+  }
+  jobPath(id: string) { return `${this.jobBase}/${encodeURIComponent(id)}` }
 
   async request(path: string, init: RequestInit = {}, timeout = 10000): Promise<Response> {
     const headers = new Headers(init.headers)
@@ -112,14 +125,14 @@ export class ApiClient {
     return decodeJob(value)
   }
   async getJob(id: string, signal?: AbortSignal): Promise<Job> {
-    return decodeJob(await this.requestJSON(`/e0/jobs/${encodeURIComponent(id)}`, { signal }), id)
+    return decodeJob(await this.requestJSON(this.jobPath(id), { signal }), id)
   }
   async page(id: string, after: number, signal?: AbortSignal): Promise<EventPage> {
-    const value = await this.requestJSON(`/e0/jobs/${encodeURIComponent(id)}/events?after_seq=${after}&limit=100`, { signal })
+    const value = await this.requestJSON(`${this.jobPath(id)}/events?after_seq=${after}&limit=100`, { signal })
     if (!record(value) || !Array.isArray(value.events) || value.events.length > 100
       || !Number.isSafeInteger(value.next_seq) || !Number.isSafeInteger(value.last_seq)
       || Number(value.last_seq) < after || typeof value.has_more !== 'boolean') throw new ProtocolError()
-    const events = value.events.map(event => decodeEvent(event, id))
+    const events = value.events.map(event => decodeEvent(event, id, this.businessEvents))
     const expected = events.length ? events[events.length - 1]!.seq : after
     if (value.next_seq !== expected || expected > Number(value.last_seq)
       || value.has_more !== (expected < Number(value.last_seq)) || (value.has_more && events.length === 0)) throw new ProtocolError()
