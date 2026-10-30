@@ -13,12 +13,15 @@ import (
 )
 
 type RoleChange struct {
+	Declared  *bool              `json:"declared,omitempty"`
 	ServiceID string             `json:"service_id"`
 	Role      string             `json:"role"`
 	Protocol  string             `json:"protocol"`
 	Ports     []domain.PortRange `json:"ports"`
 }
 type ServiceAccessChange struct {
+	AllowedDeclared   *bool           `json:"allowed_declared,omitempty"`
+	RequiredDeclared  *bool           `json:"required_declared,omitempty"`
 	ServiceID         string          `json:"service_id"`
 	PublicAccess      string          `json:"public_access"`
 	AllowedComplete   bool            `json:"allowed_complete"`
@@ -28,11 +31,13 @@ type ServiceAccessChange struct {
 	Required          []domain.Access `json:"required"`
 }
 type AssetAccessChange struct {
-	AllowedComplete bool                  `json:"allowed_complete"`
-	DenyAll         bool                  `json:"deny_all"`
-	Allowed         []domain.Access       `json:"allowed"`
-	Services        []ServiceAccessChange `json:"services"`
-	Exceptions      []domain.Exception    `json:"exceptions"`
+	AllowedDeclared    *bool                 `json:"allowed_declared,omitempty"`
+	ExceptionsDeclared *bool                 `json:"exceptions_declared,omitempty"`
+	AllowedComplete    bool                  `json:"allowed_complete"`
+	DenyAll            bool                  `json:"deny_all"`
+	Allowed            []domain.Access       `json:"allowed"`
+	Services           []ServiceAccessChange `json:"services"`
+	Exceptions         []domain.Exception    `json:"exceptions"`
 }
 type AssetDraftChange struct {
 	AssetID string             `json:"asset_id"`
@@ -309,7 +314,7 @@ func checkHeadVersions(tx *gorm.DB, snapshotID string, expected []AssetHeadVersi
 	if err != nil {
 		return err
 	}
-	if len(expected) > 50 {
+	if len(expected) > len(record.Input.Assets) {
 		return ErrInputInvalid
 	}
 	key := canonicalBusinessScope(record.Input.Scope)
@@ -348,8 +353,8 @@ func initialDraftChange(asset domain.Asset) AssetDraftChange {
 		if public == "" {
 			public = "unknown"
 		}
-		change.Roles = append(change.Roles, RoleChange{service.ID, role, protocol, service.Ports})
-		change.Access.Services = append(change.Access.Services, ServiceAccessChange{service.ID, public, service.AllowedComplete, service.DenyAll, service.Allowed, service.RequiredConfirmed, service.Required})
+		change.Roles = append(change.Roles, RoleChange{ServiceID: service.ID, Role: role, Protocol: protocol, Ports: service.Ports})
+		change.Access.Services = append(change.Access.Services, ServiceAccessChange{ServiceID: service.ID, PublicAccess: public, AllowedComplete: service.AllowedComplete, DenyAll: service.DenyAll, Allowed: service.Allowed, RequiredConfirmed: service.RequiredConfirmed, Required: service.Required})
 	}
 	return change
 }
@@ -372,13 +377,16 @@ func (s *Store) GetProfileDraft(ctx context.Context, id string) (ProfileDraft, e
 	return getProfileDraft(s.db.WithContext(ctx), id)
 }
 func (s *Store) CreateProfileDraft(ctx context.Context, request CreateDraftRequest) (draft ProfileDraft, err error) {
-	if request.SnapshotID == "" || len(request.AssetIDs) == 0 || len(request.AssetIDs) > 50 {
+	if request.SnapshotID == "" || len(request.AssetIDs) == 0 {
 		return draft, ErrInputInvalid
 	}
 	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		in, heads, e := freezeInput(tx, request.SnapshotID)
 		if e != nil {
 			return e
+		}
+		if len(request.AssetIDs) > len(in.Assets) {
+			return ErrInputInvalid
 		}
 		seen := map[string]bool{}
 		changes := []AssetDraftChange{}
@@ -425,7 +433,7 @@ func (s *Store) CreateProfileDraft(ctx context.Context, request CreateDraftReque
 }
 
 func normalizeDraftChanges(in domain.Input, draft ProfileDraft, changes []AssetDraftChange) ([]AssetDraftChange, error) {
-	if len(changes) != len(draft.BaseRevisions) || len(changes) == 0 || len(changes) > 50 {
+	if len(changes) != len(draft.BaseRevisions) || len(changes) == 0 {
 		return nil, ErrInputInvalid
 	}
 	encoded, err := marshalBounded(changes, 1<<20)
@@ -607,6 +615,9 @@ func applyDraftSections(input domain.Input, changes []AssetDraftChange, sections
 		}
 		if roles {
 			for _, role := range change.Roles {
+				if role.Declared != nil && !*role.Declared {
+					continue
+				}
 				service := selectedService(asset, role.ServiceID)
 				if service == nil {
 					asset.Services = append(asset.Services, domain.Service{ID: role.ServiceID, PublicAccess: "unknown", Allowed: []domain.Access{}, Required: []domain.Access{}})
@@ -623,25 +634,36 @@ func applyDraftSections(input domain.Input, changes []AssetDraftChange, sections
 		}
 		if access && change.Access != nil {
 			value := change.Access
-			asset.AllowedConfirmed = true
-			asset.AllowedComplete = value.AllowedComplete
-			asset.DenyAll = value.DenyAll
-			asset.Allowed = rebindAccess(value.Allowed, in.Scope.Ref)
+			if value.AllowedDeclared == nil || *value.AllowedDeclared {
+				asset.AllowedConfirmed = true
+				asset.AllowedComplete = value.AllowedComplete
+				asset.DenyAll = value.DenyAll
+				asset.Allowed = rebindAccess(value.Allowed, in.Scope.Ref)
+			}
 			for _, item := range value.Services {
+				if item.AllowedDeclared != nil && !*item.AllowedDeclared && item.RequiredDeclared != nil && !*item.RequiredDeclared {
+					continue
+				}
 				service := selectedService(asset, item.ServiceID)
 				if service == nil {
 					return in, ErrInputInvalid
 				}
-				service.PublicAccess = item.PublicAccess
-				service.AllowedConfirmed = true
-				service.AllowedComplete = item.AllowedComplete
-				service.DenyAll = item.DenyAll
-				service.Allowed = rebindAccess(item.Allowed, in.Scope.Ref)
-				service.RequiredConfirmed = item.RequiredConfirmed
-				service.Required = rebindAccess(item.Required, in.Scope.Ref)
+				if item.AllowedDeclared == nil || *item.AllowedDeclared {
+					service.PublicAccess = item.PublicAccess
+					service.AllowedConfirmed = true
+					service.AllowedComplete = item.AllowedComplete
+					service.DenyAll = item.DenyAll
+					service.Allowed = rebindAccess(item.Allowed, in.Scope.Ref)
+				}
+				if item.RequiredDeclared == nil || *item.RequiredDeclared {
+					service.RequiredConfirmed = item.RequiredConfirmed
+					service.Required = rebindAccess(item.Required, in.Scope.Ref)
+				}
 			}
-			if err = replaceAssetExceptions(&in, asset.ID, value.Exceptions, true); err != nil {
-				return in, err
+			if value.ExceptionsDeclared == nil || *value.ExceptionsDeclared {
+				if err = replaceAssetExceptions(&in, asset.ID, value.Exceptions, true); err != nil {
+					return in, err
+				}
 			}
 		}
 	}
@@ -650,11 +672,23 @@ func applyDraftSections(input domain.Input, changes []AssetDraftChange, sections
 
 func sectionAvailable(changes []AssetDraftChange, section string) bool {
 	for _, change := range changes {
-		if section == "roles" && len(change.Roles) > 0 {
-			return true
+		if section == "roles" {
+			for _, role := range change.Roles {
+				if role.Declared == nil || *role.Declared {
+					return true
+				}
+			}
 		}
 		if section == "access" && change.Access != nil {
-			return true
+			value := change.Access
+			if value.AllowedDeclared == nil || *value.AllowedDeclared || value.ExceptionsDeclared == nil || *value.ExceptionsDeclared {
+				return true
+			}
+			for _, service := range value.Services {
+				if service.AllowedDeclared == nil || *service.AllowedDeclared || service.RequiredDeclared == nil || *service.RequiredDeclared {
+					return true
+				}
+			}
 		}
 	}
 	return false
@@ -718,6 +752,9 @@ func previewForInput(ctx context.Context, draft ProfileDraft, input domain.Input
 }
 
 func (s *Store) PreviewProfileDraft(ctx context.Context, id string) (preview ConfirmationPreview, err error) {
+	if err = validateConversationDraftBinding(s.db.WithContext(ctx), id); err != nil {
+		return preview, err
+	}
 	draft, err := s.GetProfileDraft(ctx, id)
 	if err != nil {
 		return preview, err
@@ -805,6 +842,9 @@ func (s *Store) ConfirmProfileDraft(ctx context.Context, id string, request Conf
 	if replay, found, e := s.findConfirmationReplay(ctx, key, digest); e != nil || found {
 		return replay, e
 	}
+	if err = validateConversationDraftBinding(s.db.WithContext(ctx), id); err != nil {
+		return result, err
+	}
 	draft, err := s.GetProfileDraft(ctx, id)
 	if err != nil {
 		return result, err
@@ -853,6 +893,9 @@ func (s *Store) ConfirmProfileDraft(ctx context.Context, id string, request Conf
 			result = replay
 			return e
 		}
+		if e := validateConversationDraftBinding(tx, id); e != nil {
+			return e
+		}
 		current, e := getProfileDraft(tx, id)
 		if e != nil {
 			return e
@@ -878,7 +921,7 @@ func (s *Store) ConfirmProfileDraft(ctx context.Context, id string, request Conf
 			if asset == nil {
 				return ErrInputInvalid
 			}
-			if containsSection(sections, "roles") && len(change.Roles) > 0 {
+			if containsSection(sections, "roles") && sectionAvailable([]AssetDraftChange{change}, "roles") {
 				version, e := opaqueID("profile")
 				if e != nil {
 					return e
@@ -892,7 +935,7 @@ func (s *Store) ConfirmProfileDraft(ctx context.Context, id string, request Conf
 				}
 				head.ProfileVersionID = version
 			}
-			if containsSection(sections, "access") && change.Access != nil {
+			if containsSection(sections, "access") && sectionAvailable([]AssetDraftChange{change}, "access") {
 				version, e := opaqueID("intent")
 				if e != nil {
 					return e
@@ -931,6 +974,9 @@ func (s *Store) ConfirmProfileDraft(ctx context.Context, id string, request Conf
 			return e
 		}
 		if e = tx.Exec("INSERT INTO confirmation_actions(id,draft_id,kind,request_key,request_digest,result_json,saved_at) VALUES(?,?,'confirm',?,?,?,?)", actionID, id, key, digest, string(body), at).Error; e != nil {
+			return e
+		}
+		if advanced, e := advanceConversationDraftAfterConfirmation(tx, draft, sections, heads, actionID, at); e != nil || advanced {
 			return e
 		}
 		r := tx.Exec("UPDATE profile_drafts SET status='confirmed',revision=revision+1,confirmation_id=?,updated_at=? WHERE id=? AND revision=?", actionID, at, id, draft.Revision)

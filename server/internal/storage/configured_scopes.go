@@ -6,6 +6,7 @@ import (
 	"reflect"
 
 	"cfw-policy-llm-agent/server/internal/domain"
+	"cfw-policy-llm-agent/server/internal/workload"
 	"gorm.io/gorm"
 )
 
@@ -74,14 +75,21 @@ func (s *Store) RegisterConfiguredScopes(ctx context.Context, sourceRef, revisio
 	})
 }
 
-func validCloudSelection(scope domain.Scope, selection domain.Selection, check bool) bool {
-	if check && selection.Kind == "" && len(selection.AssetIDs) == 0 {
+func validCloudSelection(scope domain.Scope, selection domain.Selection, check bool, configured ...int) bool {
+	maximum := workload.Default("collect").AssetsPerBatch
+	if len(configured) > 0 {
+		maximum = configured[0]
+	}
+	if check {
+		maximum = len(selection.AssetIDs)
+	}
+	if check && enum(selection.Kind, "", "identity_only") && len(selection.AssetIDs) == 0 {
 		return true
 	}
 	if selection.Kind == "gateway_policy" {
 		return scope.Boundary == "nat" && len(selection.AssetIDs) == 0
 	}
-	if selection.Kind != "assets" || len(selection.AssetIDs) < 1 || len(selection.AssetIDs) > 50 {
+	if selection.Kind != "assets" || len(selection.AssetIDs) < 1 || len(selection.AssetIDs) > maximum {
 		return false
 	}
 	seen := map[string]bool{}
@@ -95,7 +103,7 @@ func validCloudSelection(scope domain.Scope, selection domain.Selection, check b
 }
 
 func validateCloudPlan(tx *gorm.DB, p ExecutionPlan) error {
-	if p.SnapshotID != "" || len(p.Heads) != 0 || p.ContextReportID != "" || !p.EffectCeiling.AllowCloudReads || p.EffectCeiling.CloudHTTPAttempts < 1 || p.EffectCeiling.AllowModelRequests || p.EffectCeiling.ModelHTTPAttempts != 0 || p.PreparedInput.Scope.Ref != p.PolicyScopeRef || !validConfiguredScope(p.PreparedInput.Scope) || !validCloudSelection(p.PreparedInput.Scope, p.PreparedInput.Selection, p.Kind == "connection_check") {
+	if p.SnapshotID != "" || len(p.Heads) != 0 || p.ContextReportID != "" || !p.EffectCeiling.AllowCloudReads || p.EffectCeiling.CloudHTTPAttempts < 1 || p.EffectCeiling.AllowModelRequests || p.EffectCeiling.ModelHTTPAttempts != 0 || p.PreparedInput.Scope.Ref != p.PolicyScopeRef || !validConfiguredScope(p.PreparedInput.Scope) || !validCloudSelection(p.PreparedInput.Scope, p.PreparedInput.Selection, p.Kind == "connection_check", p.Workload.Limits.AssetsPerBatch) {
 		return ErrInputInvalid
 	}
 	var row struct {

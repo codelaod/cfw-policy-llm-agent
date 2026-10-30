@@ -13,7 +13,7 @@ func (s *Store) ListBusinessJobs(ctx context.Context, conversationID string, off
 	if err = pageBounds(offset, limit); err != nil {
 		return
 	}
-	q := "SELECT * FROM e0_jobs WHERE kind<>'e0_probe'"
+	q := "SELECT * FROM e0_jobs WHERE parent_job_id IS NULL AND kind<>'e0_probe'"
 	args := []any{}
 	if conversationID != "" {
 		q += " AND conversation_id=?"

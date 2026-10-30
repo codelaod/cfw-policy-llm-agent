@@ -179,7 +179,20 @@ func TestE3BudgetRefusesCancelledTerminalExpiredOrUnauthorizedTasks(t *testing.T
 			case "stale-config":
 				revision = "new-server-config"
 			case "missing-policy":
-				store.db.Exec("DELETE FROM budget_policies WHERE ref=?", initial.BudgetRef)
+				if err := store.db.Transaction(func(tx *gorm.DB) error {
+					for _, table := range []string{"budget_policy_heads", "budget_policy_revisions", "execution_budget_bindings", "budget_policies"} {
+						column := "ref"
+						if table == "execution_budget_bindings" {
+							column = "budget_ref"
+						}
+						if e := tx.Exec("DELETE FROM "+table+" WHERE "+column+"=?", initial.BudgetRef).Error; e != nil {
+							return e
+						}
+					}
+					return nil
+				}); err != nil {
+					t.Fatal("could not construct missing-policy fixture", err)
+				}
 			case "effect-denied":
 				if err := store.db.Transaction(func(tx *gorm.DB) error {
 					p, err := planRecord(tx, job.PlanID)

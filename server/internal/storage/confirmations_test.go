@@ -306,7 +306,7 @@ func TestNewServiceRequiresExplicitRoleConfirmationWithItsAccess(t *testing.T) {
 		t.Fatal("server did not assign new service identity")
 	}
 	updated.Changes[0].Access.Services = append(updated.Changes[0].Access.Services, ServiceAccessChange{ServiceID: newID, PublicAccess: "unknown", Allowed: []domain.Access{}, Required: []domain.Access{}})
-	updated.Changes[0].Access.Exceptions = []domain.Exception{{CheckID: "CHK-07", ServiceRef: newID, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), Reason: "仅针对新增服务的业务例外"}}
+	updated.Changes[0].Access.Exceptions = []domain.Exception{{CheckID: "CHK-07", ServiceRef: newID, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), AuthorizationSource: "人工测试明确授权", Reason: "仅针对新增服务的业务例外"}}
 	updated, err = s.UpdateProfileDraft(ctx, draft.ID, UpdateDraftRequest{ExpectedDraftRevision: updated.Revision, Changes: updated.Changes})
 	if err != nil {
 		t.Fatal(err)
@@ -346,7 +346,7 @@ func TestBusinessExceptionsOnlyApplyThroughAccessConfirmation(t *testing.T) {
 		t.Fatal(err)
 	}
 	asset := snapshot.Input.Assets[0]
-	exception := domain.Exception{CheckID: "CHK-07", ServiceRef: asset.Services[1].ID, ExpiresAt: time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339), Reason: "明确的短期人工例外", Confirmed: true}
+	exception := domain.Exception{CheckID: "CHK-07", ServiceRef: asset.Services[1].ID, ExpiresAt: time.Now().Add(24 * time.Hour).UTC().Format(time.RFC3339), AuthorizationSource: "人工测试明确授权", Reason: "明确的短期人工例外", Confirmed: true}
 	draft := mustDraft(t, s, snapshot, asset.ID)
 	draft.Changes[0].Access.Exceptions = []domain.Exception{exception}
 	draft, err = s.UpdateProfileDraft(ctx, draft.ID, UpdateDraftRequest{ExpectedDraftRevision: draft.Revision, Changes: draft.Changes})
@@ -423,7 +423,7 @@ func TestExceptionTargetsAndFreshApprovalExpiryAreBounded(t *testing.T) {
 			snapshot := collaborationSnapshot(t, s)
 			asset := snapshot.Input.Assets[0]
 			draft := mustDraft(t, s, snapshot, asset.ID)
-			x := domain.Exception{CheckID: "CHK-07", ServiceRef: asset.Services[1].ID, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), Reason: "明确人工理由"}
+			x := domain.Exception{CheckID: "CHK-07", ServiceRef: asset.Services[1].ID, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), AuthorizationSource: "人工测试明确授权", Reason: "明确人工理由"}
 			structural := false
 			switch mode {
 			case "expired":
@@ -483,7 +483,7 @@ func TestNATExceptionUsesExactAssetSubcheckAndAlias(t *testing.T) {
 	}
 	asset := input.Assets[0]
 	draft := mustDraft(t, s, snapshot, asset.ID)
-	draft.Changes[0].Access.Exceptions = []domain.Exception{{CheckID: "NAT-02", Subcheck: "OUT-01", ServiceRef: asset.Services[0].ID, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), Reason: "仅此资产的目标上界例外"}}
+	draft.Changes[0].Access.Exceptions = []domain.Exception{{CheckID: "NAT-02", Subcheck: "OUT-01", ServiceRef: asset.Services[0].ID, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), AuthorizationSource: "人工测试明确授权", Reason: "仅此资产的目标上界例外"}}
 	draft, err = s.UpdateProfileDraft(ctx, draft.ID, UpdateDraftRequest{ExpectedDraftRevision: draft.Revision, Changes: draft.Changes})
 	if err != nil {
 		t.Fatal(err)
@@ -520,7 +520,7 @@ func TestNATExceptionUsesExactAssetSubcheckAndAlias(t *testing.T) {
 		t.Fatal("exception alias not rebound", err)
 	}
 	bad := mustDraft(t, s, alias, asset.ID)
-	bad.Changes[0].Access.Exceptions = []domain.Exception{{CheckID: "NAT-02", Subcheck: "CHK-04", ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), Reason: "must not expand to partition"}}
+	bad.Changes[0].Access.Exceptions = []domain.Exception{{CheckID: "NAT-02", Subcheck: "CHK-04", ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), AuthorizationSource: "人工测试明确授权", Reason: "must not expand to partition"}}
 	if _, err = s.UpdateProfileDraft(ctx, bad.ID, UpdateDraftRequest{ExpectedDraftRevision: bad.Revision, Changes: bad.Changes}); !errors.Is(err, ErrInputInvalid) {
 		t.Fatal("asset exception expanded to gateway maintenance", err)
 	}
@@ -538,7 +538,7 @@ func TestConfirmedAccessSurvivesMissingServiceCandidatesInNewSnapshot(t *testing
 	access := &draft.Changes[0].Access.Services[0]
 	access.AllowedComplete, access.DenyAll, access.RequiredConfirmed = false, false, true
 	access.Required = []domain.Access{{ScopeRef: snapshot.ScopeRef, Protocol: "tcp", Addresses: []string{"203.0.113.8"}, Ports: []domain.PortRange{{From: 443, To: 443}}, Applicability: "applicable"}}
-	draft.Changes[0].Access.Exceptions = []domain.Exception{{CheckID: "CHK-07", ServiceRef: serviceID, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), Reason: "此服务的明确临时业务例外"}}
+	draft.Changes[0].Access.Exceptions = []domain.Exception{{CheckID: "CHK-07", ServiceRef: serviceID, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339), AuthorizationSource: "人工测试明确授权", Reason: "此服务的明确临时业务例外"}}
 	draft, err := s.UpdateProfileDraft(ctx, draft.ID, UpdateDraftRequest{ExpectedDraftRevision: draft.Revision, Changes: draft.Changes})
 	if err != nil {
 		t.Fatal(err)
@@ -588,7 +588,7 @@ func TestExceptionExpiryRecheckedAtConfirmationAndUnchangedHistoryPreserved(t *t
 	asset := snapshot.Input.Assets[0]
 	expires := time.Now().UTC().Add(2 * time.Second)
 	draft := mustDraft(t, s, snapshot, asset.ID)
-	draft.Changes[0].Access.Exceptions = []domain.Exception{{CheckID: "CHK-07", ServiceRef: asset.Services[1].ID, ExpiresAt: expires.Format(time.RFC3339Nano), Reason: "原已确认的短期业务例外"}}
+	draft.Changes[0].Access.Exceptions = []domain.Exception{{CheckID: "CHK-07", ServiceRef: asset.Services[1].ID, ExpiresAt: expires.Format(time.RFC3339Nano), AuthorizationSource: "人工测试明确授权", Reason: "原已确认的短期业务例外"}}
 	draft, err := s.UpdateProfileDraft(ctx, draft.ID, UpdateDraftRequest{ExpectedDraftRevision: draft.Revision, Changes: draft.Changes})
 	if err != nil {
 		t.Fatal(err)

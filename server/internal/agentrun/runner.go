@@ -1,6 +1,7 @@
 package agentrun
 
 import (
+	"cfw-policy-llm-agent/server/internal/workload"
 	"context"
 	"encoding/json"
 	"errors"
@@ -24,7 +25,6 @@ const (
 	maxFinalBytes = 32 << 10
 	maxArgsBytes  = 4 << 10
 	maxToolBytes  = 32 << 10
-	maxBatch      = 4
 )
 
 var safeName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,63}$`)
@@ -41,7 +41,7 @@ type state struct {
 	query                                Query
 	sink                                 Sink
 	cfg                                  Config
-	maxModels, maxTools                  int
+	maxModels, maxTools, maxBatch        int
 	modelCalls, toolCalls, reservedTools int
 	infos                                []*schema.ToolInfo
 	tools                                map[string]bool
@@ -119,27 +119,34 @@ func (s *state) snapshot() Outcome {
 	defer s.mu.Unlock()
 	return Outcome{ModelCalls: s.modelCalls, ToolCalls: s.toolCalls, UsageKnown: false, ErrorCode: s.failure}
 }
-func bounds(kind string, cfg Config) (models, tools int, timeout time.Duration, err error) {
-	switch kind {
-	case "audit":
-		models, tools = 6, 12
-	case "assistant_turn":
-		models, tools = 4, 8
-	default:
-		return 0, 0, 0, Controlled("INVALID_TASK")
+func bounds(kind string, cfg Config) (models, tools, batch int, timeout, stage time.Duration, err error) {
+	if kind != "audit" && kind != "assistant_turn" {
+		err = Controlled("INVALID_TASK")
+		return
 	}
-	if cfg.MaxModelCalls < 0 || cfg.MaxToolCalls < 0 || cfg.ModelTimeout < 0 {
-		return 0, 0, 0, Controlled("INVALID_LIMITS")
+	resolved, e := workload.Normalize(kind, cfg.Workload)
+	if e != nil || cfg.MaxModelCalls < 0 || cfg.MaxToolCalls < 0 || cfg.ModelTimeout < 0 {
+		err = Controlled("INVALID_LIMITS")
+		return
 	}
+	limits := resolved.Limits
+	models, tools, batch = limits.ModelLogicalCalls, limits.ToolCalls, limits.ToolBatch
 	if cfg.MaxModelCalls > 0 && cfg.MaxModelCalls < models {
 		models = cfg.MaxModelCalls
 	}
 	if cfg.MaxToolCalls > 0 && cfg.MaxToolCalls < tools {
 		tools = cfg.MaxToolCalls
 	}
-	timeout = 30 * time.Second
+	if batch > tools {
+		batch = tools
+	}
+	timeout, _ = workload.Seconds(limits.ModelRequestSeconds)
+	stage, _ = workload.Seconds(limits.ModelSeconds)
 	if cfg.ModelTimeout > 0 && cfg.ModelTimeout < timeout {
 		timeout = cfg.ModelTimeout
+	}
+	if models == 0 || limits.ModelHTTPAttempts == 0 || timeout <= 0 || stage <= 0 {
+		err = Controlled("MODEL_CALL_LIMIT")
 	}
 	return
 }
@@ -161,7 +168,7 @@ func Run(ctx context.Context, task Task, cfg Config, sink Sink) (out Outcome, er
 			}
 		}
 	}()
-	models, tools, timeout, e := bounds(task.Kind, cfg)
+	models, tools, batch, timeout, stage, e := bounds(task.Kind, cfg)
 	if e != nil {
 		return Outcome{ErrorCode: e.(*Error).Code}, e
 	}
@@ -175,12 +182,12 @@ func Run(ctx context.Context, task Task, cfg Config, sink Sink) (out Outcome, er
 		}
 		return Outcome{ErrorCode: code}, Controlled(code)
 	}
-	runCtx, cancel := context.WithCancel(ctx)
+	runCtx, cancel := context.WithTimeout(ctx, stage)
 	defer cancel()
 	cfg.ModelTimeout = timeout
 	cfg.SensitiveValues = append([]string(nil), cfg.SensitiveValues...)
 	cfg.FinalSchema = append(json.RawMessage(nil), cfg.FinalSchema...)
-	run = &state{ctx: runCtx, cancel: cancel, query: task.Queries, sink: sink, cfg: cfg, maxModels: models, maxTools: tools, tools: map[string]bool{}, calls: map[string]*callRecord{}}
+	run = &state{ctx: runCtx, cancel: cancel, query: task.Queries, sink: sink, cfg: cfg, maxModels: models, maxTools: tools, maxBatch: batch, tools: map[string]bool{}, calls: map[string]*callRecord{}}
 	fail := func(code string) (Outcome, error) {
 		run.mu.Lock()
 		e := run.fail(code)
@@ -386,10 +393,15 @@ func (m *guardModel) Generate(ctx context.Context, input []*schema.Message, opts
 		}
 		s.final = result.Content
 	} else {
+		// Local evidence queries cannot produce a final model answer. Do not
+		// spend the last logical turn's tool budget with no answer turn left.
+		if s.modelCalls >= s.maxModels {
+			return nil, s.fail("MODEL_CALL_LIMIT")
+		}
 		if reason != "tool_calls" {
 			return nil, s.fail("MODEL_PROTOCOL_ERROR")
 		}
-		if len(result.ToolCalls) > maxBatch {
+		if len(result.ToolCalls) > s.maxBatch {
 			return nil, s.fail("TOOL_BATCH_LIMIT")
 		}
 		if s.reservedTools+len(result.ToolCalls) > s.maxTools {

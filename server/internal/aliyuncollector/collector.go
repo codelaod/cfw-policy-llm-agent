@@ -21,11 +21,14 @@ type Collector struct {
 }
 
 type run struct {
-	collector    *Collector
-	ctx          context.Context
-	calls        int
-	artifacts    []RawArtifact
-	observations []Observation
+	collector        *Collector
+	ctx              context.Context
+	calls            int
+	artifacts        []RawArtifact
+	observations     []Observation
+	instances        map[string]map[string]json.RawMessage
+	instanceComplete map[string]bool
+	groups           map[string]domain.SecurityGroupEvidence
 }
 type family struct {
 	policies     []domain.Policy
@@ -36,6 +39,7 @@ type family struct {
 	complete     bool
 	gaps         []string
 	fingerprints []string
+	gateway      *domain.Resource
 }
 
 func alias(v string) bool { return len(v) > 0 && len(v) <= 128 && !strings.ContainsAny(v, "\x00\r\n") }
@@ -61,21 +65,14 @@ func New(reader Reader, cfg Config) (*Collector, error) {
 	if s.Boundary == "internet" && s.GatewayRef != "" {
 		return nil, Failure("COLLECTOR_CONFIGURATION_INVALID")
 	}
-	if cfg.PageSize == 0 {
-		cfg.PageSize = 50
-	}
-	if cfg.MaxAttempts == 0 {
-		cfg.MaxAttempts = 100
-	}
-	if cfg.MaxPolicies == 0 {
-		cfg.MaxPolicies = 1000
-	}
-	if cfg.PageSize < 1 || cfg.PageSize > 50 || cfg.MaxAttempts < 1 || cfg.MaxAttempts > 100 || cfg.MaxPolicies < 1 || cfg.MaxPolicies > 1000 || len(cfg.AssetRegions) > 50 || len(cfg.AllowedGatewayIDs) > 50 {
-		return nil, Failure("COLLECTOR_CONFIGURATION_INVALID")
+	var err error
+	cfg, err = resolveConfig(cfg)
+	if err != nil {
+		return nil, err
 	}
 	regions := make(map[string]string, len(cfg.AssetRegions))
 	for id, region := range cfg.AssetRegions {
-		if !alias(id) || !alias(region) {
+		if !alias(id) || !alias(region) || !allowedRegion(cfg, region) {
 			return nil, Failure("COLLECTOR_CONFIGURATION_INVALID")
 		}
 		regions[id] = region
@@ -90,7 +87,7 @@ func New(reader Reader, cfg Config) (*Collector, error) {
 			}
 			found = found || id == cfg.GatewayID
 		}
-		if !found || !alias(cfg.GatewayID) || !alias(cfg.GatewayRegion) {
+		if len(cfg.AllowedGatewayIDs) > 0 && !found || !alias(cfg.GatewayID) || !allowedRegion(cfg, cfg.GatewayRegion) || !gatewayAllowed(cfg, cfg.GatewayID, cfg.GatewayRegion) {
 			return nil, Failure("COLLECTOR_SCOPE_DENIED")
 		}
 	}
@@ -109,7 +106,7 @@ func (c *Collector) Collect(ctx context.Context, selection domain.Selection) (Co
 			return Collection{}, Failure("COLLECTOR_SCOPE_DENIED")
 		}
 	} else if selection.Kind == "assets" {
-		if len(selection.AssetIDs) == 0 || len(selection.AssetIDs) > 50 {
+		if len(selection.AssetIDs) == 0 || len(selection.AssetIDs) > c.cfg.Workload.Limits.AssetsPerBatch {
 			return Collection{}, Failure("COLLECTOR_SCOPE_DENIED")
 		}
 		seen := map[string]bool{}
@@ -124,12 +121,16 @@ func (c *Collector) Collect(ctx context.Context, selection domain.Selection) (Co
 	}
 	selection.AssetIDs = append([]string(nil), selection.AssetIDs...)
 	sort.Strings(selection.AssetIDs)
-	ctx, cancel := context.WithTimeout(ctx, 90*time.Second)
+	window, _ := time.ParseDuration(strconv.Itoa(c.cfg.Workload.Limits.CollectionSeconds) + "s")
+	ctx, cancel := context.WithTimeout(ctx, window)
 	defer cancel()
 	r := &run{collector: c, ctx: ctx}
 	started := time.Now().UTC().Format(time.RFC3339Nano)
 	first, err := r.collectFamily(1, selection)
 	if err != nil {
+		if input, ok := r.firstPartialInput(started, selection, first, err); ok {
+			return Collection{Input: input, Observations: r.observations, Artifacts: r.artifacts}, nil
+		}
 		return Collection{Observations: r.observations, Artifacts: r.artifacts}, controlled(err)
 	}
 	second, secondErr := r.collectFamily(2, selection)
@@ -174,13 +175,37 @@ func (c *Collector) Collect(ctx context.Context, selection domain.Selection) (Co
 			gaps = append(gaps, "PROTECTION_CHANGED")
 		}
 	}
+	if c.cfg.Scope.Boundary == "internet" {
+		secondAssets := map[string]domain.Asset{}
+		for _, asset := range second.assets {
+			secondAssets[asset.ID] = asset
+		}
+		for i := range first.assets {
+			asset := &first.assets[i]
+			if asset.Protection == nil || asset.Protection.State == "unknown" {
+				continue
+			}
+			later := secondAssets[asset.ID].Protection
+			if later == nil || later.EvidenceRef == "" || later.State == "unknown" {
+				asset.Protection.State = "unknown"
+				gaps = append(gaps, "PROTECTION_UNVERIFIED")
+			} else if later.State != asset.Protection.State {
+				asset.Protection.State = "unknown"
+				gaps = append(gaps, "PROTECTION_CHANGED")
+			}
+		}
+	}
 	profile := "aliyun-cfw-internet-v1"
 	if c.cfg.Scope.Boundary == "nat" {
 		profile = "aliyun-cfw-nat-v1"
 	}
 	version := hash([]byte(started + strings.Join(first.fingerprints, "\x00")))
-	in := domain.Input{SchemaVersion: 1, SnapshotVersion: "live-" + version[:32], ProfileVersion: "unconfirmed-v1", IntentVersion: "unconfirmed-v1", NormalizerVersion: audit.NormalizerVersion, KernelVersion: audit.KernelVersion, SourceKind: "live_readonly", EvaluationAt: time.Now().UTC().Format(time.RFC3339Nano), CollectedAt: started, Scope: c.cfg.Scope, Semantics: domain.Semantics{ProfileID: profile, Version: audit.ProviderSemanticsVersion, DefaultAction: "unknown", SourceRef: "T-06"}, Completeness: domain.Completeness{Declared: true, EnumerationComplete: complete, ObservationConsistency: consistency, KnownGaps: unique(gaps)}, Protection: protection, Selection: selection, Assets: first.assets, Policies: first.policies, AddressRefs: first.addresses, PortRefs: first.ports, Baseline: audit.ProjectBaseline()}
-	if err := audit.ValidateContext(ctx, in); err != nil {
+	in := domain.Input{SchemaVersion: 1, SnapshotVersion: "live-" + version[:32], ProfileVersion: "unconfirmed-v1", IntentVersion: "unconfirmed-v1", NormalizerVersion: audit.NormalizerVersion, KernelVersion: audit.KernelVersion, SourceKind: "live_readonly", EvaluationAt: time.Now().UTC().Format(time.RFC3339Nano), CollectedAt: started, Scope: c.cfg.Scope, Semantics: domain.Semantics{ProfileID: profile, Version: audit.ProviderSemanticsVersion, DefaultAction: "unknown", SourceRef: "T-06"}, Completeness: domain.Completeness{Declared: true, EnumerationComplete: complete, ObservationConsistency: consistency, KnownGaps: unique(gaps)}, Protection: protection, Selection: selection, Assets: first.assets, GatewayMetadata: first.gateway, Policies: first.policies, AddressRefs: first.addresses, PortRefs: first.ports, Baseline: audit.ProjectBaseline()}
+	validationContext, validationErr := audit.WithInputObjectLimits(ctx, c.cfg.Workload.Limits.AssetsPerBatch, c.cfg.MaxPolicies)
+	if validationErr != nil {
+		return Collection{Observations: r.observations, Artifacts: r.artifacts}, Failure("COLLECTOR_CONFIGURATION_INVALID")
+	}
+	if err := audit.ValidateContext(validationContext, in); err != nil {
 		return Collection{Observations: r.observations, Artifacts: r.artifacts}, Failure("COLLECTOR_NORMALIZATION_INVALID")
 	}
 	return Collection{Input: in, Observations: r.observations, Artifacts: r.artifacts}, nil
@@ -242,7 +267,7 @@ func fatal(err error) bool {
 	if !errors.As(err, &f) {
 		return false
 	}
-	for _, code := range []Failure{"COLLECTOR_SCOPE_DENIED", "PROVIDER_IDENTITY_CONFLICT", "PROVIDER_RESPONSE_INVALID", "UPSTREAM_RESPONSE_TOO_LARGE", "CLOUD_ACCOUNT_MISMATCH", "CLOUD_OWNER_MISMATCH", "CLOUD_GATEWAY_MISMATCH", "CLOUD_ASSET_SCOPE_MISMATCH", "CLOUD_GROUP_SCOPE_MISMATCH", "CLOUD_IDENTITY_NOT_VERIFIED", "CLOUD_IDENTITY_REFUSED", "CLOUD_IDENTITY_INVALID", "CLOUD_RESPONSE_CONTAINS_CREDENTIAL"} {
+	for _, code := range []Failure{"COLLECTOR_SCOPE_DENIED", "PROVIDER_IDENTITY_CONFLICT", "PROVIDER_RESPONSE_INVALID", "UPSTREAM_RESPONSE_TOO_LARGE", "CLOUD_ACCOUNT_MISMATCH", "CLOUD_OWNER_MISMATCH", "CLOUD_GATEWAY_MISMATCH", "CLOUD_ASSET_SCOPE_MISMATCH", "CLOUD_GROUP_SCOPE_MISMATCH", "CLOUD_IDENTITY_NOT_VERIFIED", "CLOUD_IDENTITY_REFUSED", "CLOUD_IDENTITY_INVALID", "CLOUD_RESPONSE_INVALID", "CLOUD_RESPONSE_CONTAINS_CREDENTIAL"} {
 		if f == code {
 			return true
 		}
@@ -276,6 +301,19 @@ func (r *run) read(round int, operation string, q map[string]string) (json.RawMe
 func (r *run) collectFamily(round int, selection domain.Selection) (family, error) {
 	f := family{complete: true, policies: []domain.Policy{}, assets: []domain.Asset{}, addresses: map[string]domain.AddressReference{}, ports: map[string]domain.PortReference{}, protection: domain.Protection{Applicable: true, Required: true, State: "unknown"}}
 	cfg := r.collector.cfg
+	r.instances = map[string]map[string]json.RawMessage{}
+	r.instanceComplete = map[string]bool{}
+	r.groups = map[string]domain.SecurityGroupEvidence{}
+	if selection.Kind == "assets" {
+		complete, err := r.collectInstances(round, selection.AssetIDs)
+		if err != nil {
+			return f, err
+		}
+		if !complete {
+			f.complete = false
+			f.gaps = append(f.gaps, "ECS_METADATA_INCOMPLETE")
+		}
+	}
 	if cfg.Scope.Boundary == "nat" {
 		meta, complete, err := r.pages(round, "DescribeNatFirewallList", map[string]string{"NatGatewayId": cfg.GatewayID, "RegionNo": cfg.GatewayRegion}, "NatFirewallList", "PageNo", false, "NatGatewayId", 50)
 		if err != nil {
@@ -293,6 +331,8 @@ func (r *run) collectFamily(round int, selection domain.Selection) (family, erro
 				return f, Failure("COLLECTOR_SCOPE_DENIED")
 			}
 			f.protection = natProtection(meta[0], cfg.Scope.Ref)
+			gateway := gatewayResource(meta[0], cfg, time.Now().UTC().Format(time.RFC3339Nano))
+			f.gateway = &gateway
 			mode, modePresent := intField(meta[0], "StrictMode")
 			if !knownNATMetadata(meta[0]) || !modePresent || (mode != 0 && mode != 1) || !alias(text(meta[0], "ProxyId")) {
 				f.complete = false
@@ -302,6 +342,13 @@ func (r *run) collectFamily(round int, selection domain.Selection) (family, erro
 	} else if selection.Kind == "assets" {
 		states := []string{}
 		for _, id := range selection.AssetIDs {
+			if !r.instanceComplete[id] {
+				asset, _ := r.collectAsset(round, id, nil)
+				asset.Protection = assetProtectionAssertion(cfg.Scope.Ref, id, nil, false)
+				f.assets = append(f.assets, asset)
+				states = append(states, "unknown")
+				continue
+			}
 			rows, complete, err := r.pages(round, "DescribeAssetList", map[string]string{"SearchItem": id, "IpVersion": "4"}, "Assets", "CurrentPage", false, "", 1000)
 			if err != nil {
 				return f, err
@@ -322,17 +369,16 @@ func (r *run) collectFamily(round int, selection domain.Selection) (family, erro
 			}
 			if len(matches) == 0 {
 				f.gaps = append(f.gaps, "ASSET_PROTECTION_NOT_OBSERVED")
-				states = append(states, "unknown")
-			} else {
-				for _, row := range matches {
-					states = append(states, assetProtection(text(row, "ProtectStatus")))
-				}
 			}
 			asset, err := r.collectAsset(round, id, matches)
+			asset.Protection = assetProtectionAssertion(cfg.Scope.Ref, id, matches, complete)
+			states = append(states, asset.Protection.State)
+			if !fatal(controlled(err)) {
+				f.assets = append(f.assets, asset)
+			}
 			if err != nil {
 				return f, err
 			}
-			f.assets = append(f.assets, asset)
 		}
 		f.protection.State = aggregateProtection(states)
 		f.protection.EvidenceRef = "cfw-protection-" + cfg.Scope.Ref
@@ -340,10 +386,12 @@ func (r *run) collectFamily(round int, selection domain.Selection) (family, erro
 	if cfg.Scope.Boundary == "nat" && selection.Kind == "assets" {
 		for _, id := range selection.AssetIDs {
 			asset, err := r.collectAsset(round, id, nil)
+			if !fatal(controlled(err)) {
+				f.assets = append(f.assets, asset)
+			}
 			if err != nil {
 				return f, err
 			}
-			f.assets = append(f.assets, asset)
 		}
 	}
 	op := "DescribeControlPolicy"
@@ -352,11 +400,11 @@ func (r *run) collectFamily(round int, selection domain.Selection) (family, erro
 		op = "DescribeNatFirewallControlPolicy"
 		q = map[string]string{"Direction": "out", "NatGatewayId": cfg.GatewayID}
 	}
-	rows, complete, err := r.pages(round, op, q, "Policys", "CurrentPage", true, "AclUuid", cfg.MaxPolicies)
-	if err != nil {
-		return f, err
+	rows, complete, pageErr := r.pages(round, op, q, "Policys", "CurrentPage", true, "AclUuid", cfg.MaxPolicies)
+	if fatal(controlled(pageErr)) {
+		return f, pageErr
 	}
-	f.complete = f.complete && complete
+	f.complete = f.complete && complete && pageErr == nil
 	for _, row := range rows {
 		p, refs, err := normalizePolicy(cfg.Scope, cfg.GatewayID, row)
 		if err != nil {
@@ -369,6 +417,11 @@ func (r *run) collectFamily(round int, selection domain.Selection) (family, erro
 				var e error
 				a, pv, e = r.resolveBook(round, ref)
 				if e != nil {
+					// The policy itself was verified and normalized; an unreadable
+					// reference remains unresolved rather than erasing that fact.
+					if !fatal(controlled(e)) {
+						f.policies = append(f.policies, p)
+					}
 					return f, e
 				}
 				if ref.kind == "port" {
@@ -382,6 +435,9 @@ func (r *run) collectFamily(round int, selection domain.Selection) (family, erro
 			}
 		}
 		f.policies = append(f.policies, p)
+	}
+	if pageErr != nil {
+		return f, pageErr
 	}
 	for _, o := range r.observations {
 		if o.Round == round {
@@ -471,4 +527,16 @@ func knownNATMetadata(row map[string]json.RawMessage) bool {
 		}
 	}
 	return true
+}
+
+func assetProtectionAssertion(scope, id string, rows []map[string]json.RawMessage, complete bool) *domain.Protection {
+	p := &domain.Protection{Applicable: true, Required: true, State: "unknown", EvidenceRef: "cfw-protection-" + hash([]byte(scope + "\x00" + id))[:24]}
+	if complete {
+		states := []string{}
+		for _, row := range rows {
+			states = append(states, assetProtection(text(row, "ProtectStatus")))
+		}
+		p.State = aggregateProtection(states)
+	}
+	return p
 }

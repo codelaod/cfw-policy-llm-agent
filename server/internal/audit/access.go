@@ -74,7 +74,7 @@ func outsideAccess(ctx context.Context, c domain.Cell, allowed []compiledAccess,
 		px = append(px, v.ports...)
 	}
 	as, ps := segments(cuts(addresses, ax), addresses), segments(cuts(ports, px), ports)
-	if len(ps) > 0 && len(as) > MaxQueryCells/len(ps) {
+	if len(ps) > 0 && len(as) > queryCellLimit(ctx)/len(ps) {
 		return nil, false, nil
 	}
 	out := []domain.Cell{}

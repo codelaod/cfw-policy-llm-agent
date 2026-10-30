@@ -58,7 +58,18 @@ func (s *Service) invoke(name, arg string) (any, string, error) {
 			services = append(services, map[string]any{"service_ref": s.emit(s.serviceRef(r.asset, si)), "role": safeChoice(v.Role, "web", "database", "management", "middleware", "cache", "queue", "background", "unknown"), "role_status": safeChoice(v.RoleStatus, "confirmed", "candidate", "unknown"), "protocol": v.Protocol, "ports": v.Ports, "business_ref": s.emit(s.businessRef(r.asset, si))})
 		}
 		policies, total := s.policiesFor(r.asset)
-		out := map[string]any{"asset_ref": arg, "address_ref": s.emit(s.ref("address", a.Address, reference{asset: r.asset})), "address_observed": a.AddressObserved, "services": services, "business_ref": s.emit(s.businessRef(r.asset, -1)), "policy_refs": policies, "policy_total": total, "policies_truncated": total > len(policies), "security_group_status": "not_collected", "evidence_ref": s.fact("asset/"+strconv.Itoa(r.asset), r.asset, -1)}
+		out := map[string]any{"asset_ref": arg, "address_ref": s.emit(s.ref("address", a.Address, reference{asset: r.asset})), "address_observed": a.AddressObserved, "services": services, "business_ref": s.emit(s.businessRef(r.asset, -1)), "policy_refs": policies, "policy_total": total, "policies_truncated": total > len(policies), "security_group_status": groupCollection(a), "metadata": s.assetMetadata(r.asset), "evidence_ref": s.fact("asset/"+strconv.Itoa(r.asset), r.asset, -1)}
+		protection := s.input.ProtectionFor(a.ID)
+		out["protection_state"] = safeChoice(protection.State, "on", "off", "transitioning", "unknown")
+		out["protection_applicable"] = protection.Applicable
+		out["protection_required"] = protection.Required
+		if a.Protection != nil && s.input.Scope.Boundary == "internet" {
+			out["protection_evidence_ref"] = s.pointerFact(assetPath(r.asset, -1)+"/protection", r.asset)
+		}
+		groups, groupTotal := s.groupRefs(r.asset)
+		out["security_group_refs"] = groups
+		out["security_group_total"] = groupTotal
+		out["security_groups_truncated"] = groupTotal > len(groups)
 		if s.input.Scope.Boundary == "nat" {
 			out["association_ref"] = s.emit(s.ref("association", a.ID, reference{asset: r.asset}))
 		}
@@ -79,10 +90,7 @@ func (s *Service) invoke(name, arg string) (any, string, error) {
 		}
 		return map[string]any{"association_ref": arg, "asset_ref": s.emit(s.assetRef(r.asset)), "gateway_ref": s.emit(s.ref("gateway", s.input.Scope.GatewayRef, reference{})), "status": status, "observation_point": point, "can_claim_actual_path": false, "evidence_ref": s.fact("association/"+strconv.Itoa(r.asset), r.asset, -1)}, status, nil
 	case "get_security_group_rules":
-		if _, e := s.use(arg, "asset"); e != nil {
-			return nil, "", e
-		}
-		return map[string]any{"asset_ref": arg, "reason_code": "snapshot_has_no_security_group_section", "rules": []any{}}, "not_collected", nil
+		return s.securityGroups(arg)
 	case "get_business_intent":
 		r, e := s.use(arg, "business")
 		if e != nil {

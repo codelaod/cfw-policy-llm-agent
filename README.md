@@ -4,6 +4,8 @@
 
 **当前进度：需求v0.6／B2与整体设计v0.6已通过；E3受限Agent已通过限定离线验证；E4当前切片已通过限定离线适配验证。** 正式Eino单任务Runner、九个固定资料工具、有限会话上下文、校验结果与共享物理HTTP账本已接业务服务／Web；原规则结果独立保留。当前E4切片与待验项见[E4适配记录](docs/validation/evidence/e4-adapters-local.md)，E3历史结果见[E3记录](docs/validation/evidence/e3-local.md)，前序见[E0](docs/validation/evidence/e0-local.md)／[E1](docs/validation/evidence/e1-local.md)／[E2](docs/validation/evidence/e2-local.md)。真实云、上游MiniMax连续兼容、正式评价与真实人工整改仍未验收。
 
+**2026-10-30产品主链代码整改及独立整体Review修复已形成限定本机结果。** 已接正式无快照对话、资源目录／消歧、同一审计任务资料准备与晚封存、合格复用、结构化元数据／SG、共享执行政策及本地引导；业务草稿／表单分项确认、可信归属、完整有限集串行分批与固定模型评价执行器已有正式代码及限定回归；完整旅程和真实验收仍待完成。限定结果见[代码阶段证据](docs/validation/evidence/conversation-implementation-local.md)，剩余项见[实施计划§2.3](docs/development/implementation-plan.md)与[差异台账](docs/development/implementation-gap.md)。[PRD](docs/requirements/product.md)和[24旅程／88分支目录](docs/requirements/customer-journeys.json)仍是目标；历史原型／局部测试不扩大为完整验收。
+
 ## 文档入口
 
 完整分类与阅读顺序见 **[项目文档导航](docs/README.md)**。
@@ -55,6 +57,6 @@ npm test
 npm run build
 ```
 
-本机启动、business schema 4显式迁移和应用访问口令见[后端说明](server/README.md)。默认不配云／模型即可使用离线规则；正式服务只通过显式`--model-config`／`--cloud-config` JSON和其中指定的环境变量取得配置，不读取dotenv、机器profile或已有实验私配。云适配当前仅env_ak／env_sts静态凭据，固定生产端点与expected account先行核对；不实现角色自动续期或discover_region。`--config-check`仅在本地输出脱敏摘要；启动／预览零外呼，只有接受计划或明确发送后才可能执行受共享预算约束的请求。云／模型同时启用须共用预算周期并取严，显式零模型额度保持零。采集先产生新快照，再由用户明确启动pinned审计；身份检查不等产品权限通过。配置存在或enabled不等于上游已验证或付费授权，既有MiniMax模型与512等更严私有上限保持。独立实验的[.env.example](.env.example)及`bash scripts/eino-offline.sh config-check`仍只适用于该实验。
+本机启动、business schema 5显式迁移和应用口令见[后端说明](server/README.md)。默认可运行离线规则。模型使用互斥的显式`--env-file`或`--model-config`，云连接使用`--cloud-config`，执行政策使用`--execution-config`；不自动搜索dotenv或机器profile。启动、配置检查和预览零外呼。云／模型共用持久授权与物理账本，显式0和更严私限保留；同一audit可在接受后准备资料，独立collect／pinned历史入口仍保留。云凭据仅env_ak／env_sts静态Provider，身份核验不等产品权限通过。MiniMax模型名与512等私配不被替换；真实调用、整改与正式评价仍按原授权及验收边界执行。
 
 许可证：[Apache License 2.0](LICENSE)。

@@ -97,15 +97,18 @@ type SendResponse struct {
 	Replayed bool                        `json:"replayed"`
 }
 type JobResult struct {
-	Audit           *storage.AuditRecord `json:"audit"`
-	IsFinal         bool                 `json:"is_final"`
-	ViewSeq         int64                `json:"view_seq"`
-	CompletedPhases []string             `json:"completed_phases"`
-	Recheck         *RecheckView         `json:"recheck"`
-	SnapshotID      string               `json:"snapshot_id"`
-	AgentResult     *storage.AgentRecord `json:"agent_result"`
-	CloudResult     *storage.CloudRecord `json:"cloud_result"`
-	AttemptUsage    storage.AttemptUsage `json:"attempt_usage"`
+	Batch *storage.BatchRequest `json:"batch,omitempty"`
+
+	PreparationDiscovery *storage.AuditDiscoveryRecord `json:"preparation_discovery,omitempty"`
+	Audit                *storage.AuditRecord          `json:"audit"`
+	IsFinal              bool                          `json:"is_final"`
+	ViewSeq              int64                         `json:"view_seq"`
+	CompletedPhases      []string                      `json:"completed_phases"`
+	Recheck              *RecheckView                  `json:"recheck"`
+	SnapshotID           string                        `json:"snapshot_id"`
+	AgentResult          *storage.AgentRecord          `json:"agent_result"`
+	CloudResult          *storage.CloudRecord          `json:"cloud_result"`
+	AttemptUsage         storage.AttemptUsage          `json:"attempt_usage"`
 }
 type RecheckView struct {
 	ID         string             `json:"id"`
@@ -125,6 +128,14 @@ type FindingDetail struct {
 
 func (a *API) workspaceRoutes(r *gin.Engine) {
 	v := r.Group("/api/v1")
+	v.GET("/conversations/:id/intents/current", a.currentIntent)
+	v.GET("/conversations/:id/business-context", a.conversationBusinessContext)
+	v.GET("/conversations/:id/resource-group-preview", a.resourceGroupPreview)
+	v.POST("/conversations/:id/intent-turns", a.intentTurn)
+	v.POST("/conversations/:id/intent-choices", a.intentChoice)
+	v.POST("/conversations/:id/proposals/:proposal_id/accept", a.acceptIntentProposal)
+	v.GET("/resources", a.resources)
+	v.GET("/guidance", a.guidance)
 	v.GET("/capabilities", a.capabilities)
 	v.GET("/data-sources", a.sources)
 	v.GET("/data-sources/:id/collection-options", a.collectionOptions)
@@ -162,6 +173,8 @@ func (a *API) workspaceRoutes(r *gin.Engine) {
 	v.POST("/profile-drafts", a.createDraft)
 	v.GET("/profile-drafts/:id", a.draft)
 	v.PATCH("/profile-drafts/:id", a.updateDraft)
+	v.GET("/profile-drafts/:id/current-base", a.draftCurrentBase)
+	v.POST("/profile-drafts/:id/rebase", a.rebaseDraft)
 	v.POST("/profile-drafts/:id/preview", a.previewDraft)
 	v.POST("/profile-drafts/:id/confirm", a.confirmDraft)
 	v.POST("/profile-drafts/:id/reject", a.rejectDraft)
@@ -369,8 +382,12 @@ func (a *API) createConversation(c *gin.Context) {
 	if !decode(c, &req) {
 		return
 	}
-	v, e := a.engine.Store.CreateConversation(c.Request.Context(), req.Title, req.PolicyScopeRef)
-	reply(c, 201, v, e)
+	v, replayed, e := a.engine.Store.CreateConversationWithKey(c.Request.Context(), req.Title, req.PolicyScopeRef, c.GetHeader("Idempotency-Key"))
+	status := 201
+	if replayed {
+		status = 200
+	}
+	reply(c, status, v, e)
 }
 
 // conversation godoc
@@ -485,7 +502,19 @@ func (a *API) importSnapshot(c *gin.Context) {
 		fail(c, 422, "INVALID_REQUEST", "input body unavailable")
 		return
 	}
-	v, e := a.audits.Import(c.Request.Context(), data)
+	policy, e := a.plans.ResolveWorkload("audit")
+	if e != nil {
+		storeError(c, e)
+		return
+	}
+	// Ingestion stores a bounded material set. Execution still validates the
+	// selected segment against AssetsPerBatch when its plan is built/accepted.
+	inputCtx, e := audit.WithInputObjectLimits(c.Request.Context(), audit.MaxMaterialAssets, policy.Limits.MaxPolicies, policy.Limits.MaxQueryCells)
+	if e != nil {
+		storeError(c, e)
+		return
+	}
+	v, e := a.audits.Import(inputCtx, data)
 	if e != nil {
 		if errors.Is(e, audit.ErrInput) || errors.Is(e, audit.ErrUnsupported) || errors.Is(e, storage.ErrInputInvalid) {
 			fail(c, 422, "INVALID_IMPORT", "invalid or unsupported input artifact")
@@ -690,7 +719,7 @@ func (a *API) result(c *gin.Context) {
 		comparison = &RecheckView{ID: view.Recheck.ID, OldAuditID: view.Recheck.OldAuditID, NewAuditID: view.Recheck.NewAuditID, CreatedAt: view.Recheck.CreatedAt}
 		e = json.Unmarshal(view.Recheck.Comparison, &comparison.Comparison)
 	}
-	reply(c, 200, JobResult{Audit: view.Audit, IsFinal: storage.Terminal(view.Job.Status), ViewSeq: view.Job.ViewSeq, CompletedPhases: phases, Recheck: comparison, SnapshotID: view.SnapshotID, AgentResult: view.AgentResult, CloudResult: view.CloudResult, AttemptUsage: view.AttemptUsage}, e)
+	reply(c, 200, JobResult{Batch: view.Batch, PreparationDiscovery: view.PreparationDiscovery, Audit: view.Audit, IsFinal: storage.Terminal(view.Job.Status), ViewSeq: view.Job.ViewSeq, CompletedPhases: phases, Recheck: comparison, SnapshotID: view.SnapshotID, AgentResult: view.AgentResult, CloudResult: view.CloudResult, AttemptUsage: view.AttemptUsage}, e)
 }
 
 // jobInput godoc

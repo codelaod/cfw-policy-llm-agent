@@ -114,26 +114,9 @@ func getConversation(tx *gorm.DB, id string) (conversation Conversation, err err
 	}
 	return
 }
-func (s *Store) CreateConversation(ctx context.Context, title, scope string) (conversation Conversation, err error) {
-	if strings.TrimSpace(title) == "" || len(title) > 240 || !utf8.ValidString(title) {
-		return conversation, ErrInputInvalid
-	}
-	id, err := opaqueID("conversation")
-	if err != nil {
-		return conversation, err
-	}
-	at := now()
-	conversation = Conversation{ID: id, Title: title, PolicyScopeRef: scope, Revision: 1, CreatedAt: at, UpdatedAt: at}
-	err = s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := localScope(tx, scope); err != nil {
-			return err
-		}
-		if err := tx.Exec("INSERT INTO conversations(id,title,policy_scope_ref,revision,archived,last_seq,created_at,updated_at) VALUES(?,?,?,1,0,0,?,?)", id, title, scope, at, at).Error; err != nil {
-			return err
-		}
-		return tx.Exec("UPDATE workspace_state SET current_conversation_id=?,revision=revision+1 WHERE id=1", id).Error
-	})
-	return
+func (s *Store) CreateConversation(ctx context.Context, title, scope string) (Conversation, error) {
+	conversation, _, err := s.CreateConversationWithKey(ctx, title, scope, "")
+	return conversation, err
 }
 func (s *Store) GetConversation(ctx context.Context, id string) (Conversation, error) {
 	return getConversation(s.db.WithContext(ctx), id)

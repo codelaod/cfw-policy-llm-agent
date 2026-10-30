@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 
 	"cfw-policy-llm-agent/server/internal/domain"
+	"cfw-policy-llm-agent/server/internal/workload"
 )
 
 // Reader is a job-bound, identity-verified internal provider adapter. Implementors
@@ -18,9 +19,13 @@ type Reader interface {
 }
 
 type Config struct {
+	Workload          workload.Resolved
+	AllowedRegions    []string
+	SourceRef         string
 	Scope             domain.Scope
 	ExpectedAccountID string
 	AssetRegions      map[string]string
+	GatewayRegions    map[string]string
 	AllowedGatewayIDs []string
 	GatewayID         string
 	GatewayRegion     string

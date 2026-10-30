@@ -39,7 +39,7 @@ func manifest(in domain.Input) domain.InputManifest {
 // Run evaluates only frozen local inputs. It never alters the input and never
 // obtains credentials, performs HTTP, or uses the current clock as a rule fact.
 func Run(ctx context.Context, in domain.Input) (domain.Result, error) {
-	ctx, cancel := context.WithTimeout(ctx, 20*time.Second)
+	ctx, cancel := context.WithTimeout(ctx, executionLimits(ctx).Timeout)
 	defer cancel()
 	if err := ValidateContext(ctx, in); err != nil {
 		return domain.Result{}, err
@@ -185,6 +185,12 @@ func (r *runState) add(check, sub, subject, service, verdict, summary string, q 
 		}
 		pointer := "/assets/" + strconv.Itoa(i)
 		pointers[pointer] = ""
+		if a.Protection != nil && r.input.Scope.Boundary == "internet" {
+			pointers[pointer+"/protection"] = ""
+			if check == "CHK-05" || sub == "CHK-05" {
+				delete(pointers, "/protection")
+			}
+		}
 		if check == "NAT-01" {
 			pointers[pointer+"/association"] = ""
 		}
@@ -387,7 +393,7 @@ func (r *runState) necessary(check, sub string, a domain.Asset, s domain.Service
 }
 
 func (r *runState) coverage(check, sub, subject string) {
-	p := r.input.Protection
+	p := r.input.ProtectionFor(subject)
 	v, summary := "pass", "有来源的状态表明当前该CFW层已开启；不证明数据面或其他防护层。"
 	if !p.Applicable || !p.Required {
 		v, summary = "not_applicable", "没有已采用的本层保护要求或本层不适用。"

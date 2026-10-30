@@ -13,7 +13,10 @@ func (s *Service) Tools() []ToolDefinition {
 	for _, name := range names {
 		key := toolArgument[name]
 		schema, _ := json.Marshal(map[string]any{"type": "object", "additionalProperties": false, "required": []string{key}, "properties": map[string]any{key: map[string]any{"type": "string", "minLength": 1, "maxLength": 128}}})
-		out = append(out, ToolDefinition{name, "仅查当前封存资料；引用须已由服务器在先前模型轮次返回，缺口不触发外呼。", schema})
+		if name == "get_security_group_rules" {
+			schema, _ = json.Marshal(map[string]any{"type": "object", "additionalProperties": false, "oneOf": []any{map[string]any{"required": []string{"asset_ref"}}, map[string]any{"required": []string{"security_group_ref"}}}, "properties": map[string]any{"asset_ref": map[string]any{"type": "string", "minLength": 1, "maxLength": 128}, "security_group_ref": map[string]any{"type": "string", "minLength": 1, "maxLength": 128}}})
+		}
+		out = append(out, ToolDefinition{name, "仅查当前封存资料；引用须已由服务器在先前模型轮次返回，缺口不触发外呼。安全组及元数据仅为线索，不证明监听、可达或业务授权。", schema})
 	}
 	return out
 }

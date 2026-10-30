@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"cfw-policy-llm-agent/server/internal/app"
-	"cfw-policy-llm-agent/server/internal/cloudconfig"
 	"cfw-policy-llm-agent/server/internal/httpapi"
 	"cfw-policy-llm-agent/server/internal/modelconfig"
 	"cfw-policy-llm-agent/server/internal/storage"
@@ -40,12 +39,24 @@ func run() error {
 	db := flag.String("db", "../data/private/e0.sqlite", "private business database path")
 	migrate := flag.Bool("migrate", false, "explicitly apply the local SQL schema and exit")
 	webDir := flag.String("web-dir", "", "optional built web/dist directory; serves only public bundle files and business routes")
+	envFile := flag.String("env-file", "", "explicit project model environment file; mutually exclusive with model-config")
 	modelPath := flag.String("model-config", "", "explicit private model JSON configuration; no dotenv or profile discovery")
 	cloudPath := flag.String("cloud-config", "", "explicit private read-only cloud connection JSON; no default credential discovery")
+	executionPath := flag.String("execution-config", "", "explicit workload and shared policy JSON; no provider calls")
+	budgetChangePath := flag.String("budget-change", "", "apply one explicit local authorization revision and exit; existing ledger required")
 	configCheck := flag.Bool("config-check", false, "validate the explicitly selected model configuration locally and print a redacted summary")
 	flag.Parse()
+	if *budgetChangePath != "" {
+		if *configCheck || *migrate || *modelPath != "" || *cloudPath != "" || *envFile != "" || *executionPath != "" {
+			return errExecutionConfiguration
+		}
+		return applyBudgetChange(*db, *budgetChangePath, os.Stdout)
+	}
 	if *configCheck {
-		return checkConfiguration(*modelPath, *cloudPath, os.Stdout)
+		return checkExecutionConfiguration(*modelPath, *cloudPath, *envFile, *executionPath, os.Stdout)
+	}
+	if *modelPath != "" && *envFile != "" {
+		return modelconfig.ErrSourceConflict
 	}
 	// Startup/config validation is local and only explicitly selected credentials
 	// are read. No provider, identity, dotenv or machine profile is contacted.
@@ -65,23 +76,14 @@ func run() error {
 	if err = store.Recover(context.Background()); err != nil {
 		return fmt.Errorf("task recovery failed")
 	}
-	var selectedModel modelconfig.Config
-	if *modelPath != "" {
-		selectedModel, err = modelconfig.Load(*modelPath)
-		if err != nil {
-			return fmt.Errorf("explicit model configuration is unavailable: %w", err)
-		}
-	}
-	var selectedCloud cloudconfig.Config
-	if *cloudPath != "" {
-		selectedCloud, err = cloudconfig.Load(*cloudPath)
-		if err != nil {
-			return fmt.Errorf("explicit cloud configuration is unavailable: %w", err)
-		}
-	}
-	modelRuntime, err := app.NewRuntime(store, selectedModel, selectedCloud, token)
+	settings, err := loadExecutionSettings(*modelPath, *cloudPath, *envFile, *executionPath)
 	if err != nil {
-		return fmt.Errorf("runtime initialization failed; check the explicit configuration and persisted shared budget")
+		return fmt.Errorf("explicit settings are unavailable: %w", err)
+	}
+	selectedModel := settings.Model
+	modelRuntime, err := app.NewRuntimeWithExecution(store, settings.Model, settings.Cloud, settings.Execution, token)
+	if err != nil {
+		return fmt.Errorf("runtime initialization failed; check explicit settings and the persisted shared authorization")
 	}
 	defer modelRuntime.Close()
 	// A process-owned loopback endpoint supplies bounded artificial work. No user

@@ -1,0 +1,315 @@
+{
+  "date": "2026-10-29",
+  "scope": "Executed finite artificial documentation prototype only; not formal Go/Vue, real cloud/model, rule evaluation, persistence, production SSE, performance or business acceptance.",
+  "working_tree_uncommitted": true,
+  "real_cloud_model_requests": 0,
+  "state_regression": {
+    "branchMappings": {
+      "total": 88,
+      "partial": 2,
+      "scope": "coverage metadata validated, not one passing branch assertion per entry"
+    },
+    "passed": 30,
+    "checks": [
+      {
+        "id": "J01",
+        "title": "空白可建立意图，缺连接切人工"
+      },
+      {
+        "id": "J02",
+        "title": "名称/ID/地域/类型实际改变候选，51后目录可定位"
+      },
+      {
+        "id": "J03",
+        "title": "可信客户归属20群与完整地域目录分批"
+      },
+      {
+        "id": "J04",
+        "title": "同名/指代/客户未知/修订失效"
+      },
+      {
+        "id": "J05",
+        "title": "目录未知陈旧空权限未穷尽分开"
+      },
+      {
+        "id": "J06",
+        "title": "合格复用/刷新/历史解释分流且失败不称当前"
+      },
+      {
+        "id": "J07",
+        "title": "候选接受修改拒绝未知冲突不隐式授权"
+      },
+      {
+        "id": "J08",
+        "title": "角色访问必要访问分项，空值未知"
+      },
+      {
+        "id": "J09",
+        "title": "白名单未知仍有基线与待确认"
+      },
+      {
+        "id": "J10",
+        "title": "入向顺序状态默认行为覆盖不同"
+      },
+      {
+        "id": "J11",
+        "title": "出向不复用入向授权，完整依赖与不支持分支"
+      },
+      {
+        "id": "J12",
+        "title": "NAT关联不足与边界身份固定"
+      },
+      {
+        "id": "J13",
+        "title": "结论层次、定位证据、条件与影响齐全"
+      },
+      {
+        "id": "J14",
+        "title": "慢采集可取消，漏页/额度部分完成"
+      },
+      {
+        "id": "J15",
+        "title": "慢模型前规则已见，失败与越界保规则"
+      },
+      {
+        "id": "J16",
+        "title": "状态不建任务、同会话防重、取消终态与重试预览"
+      },
+      {
+        "id": "J17",
+        "title": "观察投影隔离补发去重，模拟中断不重放"
+      },
+      {
+        "id": "J18",
+        "title": "保存失败保草稿，版本冲突和换对象旧预览拒绝"
+      },
+      {
+        "id": "J19",
+        "title": "固定报告、审阅不改规则、失败不假保存与导出数据"
+      },
+      {
+        "id": "J20",
+        "title": "复审强刷新、改善/仍在/新增/不可比各分支"
+      },
+      {
+        "id": "J21",
+        "title": "三执行第四排队、队列取消与会话隔离"
+      },
+      {
+        "id": "J22",
+        "title": "越界写拒绝，正常改目标保留"
+      },
+      {
+        "id": "J23",
+        "title": "无关不建任务，外部注入不改权限，忽略目标正常"
+      },
+      {
+        "id": "J24",
+        "title": "识别敏感值不存不回显，保留产品限制提示"
+      },
+      {
+        "id": "scope-invariants",
+        "title": "集合和边界变化不继承旧授权、首句规则模式与复合句"
+      },
+      {
+        "id": "preview-and-secret-invariants",
+        "title": "旧卡失效、例外独立校验、表单秘密不入历史和报告"
+      },
+      {
+        "id": "import-invariants",
+        "title": "有来源导入、格式/版本拒绝、不完整输入与敏感拒绝"
+      },
+      {
+        "id": "historical-scope-invariants",
+        "title": "打开旧报告后复审沿用旧范围，旧卡绑定原任务"
+      },
+      {
+        "id": "import-source-invariants",
+        "title": "导入来源与完整性不扩散到其他对象或会话"
+      },
+      {
+        "id": "service-removal-invariants",
+        "title": "服务删除或更名后旧访问退出当前判据并保留历史"
+      }
+    ],
+    "limits": "Finite human-authored interaction state only. Not real rule, cloud, model, persistence, SSE or product acceptance."
+  },
+  "branch_regression": {
+    "scope": "Actual finite prototype engine inputs/actions and result assertions; no real cloud/model/rule/persistent-storage/product acceptance.",
+    "catalog_branches": 88,
+    "passed": 88,
+    "passed_branches": [
+      "J01-CLOUD",
+      "J01-MODEL",
+      "J01-MODEL_UNVERIFIED",
+      "J01-NO_DATA",
+      "J01-IMPORT",
+      "J01-IMPORT_INVALID",
+      "J01-IMPORT_PARTIAL",
+      "J02-NAME",
+      "J02-ID",
+      "J02-TYPE",
+      "J03-KNOWN",
+      "J03-PAGING",
+      "J03-GROUP_CHANGE",
+      "J04-PRONOUN",
+      "J04-UNKNOWN_CUSTOMER",
+      "J04-CHANGE",
+      "J05-UNKNOWN",
+      "J05-STALE",
+      "J05-EMPTY",
+      "J05-DENIED",
+      "J05-INCOMPLETE",
+      "J06-REUSE",
+      "J06-REFRESH",
+      "J06-REFRESH_FAIL",
+      "J07-ACCEPT",
+      "J07-MODIFY",
+      "J07-REJECT",
+      "J07-UNKNOWN",
+      "J07-CONFLICT",
+      "J08-ROLE_ONLY",
+      "J08-EMPTY_UNKNOWN",
+      "J08-NECESSARY",
+      "J08-EXCEPTION",
+      "J09-BASELINE",
+      "J09-BUSINESS",
+      "J09-DATA",
+      "J10-PRECEDENCE",
+      "J10-DEFAULT",
+      "J10-COVERAGE",
+      "J11-UNKNOWN",
+      "J11-COMPLETE",
+      "J11-UNSUPPORTED",
+      "J12-SAME_ID",
+      "J12-ASSOCIATION",
+      "J12-CROSS_SCOPE",
+      "J13-MODEL_HYPOTHESIS",
+      "J13-UNSUPPORTED",
+      "J13-COMPONENT",
+      "J14-SLOW",
+      "J14-PARTIAL",
+      "J14-BUDGET",
+      "J15-SLOW",
+      "J15-FAIL",
+      "J15-DEPENDENT",
+      "J15-NO_FACT",
+      "J16-ACK_UNKNOWN",
+      "J16-DUPLICATE",
+      "J16-QUEUED_CANCEL",
+      "J16-LATE_RESULT",
+      "J17-DISCONNECT",
+      "J17-RESTART",
+      "J17-REFRESH",
+      "J17-HISTORICAL",
+      "J18-FAILED",
+      "J18-CONFLICT",
+      "J18-SWITCH_OBJECT",
+      "J18-REVIEW",
+      "J19-IMMUTABLE",
+      "J19-REVIEW_ONLY",
+      "J19-PARTIAL",
+      "J19-EXPORT",
+      "J20-IMPROVED",
+      "J20-REMAINS",
+      "J20-NEW",
+      "J20-INCOMPARABLE",
+      "J21-ISOLATION",
+      "J21-QUEUE",
+      "J21-ONE_ACTIVE",
+      "J21-NOT_ASSET_LIMIT",
+      "J22-OUT_OF_SCOPE",
+      "J22-WRITE",
+      "J22-NORMAL_EDIT",
+      "J23-IRRELEVANT",
+      "J23-INJECTION",
+      "J23-USER_CHANGE",
+      "J24-KNOWN_SECRET",
+      "J24-UNRECOGNIZED",
+      "J24-CONTINUE"
+    ],
+    "passed_invariants": [
+      "service-confirmation-isolation",
+      "compound-target-and-rules-mode"
+    ],
+    "failed": 0,
+    "failures": []
+  },
+  "browser_regression": {
+    "date": "2026-10-29",
+    "browser": "Chromium 155.0.8059.12 via Playwright CLI",
+    "passed": 63,
+    "checks": [
+      "J01 empty starts without snapshot or task",
+      "customer conversation is the primary entry",
+      "J04 same-name candidates remain unresolved",
+      "candidate displays canonical region and ID",
+      "choosing Beijing changes canonical target",
+      "legal target revision changes region",
+      "J07 preview is not confirmation",
+      "J08 role-only confirmation leaves access unknown",
+      "access explicitly forms its own confirmation version",
+      "J15 rules visible before slow model terminal",
+      "fixed rule and evidence detail render",
+      "J19 review does not change original rule state",
+      "readable fixed report supports explicit download",
+      "JSON report downloads",
+      "J20 manual change forces new collection",
+      "recheck preview does not execute",
+      "improvement is compared against original fixed report",
+      "J05 unknown catalogue does not pretend resource absent",
+      "finite discovery continues same intent",
+      "J03 trusted customer maps to twenty-asset group",
+      "group membership change revises plan",
+      "J15 model failure keeps rules",
+      "J17 unreceived producer results remain hidden",
+      "replay restores same task",
+      "reconnect creates no new task",
+      "J12 canonical ngw ID resolves",
+      "gateway policy result is independent from missing asset association",
+      "J21 fourth session queues behind three slots",
+      "queued task can be explicitly cancelled",
+      "J22 cloud write request does not create task",
+      "J23 unrelated input does not create task",
+      "J24 recognized secret is absent from message history",
+      "J01 invalid import keeps target and visible correction form",
+      "valid sourced import continues retained target",
+      "partial import preserves source and incompleteness",
+      "J07 multiple services bind to selected assets",
+      "two service access requirements coexist without overwriting",
+      "two necessary-access entries bind to separate services",
+      "J08 structured exception uses separate confirmation",
+      "compound target and rules-only input preserves every field",
+      "selected historical report controls recheck scope",
+      "J17 interrupted task retains distinct terminal state",
+      "interrupted report is not presented as complete",
+      "first utterance selects rules-only mode",
+      "plan switches back to model supplement explicitly",
+      "mode can return to rules-only without changing target",
+      "positive mode phrase restores supplement and keeps canonical scope",
+      "no horizontal overflow at 1440 / 对象",
+      "no horizontal overflow at 1440 / 结果",
+      "no horizontal overflow at 1440 / 报告",
+      "no horizontal overflow at 1440 / 历史",
+      "no horizontal overflow at 768 / 对象",
+      "no horizontal overflow at 768 / 结果",
+      "no horizontal overflow at 768 / 报告",
+      "no horizontal overflow at 768 / 历史",
+      "no horizontal overflow at 390 / 对象",
+      "no horizontal overflow at 390 / 结果",
+      "no horizontal overflow at 390 / 报告",
+      "no horizontal overflow at 390 / 历史",
+      "visible keyboard focus",
+      "skip link moves focus",
+      "zero page JavaScript errors",
+      "zero external HTTP requests"
+    ],
+    "pageErrors": [],
+    "externalRequests": [],
+    "limitations": "Native offline finite conversation prototype only. No real cloud/model/rule evaluation, persistence, production SSE, full WCAG or business acceptance."
+  },
+  "independent_browser_supplement": {
+    "passed": 23,
+    "scope": "Main task browser checks: mode, explicit ID, authorization isolation, invalid import, historical recheck, compound scope/mode, three viewports and page errors; supplemental local script in ignored runtime directory."
+  }
+}

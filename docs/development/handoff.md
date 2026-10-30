@@ -1,13 +1,15 @@
 # 开发交接与环境恢复
 
-更新日期：2026-10-28。需求B2、整体设计v0.6已通过；E0依赖契约及[E1离线核心／持久闭环](../validation/evidence/e1-local.md)已有实际证据，E2正式离线服务／五视图已通过限定离线验证；E3受限Agent已通过限定离线验证，实际结果与待验边界见[E3记录](../validation/evidence/e3-local.md)。E4当前切片已通过限定离线适配验证，范围与待验项见[E4适配记录](../validation/evidence/e4-adapters-local.md)。当前任务状态与授权见[项目决策](../project/decisions.md)。
+更新日期：2026-10-30。需求B2、整体设计v0.6已通过；E0依赖契约及[E1离线核心／持久闭环](../validation/evidence/e1-local.md)已有实际证据，E2正式离线服务／五视图已通过限定离线验证；E3受限Agent已通过限定离线验证，实际结果与待验边界见[E3记录](../validation/evidence/e3-local.md)。E4当前切片已通过限定离线适配验证，范围与待验项见[E4适配记录](../validation/evidence/e4-adapters-local.md)。当前任务状态与授权见[项目决策](../project/decisions.md)。
+
+最新独立整体Review已完成并落入[现有阶段证据](../validation/evidence/conversation-implementation-local.md#客户主链独立整体review2026-10-30)：5项P2缺陷与1项P2需求／实现漂移已修复和独立复验；当前Go685项、Web193项、vet／类型／构建及实际API核对通过。仍保留人工浏览器服务宿主超时失败与审批拒绝记录；完整88分支、真实接入／整改／评价和标准性能未验收。上述Review未执行提交或推送；2026-10-30用户随后已明确授权将当前整改和文档清理纳入本次main提交并普通推送，实际提交／远端结果以Git为准，完成后不复用该次许可。
 
 ## 1. 推荐恢复顺序
 
 1. 读根目录[AGENTS](../../AGENTS.md)、[文档导航](../README.md)、实施计划和当前任务相关设计。
 2. 先检查Git状态，保留已有未提交改动；旧提交／推送授权不重复使用。
 3. 只运行当前任务需要的现有离线检查，不能把独立实验命令当正式系统命令。
-4. E1规则、E2持久业务链和E3受限Agent已接通。保留[E3记录](../validation/evidence/e3-local.md)历史结论，核对[E4适配记录](../validation/evidence/e4-adapters-local.md)当前切片／人工HTTPfixture边界。当前回归与Review已完成；下一步按[实施计划](implementation-plan.md)准备显式对象路径的真实只读验证，先取得用户私有配置、允许范围和调用预算。后续模式仍有未实现项，不把当前切片当作完整E4验收。继续TDD与Review修复，不重开G2或扩存储框架；提交／推送仍核对当前明确授权。
+4. E1规则、E2持久业务链和E3受限Agent已有局部实现／证据。保留[E3记录](../validation/evidence/e3-local.md)和[E4记录](../validation/evidence/e4-adapters-local.md)历史边界；2026-10-29已确认配置来源漂移、对话意图／资源目录主链、自动证据和缓存缺口，以及未经校准的多层硬上限。本轮已整改了[PRD](../requirements/product.md)、[客户场景目录](../requirements/customer-journeys.json)、[对话原型](../prototypes/audit-workflow/README.md)与现行八份设计；继续按[整改顺序](implementation-plan.md)及[逐项实现台账](implementation-gap.md)推进剩余验收及可离线修复，不以云账号缺失提前停工。正式Go／Vue当前结果见[代码证据](../validation/evidence/conversation-implementation-local.md)：无快照对话、同audit准备、合格缓存、业务卡、可信组、串行批次与固定模型评价代码已有本地验证；当前剩余以台账为准，勿按旧未实现字样重新开发。直接在main工作；不重开G2或扩存储框架，提交／推送仍核对当前明确授权。
 
 ## 2. 可复用的现有成果
 
@@ -23,7 +25,7 @@
 
 `.env.local`／进程环境、云／模型凭据、`data/raw/`、`data/private/`、`runtime/`、私有数据库／备份／未脱敏报告不进入Git。新环境没有私有配置时只能恢复空白模板，由用户在本地填写；不要输出真实值、密钥片段或带密钥的URL，不从机器其他profile兜底。
 
-正式服务不读取`.env.local`或实验默认配置；显式`--model-config`／`--cloud-config`选择私有JSON，只读取其中点名环境变量。当前云凭据只支持env_ak／env_sts静态Provider，未实现自动角色续期。`--config-check`仅本地输出脱敏摘要，启动和预览不外呼；configured／enabled不证明兼容或产生付费授权。保留原MiniMax模型和512等更严输出／次数限制，不借文档默认上限抬额。已有实验仍只通过`bash scripts/eino-offline.sh config-check`查看其摘要。缺模型／云配置不阻止离线规则、人工确认与文档工作。
+正式服务不自动搜索dotenv或实验默认配置；显式`--env-file`可承接七个原CFW_MODEL环境字段，进程变量存在（含空）即优先；与`--model-config`互斥。`--model-config`／`--cloud-config`选择私有JSON及点名环境变量，`--execution-config`选择版本化执行政策／授权初版，追加授权使用显式`--budget-change`。当前云凭据只支持env_ak／env_sts静态Provider，未实现自动角色续期。`--config-check`仅本地输出脱敏摘要，启动和预览不外呼；configured／enabled不证明兼容或产生付费授权。保留原MiniMax模型和512等更严输出／次数限制，不借文档默认上限抬额。已有实验仍只通过`bash scripts/eino-offline.sh config-check`查看其摘要。缺模型／云配置不阻止离线规则、人工确认与文档工作。
 
 ## 4. 当前可运行的检查
 
@@ -33,6 +35,7 @@
 python3 scripts/check_design_docs.py
 python3 scripts/check_references.py
 node docs/prototypes/audit-workflow/prototype-smoke.cjs
+node docs/prototypes/audit-workflow/prototype-branches.cjs
 ```
 
 已有Eino实验准备、离线运行和已授权真实测试的详细边界只维护在实验README，不在此复制另一套安装／启动说明。真实模型／云预算和资源权限必须明确；不自动重放请求或继承历史一次性授权。

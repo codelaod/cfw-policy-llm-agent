@@ -106,12 +106,41 @@ func hasFail(fs []domain.Finding) bool {
 	}
 	return false
 }
-func examined(fs []domain.Finding) bool {
+func examined(old, fs []domain.Finding) bool {
 	if len(fs) == 0 {
 		return false
 	}
+	// Each originally failing predicate must be evaluated on the same query.
+	// An unchanged inapplicable sibling in a linked issue does not erase that
+	// evidence; changing a failure into inapplicable/unknown still cannot clear it.
+	for _, before := range old {
+		if before.Verdict != "fail" {
+			continue
+		}
+		found := false
+		for _, current := range fs {
+			if checkKey(before) == checkKey(current) && before.RuleVersion == current.RuleVersion && reflect.DeepEqual(before.QueryScope, current.QueryScope) {
+				if current.Verdict != "pass" && current.Verdict != "fail" {
+					return false
+				}
+				found = true
+			}
+		}
+		if !found {
+			return false
+		}
+	}
 	for _, f := range fs {
-		if f.Verdict != "pass" && f.Verdict != "fail" {
+		if f.Verdict == "pass" || f.Verdict == "fail" {
+			continue
+		}
+		unchangedInapplicable := false
+		if f.Verdict == "not_applicable" {
+			for _, before := range old {
+				unchangedInapplicable = unchangedInapplicable || before.Verdict == "not_applicable" && checkKey(before) == checkKey(f) && before.RuleVersion == f.RuleVersion && reflect.DeepEqual(before.QueryScope, f.QueryScope)
+			}
+		}
+		if !unchangedInapplicable {
 			return false
 		}
 	}
@@ -196,7 +225,7 @@ func Compare(oldInput domain.Input, oldResult domain.Result, newInput domain.Inp
 	// In particular, a missing, inapplicable or unknown replacement is not proof
 	// that an older failure ceased to be detected in comparable evidence.
 	for key, old := range oldGroups {
-		if hasFail(old) && !examined(newGroups[key]) {
+		if hasFail(old) && !examined(old, newGroups[key]) {
 			add("issue_not_examined")
 		}
 	}
@@ -231,6 +260,8 @@ func Compare(oldInput domain.Input, oldResult domain.Result, newInput domain.Inp
 			state = "not_detected"
 		} else if !oldFail && newFail {
 			state = "new"
+		} else if smallerViolation(old, new) {
+			state = "improved"
 		}
 		comparison.Issues = append(comparison.Issues, IssueChange{key, state, findingIDs(old), findingIDs(new)})
 	}
@@ -238,6 +269,16 @@ func Compare(oldInput domain.Input, oldResult domain.Result, newInput domain.Inp
 }
 
 func compareObjects(oldInput, newInput domain.Input, add func(string)) {
+	if oldInput.Scope.Boundary == "nat" || newInput.Scope.Boundary == "nat" {
+		old, next := oldInput.GatewayMetadata, newInput.GatewayMetadata
+		if (old == nil) != (next == nil) {
+			add("object_missing")
+		} else if old != nil {
+			if old.Provider != next.Provider || old.AccountRef != next.AccountRef || old.ResourceID != next.ResourceID || old.Region != next.Region || old.ResourceType != next.ResourceType || old.ResourceID == "" || old.Region == "" || old.AccountRef == "" || old.ResourceType != "nat_gateway" {
+				add("object_identity_changed")
+			}
+		}
+	}
 	oldAssets := map[string]domain.Asset{}
 	newAssets := map[string]domain.Asset{}
 	for _, asset := range oldInput.Assets {
@@ -264,6 +305,9 @@ func compareObjects(oldInput, newInput domain.Input, add func(string)) {
 		}
 		if old.Address != new.Address || old.AddressObserved != new.AddressObserved {
 			add("object_endpoint_changed")
+		}
+		if old.ProviderResourceID != new.ProviderResourceID || old.Region != new.Region || old.ResourceType != new.ResourceType {
+			add("object_identity_changed")
 		}
 		if !old.AddressObserved || !new.AddressObserved {
 			add("endpoint_unverified")

@@ -70,17 +70,17 @@ func TestMissingNATModeIsNotImplicitZero(t *testing.T) {
 		t.Fatal("missing mode treated as explicit zero")
 	}
 }
-func TestFirstRoundFailureRetainsOnlyPrivateArtifacts(t *testing.T) {
+func TestFirstRoundBudgetRetainsPartialGatewayAndPrivateArtifacts(t *testing.T) {
 	cfg := natConfig()
 	cfg.MaxAttempts = 1
 	r := &fixtureReader{read: natFixture}
 	c, _ := New(r, cfg)
 	out, e := c.Collect(context.Background(), domain.Selection{Kind: "gateway_policy"})
-	if e == nil {
-		t.Fatal("expected bounded failure")
+	if e != nil {
+		t.Fatal("verified gateway observation was discarded", e)
 	}
-	if len(out.Artifacts) != 1 || len(out.Observations) == 0 || out.Input.SchemaVersion != 0 {
-		t.Fatal("failed collection lost private source evidence or invented complete input")
+	if len(out.Artifacts) != 1 || len(out.Observations) == 0 || out.Input.SchemaVersion != 1 || out.Input.GatewayMetadata == nil || out.Input.Completeness.EnumerationComplete || out.Input.Completeness.ObservationConsistency != "unverified" || out.Input.Protection.State != "unknown" {
+		t.Fatal("bounded partial gateway lost evidence or invented complete input")
 	}
 	b, _ := json.Marshal(out)
 	var o map[string]json.RawMessage

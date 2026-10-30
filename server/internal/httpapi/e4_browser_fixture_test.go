@@ -58,7 +58,7 @@ func e4ProtocolBody(action, direction string) string {
 	return ""
 }
 
-func startE4Fixture(t *testing.T, privateDir string) *e4Fixture {
+func startE4Fixture(t *testing.T, privateDir string, failure ...string) *e4Fixture {
 	t.Helper()
 	f := &e4Fixture{token: "synthetic-browser-e4-" + rand.Text(), dbPath: filepath.Join(privateDir, "e4-browser-"+rand.Text()+".sqlite")}
 	var err error
@@ -79,6 +79,11 @@ func startE4Fixture(t *testing.T, privateDir string) *e4Fixture {
 		action := r.Header.Get("x-acs-action")
 		if action == "" {
 			action = r.Form.Get("Action")
+		}
+		if len(failure) > 0 && failure[0] == "malformed_acl" && action == "DescribeControlPolicy" {
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"TotalCount":"1","TotalCount":"2","Policys":[]}`)
+			return
 		}
 		body := e4ProtocolBody(action, r.Form.Get("Direction"))
 		if body == "" {

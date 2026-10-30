@@ -36,7 +36,7 @@ func migrateCloudSchema(tx *gorm.DB) error {
 	if err := tx.Raw("SELECT version FROM business_schema").Scan(&version).Error; err != nil {
 		return err
 	}
-	if version != 3 && version != 4 {
+	if version != 3 && version != 4 && version != 5 {
 		return errors.New("unsupported business schema for cloud migration")
 	}
 	for _, q := range []string{
@@ -50,7 +50,7 @@ func migrateCloudSchema(tx *gorm.DB) error {
 	if err := checkCloudShape(tx); err != nil {
 		return err
 	}
-	if version == 4 {
+	if version >= 4 {
 		return nil
 	}
 	for _, q := range []string{"DROP TABLE business_schema", "CREATE TABLE business_schema(version INTEGER PRIMARY KEY CHECK(version=4))", "INSERT INTO business_schema VALUES(4)"} {

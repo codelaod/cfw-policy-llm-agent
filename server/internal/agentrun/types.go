@@ -3,6 +3,7 @@
 package agentrun
 
 import (
+	"cfw-policy-llm-agent/server/internal/workload"
 	"context"
 	"encoding/json"
 	"regexp"
@@ -33,6 +34,7 @@ type Task struct {
 }
 
 type Config struct {
+	Workload        workload.Resolved
 	SensitiveValues []string
 	MaxModelCalls   int
 	MaxToolCalls    int

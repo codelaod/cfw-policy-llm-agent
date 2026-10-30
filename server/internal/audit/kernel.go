@@ -99,7 +99,8 @@ func queryPrecondition(in domain.Input, q domain.Query) string {
 	if in.Completeness.ObservationConsistency != "fixed_artifact" && in.Completeness.ObservationConsistency != "observed_stable" {
 		return "OBSERVATION_UNSTABLE"
 	}
-	if !in.Protection.Applicable || in.Protection.State != "on" || in.Protection.EvidenceRef == "" {
+	protection := in.ProtectionFor(q.SubjectRef)
+	if !protection.Applicable || protection.State != "on" || protection.EvidenceRef == "" {
 		return "PROTECTION_UNCONFIRMED"
 	}
 	for _, a := range in.Assets {
@@ -301,7 +302,7 @@ func Evaluate(ctx context.Context, in domain.Input, q domain.Query) (domain.Path
 	pSegments := segments(cuts(ports, portExtra), ports)
 	// Division prevents overflow, and the Cartesian product is never allocated
 	// until the complete boundary count has passed the cap.
-	if len(aSegments) > MaxQueryCells || len(pSegments) > MaxQueryCells || len(pSegments) > 0 && len(aSegments) > MaxQueryCells/len(pSegments) {
+	if len(aSegments) > queryCellLimit(ctx) || len(pSegments) > queryCellLimit(ctx) || len(pSegments) > 0 && len(aSegments) > queryCellLimit(ctx)/len(pSegments) {
 		r.Complete = false
 		r.Reasons = append(r.Reasons, "QUERY_CELL_LIMIT")
 		return r, nil

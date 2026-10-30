@@ -46,3 +46,10 @@ test('a foreign cloud record or conflicting snapshot cannot expose a selection a
   const mismatch = await render({ jobId: 'job-cloud', record: cloudRecordFixture(), snapshotId: 'snapshot-other' })
   assert.ok(!mismatch.includes('选择这份资料'))
 })
+test('aborted audit preparation retains partial observations without claiming complete products or snapshot actions',async()=>{
+ const record=cloudRecordFixture();record.content.kind='audit';record.content.product_ready=false;delete record.content.snapshot_id;record.content.limitations=['COLLECTION_ABORTED','NO_SEALED_INPUT']
+ const html=await render({jobId:'job-cloud',record})
+ for(const value of ['已保存部分读取记录','尚未形成可审计的完整资料','防火墙资产目录','已保存观测记录'])assert.ok(html.includes(value),value)
+ assert.ok(!html.includes('尚无已保存产品观测'));assert.ok(!html.includes('选择这份资料'))
+ const embedded=await render({jobId:'job-cloud',record:cloudRecordFixture(),snapshotId:'snapshot-cloud',showSnapshotActions:false});assert.ok(!embedded.includes('选择这份资料'))
+})

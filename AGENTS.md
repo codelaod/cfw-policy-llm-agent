@@ -8,6 +8,11 @@
 - 需求v0.6／B2和整体设计v0.6均已获用户明确通过（G1／G2）；E0依赖契约与E1离线规则／持久闭环已有限定证据；E2持久服务／五视图已通过限定离线验证，E3受限Agent已通过限定离线验证，E4当前切片已通过限定离线适配验证；真实账号接入尚未验收。当前结果与待验项见`docs/validation/evidence/e4-adapters-local.md`，E3历史结果见`docs/validation/evidence/e3-local.md`，前序见`e0-local.md`、`e1-local.md`与`e2-local.md`；人工协议fixture不等于真实云／上游MiniMax兼容、自主选择质量、真实整改、标准性能或完整业务验收。不要因旧版本待审字样或历史候选重新打开整体审批。
 - 已批准决策在`docs/project/decisions.md`，研发顺序在`docs/development/implementation-plan.md`，详细契约在`docs/design/`，验收／追溯在`docs/validation/`。只维护现行需求／设计，历史由Git追溯，不再保存额外批准原文快照或专用哈希机制；业务条款的实质变更仍须明确记录。
 - 旧review不逐份维持为主入口：结论并入正文，待执行项进入计划，实际结果保留证据；不要再以新编号堆一份重复审核包。
+- 2026-10-29用户明确：当前单人开发直接在`main`推进；已有开发分支已快进合并并删除。除非用户另有要求，不自动新建功能分支；提交／推送授权仍分别核对。
+- 2026-10-29曾复核发现对话主链、模型环境来源、自动资料与合格缓存缺口；现已接正式Go／Vue并有限定本机回归，完整产品／真实上游验收仍未完成。整改见现行实施计划，不以缺真实账号提前停止能离线完成的工作。
+- 本轮客户流程整改已形成24类／88分支目录、v0.4人工交互原型、八份现行设计与`docs/development/implementation-gap.md`逐项台账；实际检查见`docs/validation/evidence/product-workflow-local.md`。正式对话／资料准备、业务卡、可信归属、跨页有限组与串行批次已有代码及阶段证据`docs/validation/evidence/conversation-implementation-local.md`；固定模型评价、同稿冲突恢复和复审改善代码已独立Review／修复／复验。按台账做剩余验收，勿按旧“未实现”字样重做，原型／局部回归不升级为完整正式验收。
+
+- 2026-10-30整体Review已关闭5项P2缺陷及1项P2需求／实现漂移，限定代码窗口Go685／Web193；用户随后明确授权将当前整改、文档／进度同步和必要清理提交并普通推送一版。本次许可完成后不复用；真实调用、云写等边界不变。
 
 ## 业务与技术边界
 
@@ -26,8 +31,9 @@
 - 策略考虑方向、协议、地址／端口、动作、顺序、状态、引用、默认行为与完整性；不支持明确标记。配置允许不等于实际可达，未知不等于缺失，日志零命中不等于无用。
 - 业务角色、标签、安全组、端口或历史流量不自动证明监听、可达性或业务授权；候选通过对话／表单确认。已采用通用基线可独立检查，不因缺白名单抹除确定事实。
 - 原始规则结果不被模型覆盖；事实、推导、待确认与信息不足分开。推荐有可定位证据、对象、条件和影响，不编造业务网段或管理白名单。
-- business schema 4须显式迁移，旧版或缺账本／Agent／云结果／配置范围目录必要结构的非完整库拒启；不在正常启动AutoMigrate。正式模型／云连接只读显式`--model-config`／`--cloud-config` JSON和其中指定的环境变量，不读dotenv或默认profile；当前云凭据仅env_ak／env_sts静态Provider，无角色自动续期；`--config-check`只输出本地脱敏摘要。enabled／configured不等上游验证或付费授权，保留当前MiniMax模型和512等更严私配。
-- 当前collect只接受显式assets或NAT gateway_policy，尚未discover_region；先collect保存新snapshot，再由用户明确pinned audit。connection_check当前仅IDENTITY_ONLY partial，不等产品权限通过；人工HTTPfixture的live_readonly路径标记不等真实云观测。云／模型共用一个Manager和预算周期，同时启用的两份配置Ref须一致、额度及到期取严，显式0保持0。
+- business schema 5须显式迁移，旧版或缺账本／Agent／云结果／配置范围目录必要结构的非完整库拒启；不在正常启动AutoMigrate。正式模型从互斥显式`--env-file`（原七字段、进程存在含空值优先）或`--model-config`读取，云从`--cloud-config` JSON和点名环境读取，执行政策从`--execution-config`读取；不自动寻找dotenv或默认profile；当前云凭据仅env_ak／env_sts静态Provider，无角色自动续期；`--config-check`只输出本地脱敏摘要。enabled／configured不等上游验证或付费授权，保留当前MiniMax模型和512等更严私配。
+- 独立collect接受显式assets或NAT gateway_policy；对话audit可接受有限selector，在原任务／共享预算内发现、必要采集并一次晚封存，歧义／未穷尽停止澄清；metadata Discover不是无限discover_region。独立collect／pinned入口仍保留。connection_check当前仅IDENTITY_ONLY partial，不等产品权限通过；人工HTTPfixture的live_readonly路径标记不等真实云观测。云／模型共用Manager与持久授权，同Ref append revision、base CAS／change_id重放保留attempt；私限与共享head在发送前取严，省略／暂时blocked不改另一类授权，显式0保持0。
+- 产品使用原则：业务任务从对话提取名称／ID／类型／地域等信息，经目录解析和必要澄清形成类型化计划，不要求管理员逐台预配资产。单台ECS是案例资源复用，3会话是并发要求，均不构成资产总数假设。连接权限上界、资源目录和本次审计对象须分开；原30秒／4或6次／100次及90秒只是未校准的历史工程提案，不当作供应商SLA或永久产品上限。
 - 显式CredentialProvider，不读机器其他profile／公司环境兜底；启动／配置检查／推荐预览零外呼。所有物理HTTP与凭据交换统一准入、共享预算取严；3会话不产生额外授权额度。
 - SSE只恢复观察：seq持久、提交后发送、只读补发、断线不取消；显式取消、共享额度与幂等不因重连重置。事务不跨网络等待。
 

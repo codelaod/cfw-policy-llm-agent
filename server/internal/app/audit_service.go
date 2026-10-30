@@ -145,7 +145,7 @@ func (s *AuditService) Report(ctx context.Context, auditID, format, key string) 
 	if err != nil {
 		return storage.ReportRecord{}, err
 	}
-	execution := report.Execution{Mode: plan.Mode, ModelStage: "not_requested", JobStatus: job.Status}
+	execution := report.Execution{Workload: &plan.Workload, Mode: plan.Mode, ModelStage: "not_requested", JobStatus: job.Status}
 	if plan.Mode == "rules_and_agent" {
 		execution.ModelStage = "not_completed"
 		if job.ErrorCode == "MODEL_NOT_CONFIGURED" {

@@ -217,3 +217,26 @@
 ## 小并发、接口文档与DFX核读（2026-10-27）
 
 [D6摘要清单](dfx-and-api/2026-10-27/manifest.json)保存4份官方一手资料核读：SQLite WAL、Swag生成规范、SQLite备份和Go连接池。仅为普通SQLite／接口设计依据，不代表构建／并发／生成器验收，也不据此新增存储专项框架。对应设计见[31](../design/architecture.md)。
+
+## 2026-10-29：资源检索、采集工作负载与工具边界
+
+以下为本轮实际打开核读的官方页面及项目自写技术依据，不下载／重分发整页原文，不新增归档快照或伪造哈希。已有2026-10-20／26归档保持原日期。字段契约、当前实现差异与合成请求量见[采集工作负载](../research/collection-workload.md)，公开文档不是账号权限、实时延迟或接口成功验收。
+
+| 编号 | 官方来源 | 本轮核对与限制 |
+| --- | --- | --- |
+| W-01 | [DescribeInstances](https://help.aliyun.com/zh/ecs/developer-reference/api-ecs-2014-05-26-describeinstances) | 同地域最多100个InstanceIds；名称通配、Tag 1～20项及标签过滤1000结果边界；MaxResults／PageSize最多100；资源名／标签不是业务授权 |
+| W-02 | [DescribeSecurityGroupAttribute](https://help.aliyun.com/zh/ecs/developer-reference/api-ecs-2014-05-26-describesecuritygroupattribute) | 关联后按组读、Direction默认all、NextToken、MaxResults 10～1000；组可共享，须去重且保留资产关联 |
+| W-03 | [DescribeAssetList](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describeassetlist) | SearchItem为IP／实例ID、单个BindInstanceId、ResourceType；RegionNo是CFW地域说明，不能直接当ECS地域；页大小没有明文最大值 |
+| W-04 | [DescribeControlPolicy](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describecontrolpolicy) | in／out独立全量，CurrentPage／PageSize／TotalCount为string，Policys；页大小没有明文最大值，不将项目50暂值当厂商上限 |
+| W-05 | [DescribeAddressBook](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describeaddressbook) | 精确UUID或名称模糊检索后核名／类型；每页1～50；引用去重、动态组与不完整展开边界 |
+| W-06 | [DescribeNatFirewallList](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describenatfirewalllist) | CFW NAT防火墙目录、PageSize最大50、整数分页／总数、RegionNo为VPC地域；ProxyId与NatGatewayId分开 |
+| W-07 | [DescribeNatFirewallControlPolicy](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/developer-reference/api-cloudfw-2017-12-07-describenatfirewallcontrolpolicy) | 网关out分区，字符串分页／总数与Policys；页大小没有明文最大值；完整ACL不按ECS逐台重读 |
+| W-08 | [DescribeNatGateways](https://help.aliyun.com/zh/nat-gateway/developer-reference/api-vpc-2016-04-28-describenatgateways-natgws) | VPC产品网关目录与CFW防火墙目录不同；必填RegionId、Name／ID／VPC筛选、整数分页每页最大50；当前适配未新增此操作 |
+| W-09 | [访问控制策略匹配原理](https://help.aliyun.com/zh/cloud-firewall/cloudfirewall/how-access-control-policies-work) | 默认／优先级／观察／应用识别语义；不将StrictMode等同默认拒绝，不推导实际可达性 |
+| W-10 | [Eino：How to Create a Tool](https://www.cloudwego.io/docs/eino/core_modules/components/tools_node_guide/how_to_create_a_tool/) | BaseTool／InvokableTool、Info／InvokableRun与InferTool／NewTool；本机缓存固定v0.9.22接口另经只读核对 |
+| W-11 | [Eino官方MCP工具适配README](https://github.com/cloudwego/eino-ext/blob/main/components/tool/mcp/README_zh.md) | 已有MCP工具发现／调用适配；页面示例含旧SSE传输，不等于已锁定兼容当前协议／已安装依赖，采用前仍须核版本与传输 |
+| W-12 | [MCP Tools：2025-11-25固定规范](https://modelcontextprotocol.io/specification/2025-11-25/server/tools) | tools/list／tools/call与schema互操作依据；明确为固定历史版本，不声称最新规范 |
+| W-13 | [MCP Transports：2025-11-25固定规范](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports) | stdio／Streamable HTTP与取消／授权额外边界；不是浏览器fetch SSE或云IAM替代 |
+| W-14 | [MCP Architecture overview](https://modelcontextprotocol.io/docs/learn/architecture) | 本轮跳转到2026-07-28架构页面，host／client／server、上下文交换与模型编排分开；版本发现行为与2025固定规范不同，未来适配须明确选择版本 |
+
+正式依赖仍由`server/go.mod`／`go.sum`固定：CFW v11伪版本对应提交`c44859c166b7f54f0cd9e48efe8890916e363ee3`，Eino v0.9.22。公开主分支README不构成新增MCP依赖或升级授权。本文只记录来源；未运行真实云／模型请求，也未读取私有配置。

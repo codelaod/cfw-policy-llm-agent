@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import UButton from '@nuxt/ui/components/Button.vue'
+import GuidancePanel from '../GuidancePanel.vue'
 import CloudCollection from '../CloudCollection.vue'
 import { errorText, formatTime, jobLabel, scopeLabel, sourceLabel, useWorkspace } from '../workspace'
 
@@ -33,6 +34,7 @@ async function useSnapshot(id: string) { try { await workspace.selectSnapshot(id
 <template>
   <div class="workspace-page">
     <header class="page-title"><div><h1>数据与任务</h1><p>选定固定资料和范围，再确认业务要求、审计与审阅。</p></div><UButton color="neutral" variant="outline" :disabled="!workspace.snapshots.value.length" @click="router.push('/audits')">预览审计计划</UButton></header>
+    <GuidancePanel surface="overview" :conversation-id="workspace.conversationID.value" />
     <section class="preparation-layout" aria-labelledby="prepare-title"><div class="sample-section"><div class="section-title"><h2 id="prepare-title">先用人工案例走通流程</h2><span class="tag tag-neutral">不访问云或模型</span></div><p class="section-description">三个构造案例使用同一类资产，分别说明不同边界的判据；不是正式评价数据集。</p><div class="sample-options"><article v-for="example in examples" :key="example.id"><h3>{{ example.title }}</h3><p>{{ example.detail }}</p><UButton color="neutral" variant="outline" size="sm" :disabled="!!busy" @click="loadExample(example.id)">{{ busy === example.id ? '载入中…' : '载入人工资料' }}</UButton></article></div></div><div class="import-section"><h2>导入自己的离线资料</h2><p class="section-description">有界 JSON，最大 5 MiB。文件自称真实或完整不会获得只读观测保证。</p><label for="snapshot-file">规范化输入文件</label><input id="snapshot-file" type="file" accept=".json,application/json" :disabled="!!busy" @change="selectedFile = ($event.target as HTMLInputElement).files?.[0] ?? null" /><UButton color="neutral" variant="outline" :disabled="!!busy || !selectedFile" @click="importFile">{{ busy === 'import' ? '校验中…' : '校验并导入' }}</UButton><p class="field-hint">不填写云或模型密钥；真实只读连接由服务端单独配置。</p></div></section>
     <p v-if="message" class="notice notice-success" role="status">{{ message }} <RouterLink to="/inventory">确认业务资料</RouterLink></p><p v-if="error" class="notice notice-error" role="alert">{{ error }}</p>
     <CloudCollection />

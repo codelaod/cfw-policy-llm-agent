@@ -58,8 +58,9 @@ func TestNoAmbientCredentialFallbackAndDisabledDoesNotReadCredentials(t *testing
 	t.Setenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET", "ambient-secret")
 	t.Setenv("CFW_E4_TEST_AK", "")
 	t.Setenv("CFW_E4_TEST_SECRET", "")
-	if _, e := Load(writeFile(t, validFile())); e != ErrCredential {
-		t.Fatal("missing explicit credentials accepted", e)
+	blocked, e := Load(writeFile(t, validFile()))
+	if e != nil || blocked.Ready() || !blocked.RequestedEnabled() || blocked.Summary().CredentialState != "missing" {
+		t.Fatal("missing explicit credentials must block this adapter without ambient fallback", e)
 	}
 	c, e := Load(writeFile(t, strings.Replace(validFile(), `"enabled":true`, `"enabled":false`, 1)))
 	if e != nil || c.Enabled() || !c.Summary().Configured {
@@ -68,7 +69,7 @@ func TestNoAmbientCredentialFallbackAndDisabledDoesNotReadCredentials(t *testing
 }
 func TestRejectExpandedScopeCredentialModesAndDuplicateJSON(t *testing.T) {
 	keys(t)
-	for _, change := range [][2]string{{`"env_ak"`, `"default"`}, {`"env_ak"`, `"assume_role"`}, {`"cn-hangzhou","instance_id"`, `"cn-beijing","instance_id"`}, {`"nat/out"`, `"nat/in"`}, {`"max_http_attempts":30`, `"max_http_attempts":101`}, {`"session_cloud_attempts":50`, `"session_cloud_attempts":101`}, {`"control_plane_region":"cn-hangzhou"`, `"control_plane_region":"attacker.invalid"`}, {`"enabled":true`, `"enabled":true,"enabled":false`}, {`"credential_mode":"env_ak"`, `"credential_mode":"env_ak","security_token_env":"TOKEN"`}} {
+	for _, change := range [][2]string{{`"env_ak"`, `"default"`}, {`"env_ak"`, `"assume_role"`}, {`"cn-hangzhou","instance_id"`, `"cn-beijing","instance_id"`}, {`"nat/out"`, `"nat/in"`}, {`"session_cloud_attempts":50`, `"session_cloud_attempts":101`}, {`"control_plane_region":"cn-hangzhou"`, `"control_plane_region":"attacker.invalid"`}, {`"enabled":true`, `"enabled":true,"enabled":false`}, {`"credential_mode":"env_ak"`, `"credential_mode":"env_ak","security_token_env":"TOKEN"`}} {
 		if _, e := Load(writeFile(t, strings.Replace(validFile(), change[0], change[1], 1))); e == nil {
 			t.Fatalf("invalid config accepted: %s", change[1])
 		}
@@ -108,5 +109,21 @@ func TestReservedConnectionAliasAndCrossRegionDuplicateInstanceAreRefused(t *tes
 		if _, err := Load(writeFile(t, body)); err == nil {
 			t.Fatal("reserved alias or ambiguous instance region accepted")
 		}
+	}
+}
+
+func TestRejectCaseCollidingJSONFields(t *testing.T) {
+	keys(t)
+	for _, tc := range []struct{ name, old, replacement string }{
+		{"enabled", `"enabled":true`, `"enabled":false,"ENABLED":true`},
+		{"credential_mode", `"credential_mode":"env_ak"`, `"credential_mode":"env_sts","CREDENTIAL_MODE":"env_ak"`},
+		{"budget_limit", `"application_cloud_attempts":100`, `"application_cloud_attempts":1,"APPLICATION_CLOUD_ATTEMPTS":100`},
+		{"escaped_case_collision", `"enabled":true`, `"enabled":false,"ENAB\u004ced":true`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := Load(writeFile(t, strings.Replace(validFile(), tc.old, tc.replacement, 1))); err != ErrInvalid {
+				t.Fatalf("case-colliding JSON fields must be rejected: %v", err)
+			}
+		})
 	}
 }

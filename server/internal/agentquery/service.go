@@ -18,7 +18,7 @@ import (
 )
 
 type reference struct {
-	kind, raw             string
+	kind, raw, field      string
 	asset, service, index int
 	key                   string
 }
@@ -49,12 +49,15 @@ type Service struct {
 }
 
 func New(input domain.Input, result *domain.Result) (*Service, error) {
+	return NewWithContext(context.Background(), input, result)
+}
+func NewWithContext(ctx context.Context, input domain.Input, result *domain.Result) (*Service, error) {
 	b, e := json.Marshal(input)
 	if e != nil || len(b) > audit.MaxInputBytes {
 		return nil, ErrInput
 	}
 	var in domain.Input
-	if json.Unmarshal(b, &in) != nil || audit.ValidateContext(context.Background(), in) != nil || in.Baseline.Version != audit.ProjectBaseline().Version {
+	if json.Unmarshal(b, &in) != nil || audit.ValidateContext(ctx, in) != nil || in.Baseline.Version != audit.ProjectBaseline().Version {
 		return nil, ErrInput
 	}
 	basis := map[string]string{"synthetic": "synthetic_assumption", "imported": "imported_assumption", "live_readonly": "live_observed"}[in.SourceKind]
@@ -281,6 +284,9 @@ func (s *Service) Invoke(ctx context.Context, name, args string) (string, error)
 		return "", ErrUnknownTool
 	}
 	arg, e := oneArgument(args, key)
+	if name == "get_security_group_rules" {
+		arg, e = s.securityGroupArgument(args)
+	}
 	if e != nil {
 		return "", e
 	}
@@ -414,6 +420,65 @@ func (s *Service) primeProjection() {
 			s.forbidden[text] = true
 		}
 	}
+	if g := s.input.GatewayMetadata; g != nil {
+		if g.ResourceID != "" {
+			s.replacements[g.ResourceID] = s.ref("gateway", s.input.Scope.GatewayRef, reference{})
+		}
+		if g.Name != "" && g.Name != g.ResourceID {
+			s.ref("label", g.Name, reference{})
+		}
+		for _, value := range g.SourceNames {
+			if value != "" && value != g.ResourceID {
+				s.ref("label", value, reference{})
+			}
+		}
+		for key, value := range g.Tags {
+			block(key)
+			if value != g.Name {
+				block(value)
+			}
+		}
+		block(g.OperatingSystem)
+	}
+	for ai, a := range s.input.Assets {
+		if a.ProviderResourceID != "" {
+			s.replacements[a.ProviderResourceID] = s.assetRef(ai)
+		}
+		if a.Name != "" && a.Name != a.ProviderResourceID && a.Name != a.ID {
+			s.ref("label", a.Name, reference{asset: ai})
+		}
+		for key, value := range a.Tags {
+			block(key)
+			if value != a.Name {
+				block(value)
+			}
+		}
+		if !has([]string{"linux", "windows"}, strings.ToLower(a.OperatingSystem)) {
+			block(a.OperatingSystem)
+		}
+		for gi, group := range a.SecurityGroups {
+			s.securityGroupRef(ai, gi)
+			for _, limitation := range group.Limitations {
+				block(limitation)
+			}
+			for _, permission := range group.Permissions {
+				if permission.Source != "" {
+					s.ref("address", permission.Source, reference{asset: ai})
+				}
+				if permission.Destination != "" {
+					s.ref("address", permission.Destination, reference{asset: ai})
+				}
+				for key, value := range permission.Conditions {
+					block(key)
+					block(value)
+					var native any
+					if json.Unmarshal([]byte(value), &native) == nil {
+						collectStrings(native, block)
+					}
+				}
+			}
+		}
+	}
 	for _, gap := range s.input.Completeness.KnownGaps {
 		block(gap)
 	}
@@ -452,6 +517,9 @@ func (s *Service) primeProjection() {
 					}
 				}
 			}
+		}
+		if a.Protection != nil && a.Protection.EvidenceRef != "" {
+			s.ref("record", a.Protection.EvidenceRef, reference{asset: ai})
 		}
 		if a.Association.EvidenceRef != "" {
 			s.ref("record", a.Association.EvidenceRef, reference{asset: ai})

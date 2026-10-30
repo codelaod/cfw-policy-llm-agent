@@ -304,6 +304,218 @@
                 }
             }
         },
+        "/conversations/{id}/business-context": {
+            "get": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Conversations"
+                ],
+                "summary": "Read the current target's shared business draft and evidence candidates",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/storage.ConversationBusinessContext"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/conversations/{id}/intent-choices": {
+            "post": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Conversations"
+                ],
+                "summary": "Select current server-issued candidates with revision checking",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Stable request key",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Current intent and candidate references",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.IntentChoiceRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.IntentResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/conversations/{id}/intent-turns": {
+            "post": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Conversations"
+                ],
+                "summary": "Persist a customer goal, clarification and local execution preview",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Stable request key",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Natural goal; no snapshot required",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.IntentTurnRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.IntentResponse"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/conversations/{id}/intents/current": {
+            "get": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Conversations"
+                ],
+                "summary": "Reopen a durable customer goal without calling cloud or model",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/domain.ConversationIntent"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/conversations/{id}/messages": {
             "get": {
                 "security": [
@@ -417,6 +629,122 @@
                     },
                     "503": {
                         "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/conversations/{id}/proposals/{proposal_id}/accept": {
+            "post": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Conversations"
+                ],
+                "summary": "Accept the current goal proposal atomically and enqueue one job",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Proposal ID",
+                        "name": "proposal_id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Stable execution key",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Expected goal revision",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/app.IntentAcceptRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "202": {
+                        "description": "Accepted",
+                        "schema": {
+                            "$ref": "#/definitions/storage.IntentAcceptResult"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/conversations/{id}/resource-group-preview": {
+            "get": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Conversations"
+                ],
+                "summary": "Read the latest unconfirmed local resource membership preview",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Conversation ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/storage.ResourceGroupPreview"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
                         "schema": {
                             "$ref": "#/definitions/httpapi.Error"
                         }
@@ -1081,6 +1409,68 @@
                     },
                     "409": {
                         "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        },
+        "/guidance": {
+            "get": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Conversations"
+                ],
+                "summary": "Read local contextual next steps shared by conversation and views",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Durable conversation reference",
+                        "name": "conversation_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Selected task reference",
+                        "name": "job_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Fixed report reference",
+                        "name": "report_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "conversation,overview,profile,audit,finding,report",
+                        "name": "surface",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/app.GuidanceCatalog"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
                         "schema": {
                             "$ref": "#/definitions/httpapi.Error"
                         }
@@ -1853,6 +2243,51 @@
                 }
             }
         },
+        "/profile-drafts/{id}/current-base": {
+            "get": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Confirmation"
+                ],
+                "summary": "Read the same draft target at current confirmed heads without editing",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Draft ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/storage.DraftCurrentBase"
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    }
+                }
+            }
+        },
         "/profile-drafts/{id}/preview": {
             "post": {
                 "security": [
@@ -1881,6 +2316,70 @@
                         "description": "OK",
                         "schema": {
                             "$ref": "#/definitions/storage.ConfirmationPreview"
+                        }
+                    }
+                }
+            }
+        },
+        "/profile-drafts/{id}/rebase": {
+            "post": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Confirmation"
+                ],
+                "summary": "Explicitly rebase the same draft after reviewing selected current heads",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Draft ID",
+                        "name": "id",
+                        "in": "path",
+                        "required": true
+                    },
+                    {
+                        "type": "string",
+                        "description": "Stable edit receipt key",
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "required": true
+                    },
+                    {
+                        "description": "Reviewed heads, draft revision and explicitly selected changes",
+                        "name": "request",
+                        "in": "body",
+                        "required": true,
+                        "schema": {
+                            "$ref": "#/definitions/storage.RebaseDraftRequest"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/storage.ProfileDraft"
+                        }
+                    },
+                    "409": {
+                        "description": "Conflict",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
                         }
                     }
                 }
@@ -2113,6 +2612,87 @@
                         "description": "OK",
                         "schema": {
                             "type": "file"
+                        }
+                    }
+                }
+            }
+        },
+        "/resources": {
+            "get": {
+                "security": [
+                    {
+                        "AppToken": []
+                    }
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "Inputs"
+                ],
+                "summary": "Search source-qualified local resource metadata with stable cursors",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Exact resource name",
+                        "name": "name",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Provider or explicit local artifact identifier",
+                        "name": "resource_id",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource region",
+                        "name": "region",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Resource kind",
+                        "name": "resource_type",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Configured or local source",
+                        "name": "source_ref",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Account reference",
+                        "name": "account_ref",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Source/filter/revision bound cursor",
+                        "name": "cursor",
+                        "in": "query"
+                    },
+                    {
+                        "type": "integer",
+                        "default": 50,
+                        "description": "Page size 1..100",
+                        "name": "limit",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "$ref": "#/definitions/storage.ResourcePage"
+                        }
+                    },
+                    "422": {
+                        "description": "Unprocessable Entity",
+                        "schema": {
+                            "$ref": "#/definitions/httpapi.Error"
                         }
                     }
                 }
@@ -2760,6 +3340,44 @@
                 }
             }
         },
+        "app.ConversationBusinessRequest": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "candidate_ref": {
+                    "type": "string"
+                },
+                "expected_draft_revision": {
+                    "type": "integer"
+                },
+                "expected_target_ref": {
+                    "type": "string"
+                },
+                "patches": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.ConversationBusinessPatch"
+                    }
+                },
+                "preview_id": {
+                    "type": "string"
+                },
+                "sections": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "unknown_fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "app.DataPolicy": {
             "type": "object",
             "properties": {
@@ -2782,9 +3400,212 @@
                 }
             }
         },
+        "app.GuidanceAction": {
+            "type": "object",
+            "properties": {
+                "target": {
+                    "$ref": "#/definitions/app.GuidanceTarget"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.GuidanceCatalog": {
+            "type": "object",
+            "properties": {
+                "catalog_version": {
+                    "type": "string"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/app.GuidanceItem"
+                    }
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.GuidanceConfirmation": {
+            "type": "object",
+            "properties": {
+                "conditions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "required": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "app.GuidanceEffects": {
+            "type": "object",
+            "properties": {
+                "allow_cloud_reads": {
+                    "type": "boolean"
+                },
+                "allow_model_requests": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "app.GuidanceIntent": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "context_report_id": {
+                    "type": "string"
+                },
+                "data_policy": {
+                    "type": "string"
+                },
+                "fresh_after": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "recheck_of_job_id": {
+                    "type": "string"
+                },
+                "snapshot_id": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.GuidanceItem": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "$ref": "#/definitions/app.GuidanceAction"
+                },
+                "behavior": {
+                    "type": "string"
+                },
+                "catalog_version": {
+                    "type": "string"
+                },
+                "confirmation": {
+                    "$ref": "#/definitions/app.GuidanceConfirmation"
+                },
+                "display_text": {
+                    "type": "string"
+                },
+                "effects": {
+                    "$ref": "#/definitions/app.GuidanceEffects"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "intent": {
+                    "$ref": "#/definitions/app.GuidanceIntent"
+                },
+                "missing_inputs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "required_refs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "state": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.GuidanceTarget": {
+            "type": "object",
+            "properties": {
+                "conversation_id": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "intent_revision": {
+                    "type": "integer"
+                },
+                "type": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.IntentAcceptRequest": {
+            "type": "object",
+            "properties": {
+                "expected_intent_revision": {
+                    "type": "integer"
+                }
+            }
+        },
+        "app.IntentChoiceRequest": {
+            "type": "object",
+            "properties": {
+                "candidate_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "expected_revision": {
+                    "type": "integer"
+                },
+                "intent_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "app.IntentTurnRequest": {
+            "type": "object",
+            "properties": {
+                "business": {
+                    "$ref": "#/definitions/app.ConversationBusinessRequest"
+                },
+                "client_turn_id": {
+                    "type": "string"
+                },
+                "context_report_id": {
+                    "type": "string"
+                },
+                "data_policy": {
+                    "$ref": "#/definitions/domain.IntentDataPolicy"
+                },
+                "expected_revision": {
+                    "type": "integer"
+                },
+                "finding_id": {
+                    "type": "string"
+                },
+                "group": {
+                    "$ref": "#/definitions/storage.ResourceGroupRequest"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "text": {
+                    "type": "string"
+                }
+            }
+        },
         "app.PlanPreview": {
             "type": "object",
             "properties": {
+                "batch": {
+                    "$ref": "#/definitions/storage.BatchSpec"
+                },
                 "budget_ref": {
                     "type": "string"
                 },
@@ -2833,10 +3654,16 @@
                 "policy_scope_ref": {
                     "type": "string"
                 },
+                "preparation": {
+                    "$ref": "#/definitions/storage.PreparationSpec"
+                },
                 "recheck_of_job_id": {
                     "type": "string"
                 },
                 "request": {},
+                "resource_group_version_id": {
+                    "type": "string"
+                },
                 "snapshot_id": {
                     "type": "string"
                 },
@@ -2845,6 +3672,9 @@
                     "items": {
                         "type": "string"
                     }
+                },
+                "workload": {
+                    "$ref": "#/definitions/workload.Resolved"
                 }
             }
         },
@@ -2920,7 +3750,8 @@
                     "type": "string",
                     "enum": [
                         "assets",
-                        "gateway_policy"
+                        "gateway_policy",
+                        "identity_only"
                     ]
                 }
             }
@@ -2962,6 +3793,44 @@
                 },
                 "scope_ref": {
                     "type": "string"
+                }
+            }
+        },
+        "domain.ActionProposal": {
+            "type": "object",
+            "properties": {
+                "effects": {
+                    "$ref": "#/definitions/domain.ProposalEffects"
+                },
+                "gaps": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "id": {
+                    "type": "string"
+                },
+                "intent_revision": {
+                    "type": "integer"
+                },
+                "plan_id": {
+                    "type": "string"
+                },
+                "requires_discovery": {
+                    "type": "boolean"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "summary": {
+                    "type": "string"
+                },
+                "warnings": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -3026,13 +3895,54 @@
                 "id": {
                     "type": "string"
                 },
+                "metadata_complete": {
+                    "type": "boolean"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "operating_system": {
+                    "type": "string"
+                },
+                "protection": {
+                    "description": "Protection overrides the legacy partition assertion for this internet asset.\nA missing section retains the semantics of existing fixed/imported inputs.",
+                    "allOf": [
+                        {
+                            "$ref": "#/definitions/domain.Protection"
+                        }
+                    ]
+                },
+                "provider_resource_id": {
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "resource_type": {
+                    "type": "string"
+                },
                 "scope_ref": {
                     "type": "string"
+                },
+                "security_group_collection": {
+                    "type": "string"
+                },
+                "security_groups": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.SecurityGroupEvidence"
+                    }
                 },
                 "services": {
                     "type": "array",
                     "items": {
                         "$ref": "#/definitions/domain.Service"
+                    }
+                },
+                "tags": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
                     }
                 }
             }
@@ -3083,6 +3993,35 @@
                 }
             }
         },
+        "domain.CatalogueCoverage": {
+            "type": "object",
+            "properties": {
+                "account_ref": {
+                    "type": "string"
+                },
+                "complete": {
+                    "type": "boolean"
+                },
+                "limitations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "observed_at": {
+                    "type": "string"
+                },
+                "revision": {
+                    "type": "integer"
+                },
+                "selector": {
+                    "$ref": "#/definitions/domain.ResourceQuery"
+                },
+                "source": {
+                    "type": "string"
+                }
+            }
+        },
         "domain.Cell": {
             "type": "object",
             "properties": {
@@ -3128,6 +4067,77 @@
                     }
                 },
                 "observation_consistency": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.ConversationIntent": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "allow_multiple": {
+                    "type": "boolean"
+                },
+                "batch_requested": {
+                    "type": "boolean"
+                },
+                "boundary": {
+                    "type": "string"
+                },
+                "candidates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Resource"
+                    }
+                },
+                "catalogue": {
+                    "$ref": "#/definitions/domain.CatalogueCoverage"
+                },
+                "clarification": {
+                    "type": "string"
+                },
+                "context_report_id": {
+                    "type": "string"
+                },
+                "conversation_id": {
+                    "type": "string"
+                },
+                "data_policy": {
+                    "$ref": "#/definitions/domain.IntentDataPolicy"
+                },
+                "direction": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "proposal": {
+                    "$ref": "#/definitions/domain.ActionProposal"
+                },
+                "query": {
+                    "$ref": "#/definitions/domain.ResourceQuery"
+                },
+                "recheck_of_job_id": {
+                    "type": "string"
+                },
+                "resource_group_version_id": {
+                    "type": "string"
+                },
+                "revision": {
+                    "type": "integer"
+                },
+                "selection": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Resource"
+                    }
+                },
+                "status": {
                     "type": "string"
                 }
             }
@@ -3184,6 +4194,9 @@
         "domain.Exception": {
             "type": "object",
             "properties": {
+                "authorization_source": {
+                    "type": "string"
+                },
                 "check_id": {
                     "type": "string"
                 },
@@ -3314,6 +4327,9 @@
                 "evaluation_at": {
                     "type": "string"
                 },
+                "gateway_metadata": {
+                    "$ref": "#/definitions/domain.Resource"
+                },
                 "intent_version": {
                     "type": "string"
                 },
@@ -3395,6 +4411,20 @@
                     "type": "string"
                 },
                 "source_kind": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.IntentDataPolicy": {
+            "type": "object",
+            "properties": {
+                "fresh_after": {
+                    "type": "string"
+                },
+                "mode": {
+                    "type": "string"
+                },
+                "snapshot_id": {
                     "type": "string"
                 }
             }
@@ -3494,6 +4524,17 @@
                 }
             }
         },
+        "domain.ProposalEffects": {
+            "type": "object",
+            "properties": {
+                "allow_cloud_reads": {
+                    "type": "boolean"
+                },
+                "allow_model_requests": {
+                    "type": "boolean"
+                }
+            }
+        },
         "domain.Protection": {
             "type": "object",
             "properties": {
@@ -3537,6 +4578,112 @@
                 },
                 "subject_ref": {
                     "type": "string"
+                }
+            }
+        },
+        "domain.Resource": {
+            "type": "object",
+            "properties": {
+                "account_ref": {
+                    "type": "string"
+                },
+                "group": {
+                    "type": "string"
+                },
+                "group_confirmed": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "identity_context": {
+                    "type": "string"
+                },
+                "identity_kind": {
+                    "type": "string"
+                },
+                "identity_ref": {
+                    "type": "string"
+                },
+                "local_asset_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "observed_at": {
+                    "type": "string"
+                },
+                "operating_system": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "resource_id": {
+                    "type": "string"
+                },
+                "resource_type": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "source_names": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "source_ref": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "domain.ResourceQuery": {
+            "type": "object",
+            "properties": {
+                "group": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "regions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "resource_id": {
+                    "type": "string"
+                },
+                "resource_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "resource_type": {
+                    "type": "string"
+                },
+                "tags": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -3608,6 +4755,67 @@
                     "type": "string"
                 },
                 "ref": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.SecurityGroupEvidence": {
+            "type": "object",
+            "properties": {
+                "complete": {
+                    "type": "boolean"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "limitations": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "observed_at": {
+                    "type": "string"
+                },
+                "permissions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.SecurityGroupPermission"
+                    }
+                },
+                "region": {
+                    "type": "string"
+                }
+            }
+        },
+        "domain.SecurityGroupPermission": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "conditions": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "destination": {
+                    "type": "string"
+                },
+                "direction": {
+                    "type": "string"
+                },
+                "port_range": {
+                    "type": "string"
+                },
+                "priority": {
+                    "type": "string"
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "source": {
                     "type": "string"
                 }
             }
@@ -3903,6 +5111,38 @@
                 }
             }
         },
+        "httpapi.IntentResponse": {
+            "type": "object",
+            "properties": {
+                "business": {
+                    "$ref": "#/definitions/storage.ConversationBusinessResult"
+                },
+                "conversation": {
+                    "$ref": "#/definitions/storage.Conversation"
+                },
+                "group": {
+                    "$ref": "#/definitions/storage.ResourceGroupResult"
+                },
+                "intent": {
+                    "$ref": "#/definitions/domain.ConversationIntent"
+                },
+                "job": {
+                    "$ref": "#/definitions/storage.Job"
+                },
+                "message": {
+                    "$ref": "#/definitions/storage.ConversationMessage"
+                },
+                "proposal": {
+                    "$ref": "#/definitions/domain.ActionProposal"
+                },
+                "replayed": {
+                    "type": "boolean"
+                },
+                "reply": {
+                    "$ref": "#/definitions/storage.ConversationMessage"
+                }
+            }
+        },
         "httpapi.JobPage": {
             "type": "object",
             "properties": {
@@ -3932,6 +5172,9 @@
                 "audit": {
                     "$ref": "#/definitions/storage.AuditRecord"
                 },
+                "batch": {
+                    "$ref": "#/definitions/storage.BatchRequest"
+                },
                 "cloud_result": {
                     "$ref": "#/definitions/storage.CloudRecord"
                 },
@@ -3943,6 +5186,9 @@
                 },
                 "is_final": {
                     "type": "boolean"
+                },
+                "preparation_discovery": {
+                    "$ref": "#/definitions/storage.AuditDiscoveryRecord"
                 },
                 "recheck": {
                     "$ref": "#/definitions/httpapi.RecheckView"
@@ -4213,6 +5459,9 @@
                 "allowed_complete": {
                     "type": "boolean"
                 },
+                "allowed_declared": {
+                    "type": "boolean"
+                },
                 "deny_all": {
                     "type": "boolean"
                 },
@@ -4221,6 +5470,9 @@
                     "items": {
                         "$ref": "#/definitions/domain.Exception"
                     }
+                },
+                "exceptions_declared": {
+                    "type": "boolean"
                 },
                 "services": {
                     "type": "array",
@@ -4290,6 +5542,44 @@
                 }
             }
         },
+        "storage.AuditDiscoveryRecord": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "complete": {
+                    "type": "boolean"
+                },
+                "coverages": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.CatalogueCoverage"
+                    }
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "job_id": {
+                    "type": "string"
+                },
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Resource"
+                    }
+                },
+                "unverified_resource_refs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
         "storage.AuditRecord": {
             "type": "object",
             "properties": {
@@ -4313,6 +5603,268 @@
                 },
                 "snapshot_id": {
                     "type": "string"
+                }
+            }
+        },
+        "storage.BatchPhaseUsage": {
+            "type": "object",
+            "properties": {
+                "collection_ms": {
+                    "type": "integer"
+                },
+                "finalize_ms": {
+                    "type": "integer"
+                },
+                "model_ms": {
+                    "type": "integer"
+                },
+                "rules_ms": {
+                    "type": "integer"
+                }
+            }
+        },
+        "storage.BatchRequest": {
+            "type": "object",
+            "properties": {
+                "accepted_at": {
+                    "type": "string"
+                },
+                "covered": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.PreparedResource"
+                    }
+                },
+                "effects": {
+                    "$ref": "#/definitions/storage.EffectCeiling"
+                },
+                "error_code": {
+                    "type": "string"
+                },
+                "failed": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.PreparedResource"
+                    }
+                },
+                "parent_job_id": {
+                    "type": "string"
+                },
+                "plan_id": {
+                    "type": "string"
+                },
+                "scope": {
+                    "$ref": "#/definitions/domain.Scope"
+                },
+                "segments": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.BatchSegment"
+                    }
+                },
+                "source_ref": {
+                    "type": "string"
+                },
+                "spec": {
+                    "$ref": "#/definitions/storage.BatchSpec"
+                },
+                "status": {
+                    "type": "string"
+                },
+                "unprocessed": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.PreparedResource"
+                    }
+                },
+                "usage": {
+                    "$ref": "#/definitions/storage.BatchUsage"
+                },
+                "workload": {
+                    "$ref": "#/definitions/workload.Resolved"
+                }
+            }
+        },
+        "storage.BatchSegment": {
+            "type": "object",
+            "properties": {
+                "audit_ref": {
+                    "type": "string"
+                },
+                "child_job_id": {
+                    "type": "string"
+                },
+                "error_code": {
+                    "type": "string"
+                },
+                "execution_ms": {
+                    "type": "integer"
+                },
+                "finished_at": {
+                    "type": "string"
+                },
+                "input_manifest": {
+                    "$ref": "#/definitions/domain.InputManifest"
+                },
+                "ordinal": {
+                    "type": "integer"
+                },
+                "phase_source": {
+                    "type": "string"
+                },
+                "phases": {
+                    "$ref": "#/definitions/storage.BatchPhaseUsage"
+                },
+                "report_ref": {
+                    "type": "string"
+                },
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.PreparedResource"
+                    }
+                },
+                "snapshot_id": {
+                    "type": "string"
+                },
+                "started_at": {
+                    "type": "string"
+                },
+                "status": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.BatchSpec": {
+            "type": "object",
+            "properties": {
+                "resources": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.PreparedResource"
+                    }
+                },
+                "size": {
+                    "type": "integer"
+                }
+            }
+        },
+        "storage.BatchUsage": {
+            "type": "object",
+            "properties": {
+                "cloud_attempts": {
+                    "type": "integer"
+                },
+                "execution_ms": {
+                    "type": "integer"
+                },
+                "model_attempts": {
+                    "type": "integer"
+                },
+                "phases": {
+                    "$ref": "#/definitions/storage.BatchPhaseUsage"
+                },
+                "recorded_model_calls": {
+                    "type": "integer"
+                },
+                "recorded_tool_calls": {
+                    "type": "integer"
+                },
+                "unknown_reasons": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "usage_unknown": {
+                    "type": "boolean"
+                }
+            }
+        },
+        "storage.BusinessAllowedChange": {
+            "type": "object",
+            "properties": {
+                "allowed": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Access"
+                    }
+                },
+                "complete": {
+                    "type": "boolean"
+                },
+                "deny_all": {
+                    "type": "boolean"
+                },
+                "public_access": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.BusinessCandidateEvidence": {
+            "type": "object",
+            "properties": {
+                "document": {
+                    "type": "string"
+                },
+                "field": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.BusinessRoleCandidate": {
+            "type": "object",
+            "properties": {
+                "asset_id": {
+                    "type": "string"
+                },
+                "conflicts_with_confirmed": {
+                    "type": "boolean"
+                },
+                "contradicting_evidence": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.BusinessCandidateEvidence"
+                    }
+                },
+                "decision": {
+                    "type": "string"
+                },
+                "evidence": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.BusinessCandidateEvidence"
+                    }
+                },
+                "ports": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.PortRange"
+                    }
+                },
+                "protocol": {
+                    "type": "string"
+                },
+                "questions": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "ref": {
+                    "type": "string"
+                },
+                "role": {
+                    "type": "string"
+                },
+                "service_id": {
+                    "type": "string"
+                },
+                "unknowns": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -4546,6 +6098,131 @@
                 }
             }
         },
+        "storage.ConversationBusinessContext": {
+            "type": "object",
+            "properties": {
+                "candidates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.BusinessRoleCandidate"
+                    }
+                },
+                "draft": {
+                    "$ref": "#/definitions/storage.ProfileDraft"
+                },
+                "preview": {
+                    "$ref": "#/definitions/storage.ConfirmationPreview"
+                },
+                "target": {
+                    "$ref": "#/definitions/storage.ConversationBusinessTarget"
+                }
+            }
+        },
+        "storage.ConversationBusinessPatch": {
+            "type": "object",
+            "properties": {
+                "allowed": {
+                    "$ref": "#/definitions/storage.BusinessAllowedChange"
+                },
+                "asset_id": {
+                    "type": "string"
+                },
+                "exceptions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Exception"
+                    }
+                },
+                "required": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Access"
+                    }
+                },
+                "role": {
+                    "$ref": "#/definitions/storage.RoleChange"
+                },
+                "service_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.ConversationBusinessResult": {
+            "type": "object",
+            "properties": {
+                "candidates": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.BusinessRoleCandidate"
+                    }
+                },
+                "confirmation": {
+                    "$ref": "#/definitions/storage.ConfirmationResult"
+                },
+                "draft": {
+                    "$ref": "#/definitions/storage.ProfileDraft"
+                },
+                "missing_inputs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "preview": {
+                    "$ref": "#/definitions/storage.ConfirmationPreview"
+                },
+                "replayed": {
+                    "type": "boolean"
+                },
+                "reply": {
+                    "type": "string"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "target": {
+                    "$ref": "#/definitions/storage.ConversationBusinessTarget"
+                },
+                "unknown_fields": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "storage.ConversationBusinessTarget": {
+            "type": "object",
+            "properties": {
+                "asset_ids": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "conversation_id": {
+                    "type": "string"
+                },
+                "intent_id": {
+                    "type": "string"
+                },
+                "intent_revision": {
+                    "type": "integer"
+                },
+                "job_id": {
+                    "type": "string"
+                },
+                "ref": {
+                    "type": "string"
+                },
+                "scope": {
+                    "$ref": "#/definitions/domain.Scope"
+                },
+                "snapshot_id": {
+                    "type": "string"
+                }
+            }
+        },
         "storage.ConversationMessage": {
             "type": "object",
             "properties": {
@@ -4629,6 +6306,35 @@
                     "items": {
                         "type": "string"
                     }
+                },
+                "snapshot_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.DraftCurrentBase": {
+            "type": "object",
+            "properties": {
+                "base_revisions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.AssetHeadVersion"
+                    }
+                },
+                "changes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.AssetDraftChange"
+                    }
+                },
+                "draft_id": {
+                    "type": "string"
+                },
+                "draft_revision": {
+                    "type": "integer"
+                },
+                "policy_scope_ref": {
+                    "type": "string"
                 },
                 "snapshot_id": {
                     "type": "string"
@@ -4756,6 +6462,17 @@
                 }
             }
         },
+        "storage.IntentAcceptResult": {
+            "type": "object",
+            "properties": {
+                "job": {
+                    "$ref": "#/definitions/storage.Job"
+                },
+                "replayed": {
+                    "type": "boolean"
+                }
+            }
+        },
         "storage.Job": {
             "type": "object",
             "properties": {
@@ -4790,6 +6507,9 @@
                         "assistant_turn"
                     ]
                 },
+                "parent_job_id": {
+                    "type": "string"
+                },
                 "plan_id": {
                     "type": "string"
                 },
@@ -4810,6 +6530,64 @@
                 },
                 "view_seq": {
                     "type": "integer"
+                },
+                "workload": {
+                    "$ref": "#/definitions/workload.Resolved"
+                }
+            }
+        },
+        "storage.PreparationSpec": {
+            "type": "object",
+            "properties": {
+                "allow_multiple": {
+                    "type": "boolean"
+                },
+                "boundary": {
+                    "type": "string"
+                },
+                "config_revision": {
+                    "type": "string"
+                },
+                "data_policy": {
+                    "type": "string"
+                },
+                "direction": {
+                    "type": "string"
+                },
+                "fresh_after": {
+                    "type": "string"
+                },
+                "query": {
+                    "$ref": "#/definitions/domain.ResourceQuery"
+                },
+                "result_limit": {
+                    "type": "integer"
+                },
+                "selected": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.PreparedResource"
+                    }
+                },
+                "source_ref": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.PreparedResource": {
+            "type": "object",
+            "properties": {
+                "asset_id": {
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "resource_id": {
+                    "type": "string"
+                },
+                "resource_type": {
+                    "type": "string"
                 }
             }
         },
@@ -4857,6 +6635,26 @@
                 }
             }
         },
+        "storage.RebaseDraftRequest": {
+            "type": "object",
+            "properties": {
+                "changes": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.AssetDraftChange"
+                    }
+                },
+                "expected_base_revisions": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.AssetHeadVersion"
+                    }
+                },
+                "expected_draft_revision": {
+                    "type": "integer"
+                }
+            }
+        },
         "storage.ReportView": {
             "type": "object",
             "properties": {
@@ -4880,6 +6678,251 @@
                     "items": {
                         "$ref": "#/definitions/storage.ReviewHead"
                     }
+                }
+            }
+        },
+        "storage.ResourceGroupMember": {
+            "type": "object",
+            "properties": {
+                "account_ref": {
+                    "type": "string"
+                },
+                "identity_context": {
+                    "type": "string"
+                },
+                "identity_ref": {
+                    "type": "string"
+                },
+                "local_asset_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "observed_at": {
+                    "type": "string"
+                },
+                "provider": {
+                    "type": "string"
+                },
+                "region": {
+                    "type": "string"
+                },
+                "resource_id": {
+                    "type": "string"
+                },
+                "resource_ref": {
+                    "type": "string"
+                },
+                "resource_type": {
+                    "type": "string"
+                },
+                "source": {
+                    "type": "string"
+                },
+                "source_ref": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.ResourceGroupPreview": {
+            "type": "object",
+            "properties": {
+                "account_ref": {
+                    "type": "string"
+                },
+                "authorization_source": {
+                    "type": "string"
+                },
+                "base_revision": {
+                    "type": "integer"
+                },
+                "conversation_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "expires_at": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "intent_id": {
+                    "type": "string"
+                },
+                "intent_revision": {
+                    "type": "integer"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.ResourceGroupMember"
+                    }
+                },
+                "source_ref": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.ResourceGroupRequest": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string"
+                },
+                "authorization_source": {
+                    "type": "string"
+                },
+                "expected_revision": {
+                    "type": "integer"
+                },
+                "group_name": {
+                    "type": "string"
+                },
+                "preview_id": {
+                    "type": "string"
+                },
+                "resource_refs": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                }
+            }
+        },
+        "storage.ResourceGroupResult": {
+            "type": "object",
+            "properties": {
+                "missing": {
+                    "type": "array",
+                    "items": {
+                        "type": "string"
+                    }
+                },
+                "preview": {
+                    "$ref": "#/definitions/storage.ResourceGroupPreview"
+                },
+                "replayed": {
+                    "type": "boolean"
+                },
+                "state": {
+                    "type": "string"
+                },
+                "version": {
+                    "$ref": "#/definitions/storage.ResourceGroupVersion"
+                }
+            }
+        },
+        "storage.ResourceGroupSummary": {
+            "type": "object",
+            "properties": {
+                "account_ref": {
+                    "type": "string"
+                },
+                "confirmed_at": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "name": {
+                    "type": "string"
+                },
+                "revision": {
+                    "type": "integer"
+                },
+                "source_ref": {
+                    "type": "string"
+                },
+                "version_id": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.ResourceGroupVersion": {
+            "type": "object",
+            "properties": {
+                "account_ref": {
+                    "type": "string"
+                },
+                "authorization_source": {
+                    "type": "string"
+                },
+                "catalogue_revision": {
+                    "type": "integer"
+                },
+                "conversation_id": {
+                    "type": "string"
+                },
+                "created_at": {
+                    "type": "string"
+                },
+                "group_id": {
+                    "type": "string"
+                },
+                "group_name": {
+                    "type": "string"
+                },
+                "id": {
+                    "type": "string"
+                },
+                "intent_id": {
+                    "type": "string"
+                },
+                "intent_revision": {
+                    "type": "integer"
+                },
+                "members": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/storage.ResourceGroupMember"
+                    }
+                },
+                "preview_id": {
+                    "type": "string"
+                },
+                "revision": {
+                    "type": "integer"
+                },
+                "source_ref": {
+                    "type": "string"
+                }
+            }
+        },
+        "storage.ResourcePage": {
+            "type": "object",
+            "properties": {
+                "confirmed_groups": {
+                    "type": "object",
+                    "additionalProperties": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/definitions/storage.ResourceGroupSummary"
+                        }
+                    }
+                },
+                "coverage": {
+                    "$ref": "#/definitions/domain.CatalogueCoverage"
+                },
+                "has_more": {
+                    "type": "boolean"
+                },
+                "items": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/domain.Resource"
+                    }
+                },
+                "next_cursor": {
+                    "type": "string"
                 }
             }
         },
@@ -4952,6 +6995,9 @@
         "storage.RoleChange": {
             "type": "object",
             "properties": {
+                "declared": {
+                    "type": "boolean"
+                },
                 "ports": {
                     "type": "array",
                     "items": {
@@ -4981,6 +7027,9 @@
                 "allowed_complete": {
                     "type": "boolean"
                 },
+                "allowed_declared": {
+                    "type": "boolean"
+                },
                 "deny_all": {
                     "type": "boolean"
                 },
@@ -4994,6 +7043,9 @@
                     }
                 },
                 "required_confirmed": {
+                    "type": "boolean"
+                },
+                "required_declared": {
                     "type": "boolean"
                 },
                 "service_id": {
@@ -5046,6 +7098,70 @@
                 },
                 "revision": {
                     "type": "integer"
+                }
+            }
+        },
+        "workload.Limits": {
+            "type": "object",
+            "properties": {
+                "assets_per_batch": {
+                    "type": "integer"
+                },
+                "cloud_http_attempts": {
+                    "type": "integer"
+                },
+                "collection_seconds": {
+                    "type": "integer"
+                },
+                "execution_seconds": {
+                    "type": "integer"
+                },
+                "finalize_seconds": {
+                    "type": "integer"
+                },
+                "max_policies": {
+                    "type": "integer"
+                },
+                "max_query_cells": {
+                    "type": "integer"
+                },
+                "model_http_attempts": {
+                    "type": "integer"
+                },
+                "model_logical_calls": {
+                    "type": "integer"
+                },
+                "model_request_seconds": {
+                    "type": "integer"
+                },
+                "model_seconds": {
+                    "type": "integer"
+                },
+                "queue_seconds": {
+                    "type": "integer"
+                },
+                "rules_seconds": {
+                    "type": "integer"
+                },
+                "tool_batch": {
+                    "type": "integer"
+                },
+                "tool_calls": {
+                    "type": "integer"
+                }
+            }
+        },
+        "workload.Resolved": {
+            "type": "object",
+            "properties": {
+                "legacy": {
+                    "type": "boolean"
+                },
+                "limits": {
+                    "$ref": "#/definitions/workload.Limits"
+                },
+                "profile_ref": {
+                    "type": "string"
                 }
             }
         }

@@ -3,10 +3,12 @@ package httpapi
 import (
 	"cfw-policy-llm-agent/server/internal/app"
 	"errors"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,8 +19,29 @@ type Options struct {
 	SensitiveValues []string
 }
 
-var spaRoute = regexp.MustCompile(`^/(?:overview|findings|e0|inventory(?:/[A-Za-z0-9_-]{1,128})?|audits(?:/[A-Za-z0-9_-]{1,128})?|reports(?:/[A-Za-z0-9_-]{1,128})?)$`)
+var spaRoute = regexp.MustCompile(`^/(?:conversations|overview|findings|e0|inventory(?:/[A-Za-z0-9_-]{1,128})?|audits(?:/[A-Za-z0-9_-]{1,128})?|reports(?:/[A-Za-z0-9_-]{1,128})?)$`)
 var bundledAsset = regexp.MustCompile(`^/assets/[A-Za-z0-9_-]+\.(?:js|css|woff2|svg|png|webp)$`)
+
+func opaqueInventoryRoute(escapedPath string) bool {
+	if !strings.HasPrefix(escapedPath, "/inventory/") {
+		return false
+	}
+	segment := strings.TrimPrefix(escapedPath, "/inventory/")
+	if strings.Contains(segment, "/") {
+		return false
+	}
+	id, err := url.PathUnescape(segment)
+	if err != nil || len(id) == 0 || len(id) > 128 || !utf8.ValidString(id) || id == "." || id == ".." {
+		return false
+	}
+	for _, value := range id {
+		if value < 0x20 || value == 0x7f {
+			return false
+		}
+	}
+	// This chooses index.html only. The opaque value never enters a file path.
+	return true
+}
 
 func (a *API) configureStatic(options []Options) error {
 	if len(options) > 1 {
@@ -47,7 +70,7 @@ func (a *API) noRoute(c *gin.Context) {
 	path := c.Request.URL.Path
 	if a.webDir != "" && (c.Request.Method == "GET" || c.Request.Method == "HEAD") {
 		file := ""
-		if path == "/" || spaRoute.MatchString(path) {
+		if path == "/" || spaRoute.MatchString(path) || opaqueInventoryRoute(c.Request.URL.EscapedPath()) {
 			file = "index.html"
 		} else if path == "/favicon.svg" || bundledAsset.MatchString(path) {
 			file = strings.TrimPrefix(path, "/")

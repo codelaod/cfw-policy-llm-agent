@@ -1,0 +1,2104 @@
+{
+  "schema_version": 1,
+  "catalog_id": "customer-journeys-m0",
+  "updated_at": "2026-10-29",
+  "requirement_baseline": "v0.6/B2",
+  "purpose": "唯一可机器核对的客户使用场景目录；PRD、原型和后续正式验收引用同一J编号。不是审核包、实际云记录或测试通过清单。",
+  "scope": {
+    "required": "M0全部场景及各分支，含正常、异常、恢复；J编号不新增FR或AC。",
+    "single_account": true,
+    "cloud_read_only": true,
+    "web_first": true,
+    "asset_count_is_not_session_count": true,
+    "real_case_resource_reuse_is_not_asset_limit": true,
+    "customer_filter": "当前单账号内有来源且已确认的业务归属过滤，不创建多租户平台。",
+    "optional_excluded": [
+      "默认关闭的定时采集",
+      "M1精确产品状态和日志增强",
+      "CLI/TUI后续可选入口"
+    ],
+    "execution_limits": "有限范围与执行保护由受控配置约束并须校准；不把历史秒数、请求数或当前单批暂值当产品永久上限。"
+  },
+  "prototype_contract": {
+    "source_kind": "synthetic",
+    "catalog_is_runtime_evidence": false,
+    "formal_engineering_complete": false,
+    "prototype_entrypoint": "../prototypes/audit-workflow/index.html",
+    "prototype_readme": "../prototypes/audit-workflow/README.md",
+    "observation": "原型应接受客户话语并让对象、资料、确认、结果和下一步随输入变化；辅助故障选择用于复现人工情境。",
+    "persistence": "persisted_outputs描述正式产品须保存的产物。原型如只在当前页面会话保存，必须明确范围；不得把内存模拟称为正式重启恢复。",
+    "automation": "客户接受计划后自动推进模拟阶段；等待、取消、断线和失败分支可控；不得要求用户逐阶段点击推进才算正常主链。",
+    "coverage": "journey.id和branches[].id是稳定覆盖键；通过证据须由原型或正式测试另行记录，不能由本目录自证。"
+  },
+  "journeys": [
+    {
+      "id": "J01",
+      "title": "空白对话、连接或模型未就绪与离线路径",
+      "priority": "M0",
+      "stage": "进入",
+      "requirements": [
+        "FR-01",
+        "FR-08",
+        "FR-15",
+        "FR-19",
+        "FR-20"
+      ],
+      "acceptance": [
+        "AC-01",
+        "AC-07",
+        "AC-14",
+        "AC-18",
+        "AC-20"
+      ],
+      "initial_state": "新会话没有快照；云连接、模型与离线来源分别显示自己的状态。",
+      "turns": [
+        {
+          "user": "帮我审计杭州 web-prod 的入向配置。",
+          "system": "保留审计目标；说明当前数据来源和待准备项。若云连接未就绪，可选公开人工样例或有来源的离线导入；不要求先填资产清单或密钥。",
+          "automatic": [
+            "保存经敏感值处理的目标与已知地域、名称和边界",
+            "只查本地资料与已保存连接状态，不为展示状态探测云身份"
+          ],
+          "actions": [
+            "choose_offline"
+          ]
+        },
+        {
+          "user": "先用人工样例，只做规则检查。",
+          "system": "展示人工对象、资料时点、适用检查及限制；接受计划后继续离线审计。",
+          "automatic": [
+            "固定人工来源标记",
+            "规则模式不调用模型"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "云连接未配置、身份不符或静态凭据过期",
+          "expected": "保留草稿和历史；说明具体受影响的读取，身份核对不能等同所有产品权限通过。",
+          "next": "选择离线资料或按受控配置说明准备连接",
+          "id": "J01-CLOUD"
+        },
+        {
+          "trigger": "模型未配置，或本次未选择／未授权模型使用",
+          "expected": "规则检查和人工业务确认可用；配置、启用和执行授权分别判断，不能擅自调用模型。",
+          "next": "继续规则模式，或在既有授权范围内明确选择模型模式",
+          "id": "J01-MODEL"
+        },
+        {
+          "id": "J01-MODEL_UNVERIFIED",
+          "trigger": "模型已配置启用且本次明确选择，但上游兼容尚未验证",
+          "expected": "可在已授权范围和受控额度内尝试；尚未验证只说明保证级别，不要求普通用户先完成验收。失败保留规则结果并说明限制。",
+          "next": "执行有界尝试或改用规则模式"
+        },
+        {
+          "trigger": "既没有可用资料，也未选择离线输入",
+          "expected": "可继续表达、修改和澄清目标；没有证据时不生成安全结论。",
+          "next": "提供资料或预览有限数据准备",
+          "id": "J01-NO_DATA"
+        },
+        {
+          "id": "J01-IMPORT",
+          "trigger": "用户选择有来源的离线资料并成功导入",
+          "expected": "核对输入格式与支持版本后显示对象、范围、时点、来源声明和完整性；来源保持导入条件，不升级为真实云观测。",
+          "next": "核对对象后预览并审计"
+        },
+        {
+          "id": "J01-IMPORT_INVALID",
+          "trigger": "离线资料格式错误、版本不支持、范围不符或超过输入保护上限",
+          "expected": "明确拒绝本次导入并指出可修正类别，不生成快照或安全结论；原目标、已保存资料和非敏感编辑可继续。",
+          "next": "修正后重新导入，或选择公开人工样例"
+        },
+        {
+          "id": "J01-IMPORT_PARTIAL",
+          "trigger": "离线资料可解析但声明不完整、缺关联或相关字段未知",
+          "expected": "展示实际缺口与受影响检查；可用局部事实保留，不把不完整输入当全局通过，也不补造字段。",
+          "next": "局部审计，或补充资料后作为新版本重新导入"
+        }
+      ],
+      "observable_outputs": [
+        "空白对话可发送目标",
+        "来源、连接、模型状态分开",
+        "明确人工样例而非真实云观测",
+        "离线导入的成功、错误和不完整恢复路径可见"
+      ],
+      "persisted_outputs": [
+        "会话与可见消息",
+        "未完成目标与选择的离线来源",
+        "接受后的执行与报告关系"
+      ],
+      "next_steps": [
+        "解析对象",
+        "查看配置准备说明",
+        "继续离线规则审计"
+      ],
+      "prototype_actions": [
+        "choose_offline",
+        "accept_plan",
+        "import_offline"
+      ]
+    },
+    {
+      "id": "J02",
+      "title": "按名称、ID、地域与资源类型定位对象",
+      "priority": "M0",
+      "stage": "对象解析",
+      "requirements": [
+        "FR-02",
+        "FR-03",
+        "FR-15"
+      ],
+      "acceptance": [
+        "AC-03",
+        "AC-14"
+      ],
+      "initial_state": "单账号连接范围有效；本地目录有名称、地域、类型、ID及来源。读取前须有有限地域与受支持资源类型；缺项先问。",
+      "turns": [
+        {
+          "user": "审计杭州名为 web-prod 的 ECS 互联网入向策略。",
+          "system": "展示当前账号、杭州、ECS、名称和匹配对象的ID，说明将使用的资料；不把名称当永久身份。",
+          "automatic": [
+            "检索本地目录",
+            "按账号、地域、类型、ID核对对象"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        },
+        {
+          "user": "改查 i-demo-057。",
+          "system": "核对新ID是否在授权范围；展示新的对象和计划，旧对象预览失效。",
+          "automatic": [
+            "保留目标修订",
+            "重查规范对象"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "名称唯一且目录合格",
+          "expected": "展示唯一对象及来源后进入执行预览。",
+          "next": "确认后准备证据",
+          "id": "J02-NAME"
+        },
+        {
+          "trigger": "ID未写入静态连接资产清单，但在连接权限范围内且不违反额外对象限制",
+          "expected": "可按ID解析或提出有限读取，不要求管理员逐台追加配置。",
+          "next": "确认有限准备效果",
+          "id": "J02-ID"
+        },
+        {
+          "trigger": "名称相同但类型不同，或用户类型与目录不符",
+          "expected": "保留类型差异，要求选择或修订，不用首条候选。",
+          "next": "补充类型或ID",
+          "id": "J02-TYPE"
+        }
+      ],
+      "observable_outputs": [
+        "候选对象有名称、地域、类型、ID与资料时点",
+        "范围修订可见",
+        "模糊名称不能直接启动错误对象"
+      ],
+      "persisted_outputs": [
+        "目标与字段来源",
+        "目录版本和选中对象",
+        "计划修订与接受记录"
+      ],
+      "next_steps": [
+        "澄清同名对象",
+        "接受当前计划"
+      ],
+      "prototype_actions": [
+        "accept_plan"
+      ]
+    },
+    {
+      "id": "J03",
+      "title": "按已确认客户归属或二十台业务资产群审计",
+      "priority": "M0",
+      "stage": "对象解析",
+      "requirements": [
+        "FR-02",
+        "FR-03",
+        "FR-12",
+        "FR-15"
+      ],
+      "acceptance": [
+        "AC-03",
+        "AC-11",
+        "AC-14"
+      ],
+      "initial_state": "同一账号内存在有来源、已确认的客户甲业务归属映射，杭州支付业务群含20台ECS；目录可大于本次集合。",
+      "turns": [
+        {
+          "user": "审计客户甲杭州支付业务群的二十台 ECS。",
+          "system": "列出归属映射来源、20个匹配对象、范围与完整性；让用户核对整组或缩小选择。",
+          "automatic": [
+            "按已确认业务归属、地域和类型筛选",
+            "分页取齐匹配集合并计数",
+            "核对本次支持容量"
+          ],
+          "actions": [
+            "select_group",
+            "accept_plan"
+          ]
+        },
+        {
+          "user": "就查这二十台的互联网入向。",
+          "system": "展示一个策略分区、20个对象、资料策略和缺口；同一接受范围内完成必要准备及审计。",
+          "automatic": [
+            "绑定明确集合",
+            "共享策略与引用只在适用分区使用"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "客户归属映射可信且覆盖完整",
+          "expected": "可用作当前账号内的业务过滤；不切换云账号、不建立多租户权限。",
+          "next": "核对对象集合",
+          "id": "J03-KNOWN"
+        },
+        {
+          "trigger": "匹配对象超过一页或当前单批可完成容量",
+          "expected": "说明完整计数或尚未穷尽；提供分页、分批或收窄，不截前N台冒充全部，也不承诺超出当前只读来源支持的无限全账号标签检索。",
+          "next": "选择有限批次或缩小条件",
+          "id": "J03-PAGING"
+        },
+        {
+          "trigger": "用户删除或增加组内对象",
+          "expected": "展示集合差异并重新预览；不得沿用原集合确认。",
+          "next": "确认新范围",
+          "id": "J03-GROUP_CHANGE"
+        }
+      ],
+      "observable_outputs": [
+        "20对象可核对而非默认一台",
+        "归属是业务过滤",
+        "目录容量、任务批次和3会话并发分别说明"
+      ],
+      "persisted_outputs": [
+        "归属映射引用与版本",
+        "明确选中对象集合",
+        "批次或收窄选择及执行记录"
+      ],
+      "next_steps": [
+        "确认整组",
+        "调整对象或分批"
+      ],
+      "prototype_actions": [
+        "select_group",
+        "accept_plan"
+      ]
+    },
+    {
+      "id": "J04",
+      "title": "同名、指代、未知客户归属与目标修改",
+      "priority": "M0",
+      "stage": "澄清",
+      "requirements": [
+        "FR-03",
+        "FR-15",
+        "FR-16"
+      ],
+      "acceptance": [
+        "AC-03",
+        "AC-14",
+        "AC-15"
+      ],
+      "initial_state": "目录有两个同名web-prod；同会话可有上一轮明确对象，也可能没有可引用对象。",
+      "turns": [
+        {
+          "user": "查 web-prod。",
+          "system": "列出杭州与北京的同名候选，询问地域或ID；不默认第一台。",
+          "automatic": [
+            "保留同一目标及候选集合"
+          ],
+          "actions": [
+            "select_candidate"
+          ]
+        },
+        {
+          "user": "杭州那个。",
+          "system": "绑定杭州候选，展示对象与边界，继续原目标。",
+          "automatic": [
+            "核对答复与候选来源版本"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        },
+        {
+          "user": "忽略刚才的杭州，改查北京那台的出向。",
+          "system": "识别为目标修改，展示地域、对象、边界差异并使旧预览失效。",
+          "automatic": [
+            "保留修订链",
+            "重查候选与分区"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "用户说这台、这些机器或刚才那个",
+          "expected": "只复用同会话中可明确定位且仍有效的引用；多个可能引用时询问。",
+          "next": "选择对象或补ID",
+          "id": "J04-PRONOUN"
+        },
+        {
+          "trigger": "客户乙无可信归属映射",
+          "expected": "询问明确对象或可验证归属，不凭普通标签猜测，也不要求新建租户。",
+          "next": "补地域、名称、ID或已确认归属",
+          "id": "J04-UNKNOWN_CUSTOMER"
+        },
+        {
+          "trigger": "用户修改地域、对象、边界、模式或外部效果",
+          "expected": "旧预览不再可执行；已执行任务仍保留原范围。",
+          "next": "接受新预览或继续查看原任务",
+          "id": "J04-CHANGE"
+        }
+      ],
+      "observable_outputs": [
+        "候选差异和澄清问题",
+        "指代依据可见",
+        "普通目标修改不因关键词忽略被误拒绝"
+      ],
+      "persisted_outputs": [
+        "澄清问题与答复",
+        "选中候选及来源",
+        "目标与计划修订"
+      ],
+      "next_steps": [
+        "补缺项",
+        "核对新计划"
+      ],
+      "prototype_actions": [
+        "select_candidate",
+        "accept_plan"
+      ]
+    },
+    {
+      "id": "J05",
+      "title": "目录未知、陈旧、可信空集、权限不足与漏页",
+      "priority": "M0",
+      "stage": "资料准备",
+      "requirements": [
+        "FR-01",
+        "FR-02",
+        "FR-03",
+        "FR-15"
+      ],
+      "acceptance": [
+        "AC-02",
+        "AC-03",
+        "AC-14"
+      ],
+      "initial_state": "用户已给定有限地域和资源条件，本地目录的时点与覆盖状态可见。",
+      "turns": [
+        {
+          "user": "查杭州 web-prod，现在目录里没有吗？",
+          "system": "区分未准备目录、旧目录未命中、读取未穷尽和当前完整目录确无匹配；需要读取时先展示有限发现效果。",
+          "automatic": [
+            "检查目录来源、时点、覆盖和错误",
+            "生成有限地域、类型、名称或ID的准备说明"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        },
+        {
+          "user": "按这个范围更新目录。",
+          "system": "执行获准只读发现；唯一匹配继续原范围，多个匹配回到澄清，失败保留具体缺口。",
+          "automatic": [
+            "保存新目录与覆盖说明",
+            "不把未返回对象补成不存在",
+            "名称和标签先在资产目录解析，再以稳定身份关联防护资料；不能从防护页未返回推断资产不存在或未防护"
+          ],
+          "actions": [
+            "select_candidate"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "目录从未准备",
+          "expected": "明确尚不知道，不显示0台已证实。",
+          "next": "接受有限发现或选离线资料",
+          "id": "J05-UNKNOWN"
+        },
+        {
+          "trigger": "旧目录未命中或资料陈旧",
+          "expected": "旧时点可用于参考，不能证明当前不存在。",
+          "next": "刷新相同有限范围",
+          "id": "J05-STALE"
+        },
+        {
+          "trigger": "当前、完整且条件一致的目录确无匹配",
+          "expected": "可说明该范围本次未找到对象；不生成无风险审计报告。",
+          "next": "检查拼写或修改条件",
+          "id": "J05-EMPTY"
+        },
+        {
+          "trigger": "身份或产品权限不足",
+          "expected": "说明受影响来源，不当作空目录或全部产品权限失败。",
+          "next": "修正连接准备或离线路径",
+          "id": "J05-DENIED"
+        },
+        {
+          "trigger": "达到读取上限、漏页或局部查询失败",
+          "expected": "保留已见对象和未穷尽标记；不得称完整结果。",
+          "next": "收窄、分批或明确新的读取尝试",
+          "id": "J05-INCOMPLETE"
+        }
+      ],
+      "observable_outputs": [
+        "五类目录状态不同文案和下一步",
+        "有限发现范围可核对",
+        "歧义不会自动审计首条"
+      ],
+      "persisted_outputs": [
+        "目录版本、覆盖和错误摘要",
+        "接受的发现范围",
+        "候选与后续目标关系"
+      ],
+      "next_steps": [
+        "消歧",
+        "收窄范围",
+        "离线继续"
+      ],
+      "prototype_actions": [
+        "accept_plan",
+        "select_candidate"
+      ]
+    },
+    {
+      "id": "J06",
+      "title": "合格资料复用、强制刷新与历史解释分流",
+      "priority": "M0",
+      "stage": "资料选择",
+      "requirements": [
+        "FR-16",
+        "FR-17",
+        "FR-18"
+      ],
+      "acceptance": [
+        "AC-15",
+        "AC-16",
+        "AC-17"
+      ],
+      "initial_state": "同范围已有资料与历史报告；各资料族时点、覆盖及适用版本分别记录。",
+      "turns": [
+        {
+          "user": "现在检查这组机器。",
+          "system": "展示哪些资料合格可复用、哪些缺失或需刷新；用户确认的计划可涵盖同范围必要准备。",
+          "automatic": [
+            "逐项核对对象、策略分区、时点、完整性与版本"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        },
+        {
+          "user": "只解释昨天那份报告。",
+          "system": "固定昨天报告的对象、证据与结论；不读取当前云配置，不把历史结论说成现在状态。",
+          "automatic": [
+            "读取原报告和原证据"
+          ],
+          "actions": [
+            "explain_history"
+          ]
+        },
+        {
+          "user": "我刚改过策略，重新核查现在。",
+          "system": "必须取得声明变更之后的新资料，不能用旧资料替代刷新；旧报告保持不变。",
+          "automatic": [
+            "准备强制刷新",
+            "关联原报告"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "所有必需资料合格",
+          "expected": "复用不新增云查询，仍显示原采集时间；复用是M0必需路径。",
+          "next": "执行适用规则",
+          "id": "J06-REUSE"
+        },
+        {
+          "trigger": "资料陈旧、缺失、部分或用户声明已变更",
+          "expected": "仅在已接受范围与效果内刷新；不够则重新预览。",
+          "next": "取得新证据或保留缺口",
+          "id": "J06-REFRESH"
+        },
+        {
+          "trigger": "刷新失败",
+          "expected": "展示失败和旧资料可供历史参考的限制，不悄悄用旧资料宣称当前已修复。",
+          "next": "查看局部结果或明确重试",
+          "id": "J06-REFRESH_FAIL"
+        }
+      ],
+      "observable_outputs": [
+        "历史解释与现在核查不同",
+        "预计资料选择与最终实际输入可核对",
+        "数据新鲜不等于完整"
+      ],
+      "persisted_outputs": [
+        "资料策略与接受记录",
+        "实际固定输入和各族原时点",
+        "原报告与新尝试关联"
+      ],
+      "next_steps": [
+        "规则审计",
+        "历史解释",
+        "强制刷新复审"
+      ],
+      "prototype_actions": [
+        "accept_plan",
+        "explain_history"
+      ]
+    },
+    {
+      "id": "J07",
+      "title": "自动事实、角色候选与接受、修改、拒绝、未知",
+      "priority": "M0",
+      "stage": "业务补充",
+      "requirements": [
+        "FR-03",
+        "FR-12",
+        "FR-15"
+      ],
+      "acceptance": [
+        "AC-03",
+        "AC-11",
+        "AC-14"
+      ],
+      "initial_state": "已取得对象元数据和关联安全组证据；业务角色可能未确认或已有旧确认。",
+      "turns": [
+        {
+          "user": "这台机器主要做什么？",
+          "system": "先展示名称、标签、地址、系统类型和已关联组的配置线索；候选说明证据与不确定性。",
+          "automatic": [
+            "自动读取当前固定证据",
+            "只在获准模型模式下生成候选"
+          ],
+          "actions": [
+            "generate_candidate"
+          ]
+        },
+        {
+          "user": "候选说数据库，但它同时提供管理接口，帮我改成这两个服务。",
+          "system": "形成服务分别关联的角色草稿，展示与旧版差异；确认前不作为业务判据。",
+          "automatic": [
+            "对话和表单共用草稿"
+          ],
+          "actions": [
+            "preview_profile",
+            "confirm_role"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "用户接受候选并确认角色卡",
+          "expected": "仅保存所列角色、服务及适用对象；不顺带确认访问来源。",
+          "next": "单独补访问要求",
+          "id": "J07-ACCEPT"
+        },
+        {
+          "trigger": "用户修改候选或同机多服务",
+          "expected": "按服务展示新草稿和差异，再确认。",
+          "next": "核对并保存",
+          "id": "J07-MODIFY"
+        },
+        {
+          "trigger": "用户拒绝候选",
+          "expected": "保留原始证据、拒绝记录和未知角色；不再当成已识别服务。",
+          "next": "人工标注或运行独立基线",
+          "id": "J07-REJECT"
+        },
+        {
+          "trigger": "缺标签、共享组、多网卡、引用不全或用户不知道",
+          "expected": "说明歧义；允许未知，不强制归类、不暂停全部审计。",
+          "next": "必要补查或基线",
+          "id": "J07-UNKNOWN"
+        },
+        {
+          "trigger": "新线索与旧确认冲突",
+          "expected": "并列新旧内容要求复核；不静默覆盖已确认版本。",
+          "next": "保留旧版或明确新版本",
+          "id": "J07-CONFLICT"
+        }
+      ],
+      "observable_outputs": [
+        "事实、候选、已确认分层",
+        "端口不证明监听、可达性或授权",
+        "接受修改拒绝未知四条可见路径"
+      ],
+      "persisted_outputs": [
+        "证据引用",
+        "候选与用户选择",
+        "草稿与已确认角色版本"
+      ],
+      "next_steps": [
+        "补访问要求",
+        "保留未知继续基线"
+      ],
+      "prototype_actions": [
+        "generate_candidate",
+        "preview_profile",
+        "confirm_role",
+        "reject_candidate",
+        "keep_unknown"
+      ]
+    },
+    {
+      "id": "J08",
+      "title": "角色与访问要求分项确认、空集合、必要访问和例外",
+      "priority": "M0",
+      "stage": "业务确认",
+      "requirements": [
+        "FR-04",
+        "FR-07",
+        "FR-12",
+        "FR-15"
+      ],
+      "acceptance": [
+        "AC-04",
+        "AC-11",
+        "AC-14"
+      ],
+      "initial_state": "已有角色草稿或确认版本，访问要求可以尚未声明。",
+      "turns": [
+        {
+          "user": "确认它是Web服务，HTTPS必须保留，管理入口我还不知道。",
+          "system": "分别显示角色、必要HTTPS访问、管理来源未知；仅确认本次明确选择的项目。",
+          "automatic": [
+            "规范化协议、端口、方向、对象与来源",
+            "展示差异、完整性声明及未确认项"
+          ],
+          "actions": [
+            "preview_requirements",
+            "confirm_role",
+            "confirm_access"
+          ]
+        },
+        {
+          "user": "这个管理服务明确不允许任何公网来源，允许集合就是空的。",
+          "system": "将明确空集与未填写分开；展示受限服务和方向，单独确认。",
+          "automatic": [
+            "保留明确禁止声明及范围"
+          ],
+          "actions": [
+            "confirm_access"
+          ]
+        },
+        {
+          "user": "给这个对象的这项检查记一条例外，理由是维护窗口，到指定时间失效。",
+          "system": "要求核对对象、检查、理由、授权来源和到期；本地确认不改云策略，不删除原始事实。",
+          "automatic": [
+            "形成有限适用的例外草稿"
+          ],
+          "actions": [
+            "confirm_exception"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "只确认角色",
+          "expected": "访问授权仍未声明，不能从Web或数据库自动补来源。",
+          "next": "按影响判定的缺项询问",
+          "id": "J08-ROLE_ONLY"
+        },
+        {
+          "trigger": "来源未填写、空表单或未确认列表",
+          "expected": "保持未知，不能解释为拒绝所有。",
+          "next": "允许跳过或明确声明",
+          "id": "J08-EMPTY_UNKNOWN"
+        },
+        {
+          "trigger": "建议收敛可能影响已确认必要访问",
+          "expected": "说明具体影响和配套条件；不直接推荐破坏必要访问。",
+          "next": "调整建议或补证据",
+          "id": "J08-NECESSARY"
+        },
+        {
+          "trigger": "例外缺对象、理由、授权来源、到期或已过期",
+          "expected": "不按有效例外压制判据；保留待补状态。",
+          "next": "补齐后重新预览确认",
+          "id": "J08-EXCEPTION"
+        }
+      ],
+      "observable_outputs": [
+        "分项确认及未确认项清楚",
+        "完整允许集合与不完整列表不同",
+        "空集、未知和必要访问分别展示"
+      ],
+      "persisted_outputs": [
+        "分项确认记录与版本",
+        "完整性和必要访问声明",
+        "例外范围、理由、来源与到期"
+      ],
+      "next_steps": [
+        "审计适用业务检查",
+        "继续独立基线"
+      ],
+      "prototype_actions": [
+        "preview_requirements",
+        "confirm_role",
+        "confirm_access",
+        "confirm_exception"
+      ]
+    },
+    {
+      "id": "J09",
+      "title": "不知道白名单时继续独立基线",
+      "priority": "M0",
+      "stage": "审计",
+      "requirements": [
+        "FR-04",
+        "FR-05",
+        "FR-07",
+        "FR-09"
+      ],
+      "acceptance": [
+        "AC-04",
+        "AC-05",
+        "AC-11"
+      ],
+      "initial_state": "存在完整、受支持的相关配置，项目已采用高风险端口基线，业务管理来源尚未声明。",
+      "turns": [
+        {
+          "user": "我不知道合法管理来源，先看风险。",
+          "system": "继续不依赖白名单的已采用基线；业务范围比较保留待确认，推荐不编造管理网段。",
+          "automatic": [
+            "按检查前提分别运行",
+            "独立保存基线与业务比较状态"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        },
+        {
+          "user": "为什么没有直接给我一条收敛规则？",
+          "system": "说明已证明的配置事实、基线差异，以及生成具体来源规则仍缺的业务确认。",
+          "automatic": [
+            "引用原始证据与基线版本"
+          ],
+          "actions": []
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "基线前提完整",
+          "expected": "可产生有证据的基线发现，不因缺白名单抹掉。",
+          "next": "补来源后生成条件建议",
+          "id": "J09-BASELINE"
+        },
+        {
+          "trigger": "完整业务允许集合未知",
+          "expected": "该项待确认，不当作通过或违规。",
+          "next": "补充允许集合与完整性",
+          "id": "J09-BUSINESS"
+        },
+        {
+          "trigger": "相关策略本身漏页或不支持",
+          "expected": "只降级受影响判断，已证实无关事实仍保留。",
+          "next": "补证据或查看限制",
+          "id": "J09-DATA"
+        }
+      ],
+      "observable_outputs": [
+        "基线发现与业务待确认同时出现",
+        "具体未知项和下一步",
+        "未确认不等于非法请求"
+      ],
+      "persisted_outputs": [
+        "采用基线版本与规则结果",
+        "业务缺项队列",
+        "条件推荐及证据"
+      ],
+      "next_steps": [
+        "补充管理来源",
+        "审阅基线发现"
+      ],
+      "prototype_actions": [
+        "accept_plan"
+      ]
+    },
+    {
+      "id": "J10",
+      "title": "互联网入向按完整策略分区审计",
+      "priority": "M0",
+      "stage": "边界审计",
+      "requirements": [
+        "FR-01",
+        "FR-03",
+        "FR-05",
+        "FR-07"
+      ],
+      "acceptance": [
+        "AC-02",
+        "AC-03",
+        "AC-05",
+        "AC-14"
+      ],
+      "initial_state": "目标为同账号有限资产的互联网入向；保护状态和本分区完整策略可准备。",
+      "turns": [
+        {
+          "user": "审计这二十台的互联网入向，重点看管理暴露。",
+          "system": "展示入向分区、对象、保护状态、完整性和适用检查；不只看各资产相关的几条允许规则。",
+          "automatic": [
+            "准备该分区全部相关规则、引用、顺序、状态与默认行为",
+            "同一分区规则集供适用资产共享，不把20资产机械变成20份重复全量策略读取"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        },
+        {
+          "user": "缩小这条允许来源就足够了吗？",
+          "system": "核对前置拒绝、禁用条目、默认行为和必要访问；说明单条修改与配套拒绝的条件。",
+          "automatic": [
+            "基于本次固定配置推导"
+          ],
+          "actions": []
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "宽泛允许前有有效拒绝或条目禁用",
+          "expected": "区分配置存在事实和实际配置逻辑允许范围；不忽略顺序与状态。",
+          "next": "查看匹配证据",
+          "id": "J10-PRECEDENCE"
+        },
+        {
+          "trigger": "未命中默认允许",
+          "expected": "不能把没有allow或缩小一条allow当作其他来源已拒绝。",
+          "next": "核对兜底与必要访问",
+          "id": "J10-DEFAULT"
+        },
+        {
+          "trigger": "CFW明确关闭、未纳入、切换中或未知",
+          "expected": "分别展示；单层关闭不能概括为完全无防护。",
+          "next": "处理明确覆盖缺口或补核查",
+          "id": "J10-COVERAGE"
+        }
+      ],
+      "observable_outputs": [
+        "单一入向策略分区",
+        "顺序状态引用默认行为证据",
+        "配置允许不声称实际链路可达"
+      ],
+      "persisted_outputs": [
+        "边界与规则集身份",
+        "固定输入与完整性",
+        "规则推导和条件建议"
+      ],
+      "next_steps": [
+        "查看发现",
+        "补充业务要求",
+        "审阅建议"
+      ],
+      "prototype_actions": [
+        "accept_plan"
+      ]
+    },
+    {
+      "id": "J11",
+      "title": "有限互联网出向与外部依赖要求",
+      "priority": "M0",
+      "stage": "边界审计",
+      "requirements": [
+        "FR-04",
+        "FR-05",
+        "FR-07",
+        "FR-15"
+      ],
+      "acceptance": [
+        "AC-04",
+        "AC-05",
+        "AC-14"
+      ],
+      "initial_state": "已选互联网出向分区；业务依赖可完整声明或保持未知。",
+      "turns": [
+        {
+          "user": "审计订单服务的互联网出向。",
+          "system": "核对发起资产、外部目标、协议端口、必要性和允许集合完整性；不沿用入向管理来源。",
+          "automatic": [
+            "准备独立出向证据",
+            "按需询问外部依赖"
+          ],
+          "actions": [
+            "preview_requirements",
+            "accept_plan"
+          ]
+        },
+        {
+          "user": "只允许调用这两个已给出的外部地址的HTTPS，这个列表是完整的。",
+          "system": "展示规范化的出向允许集合和必要访问，明确确认后用于业务差异比较。",
+          "automatic": [
+            "保存出向独立版本"
+          ],
+          "actions": [
+            "confirm_access"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "没有完整依赖声明而出向配置宽泛",
+          "expected": "保留配置事实与待确认；不自动判业务违规。",
+          "next": "补依赖或查看适用独立检查",
+          "id": "J11-UNKNOWN"
+        },
+        {
+          "trigger": "完整依赖与受支持策略齐备",
+          "expected": "可比较超范围或必要访问被拒绝，明确本层配置结论。",
+          "next": "审阅差异与影响",
+          "id": "J11-COMPLETE"
+        },
+        {
+          "trigger": "域名、动态成员或应用条件不在支持范围",
+          "expected": "保留原条件并标具体不支持，不简化成IP后硬算。",
+          "next": "人工核查或受支持输入",
+          "id": "J11-UNSUPPORTED"
+        }
+      ],
+      "observable_outputs": [
+        "出向与入向分开",
+        "允许外部目标和完整性可见",
+        "未知依赖不是禁止全部"
+      ],
+      "persisted_outputs": [
+        "出向业务版本",
+        "出向策略分区与证据",
+        "适用检查和限制"
+      ],
+      "next_steps": [
+        "确认依赖",
+        "审阅出向结果"
+      ],
+      "prototype_actions": [
+        "preview_requirements",
+        "confirm_access",
+        "accept_plan"
+      ]
+    },
+    {
+      "id": "J12",
+      "title": "NAT网关策略集与关联不足",
+      "priority": "M0",
+      "stage": "边界审计",
+      "requirements": [
+        "FR-01",
+        "FR-03",
+        "FR-05",
+        "FR-07",
+        "FR-11"
+      ],
+      "acceptance": [
+        "AC-02",
+        "AC-03",
+        "AC-05",
+        "AC-10",
+        "AC-14"
+      ],
+      "initial_state": "用户指向一个NAT网关；本场景目录来自已纳入CFW的NAT防火墙或有来源的导入，不表示已枚举账号全部NAT网关。ACL、网关与资产关联和转换上下文分别标源。",
+      "turns": [
+        {
+          "user": "查杭州 nat-prod 的NAT边界ACL。",
+          "system": "先解析网关并展示单网关策略集、方向、时点与关联缺口；NAT ACL与SNAT/DNAT条目分开展示。",
+          "automatic": [
+            "按网关固定独立策略分区",
+            "保留地址观察位置和关联来源"
+          ],
+          "actions": [
+            "select_candidate",
+            "accept_plan"
+          ]
+        },
+        {
+          "user": "这能证明订单ECS已经被这条规则放行吗？",
+          "system": "只有显式关联和地址观察条件足够时才做支持范围内比较；不足说明具体缺口，不能凭公网IP猜对应关系。",
+          "automatic": [
+            "检查网关、资产和地址证据"
+          ],
+          "actions": []
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "互联网或另一网关有同名同ID规则",
+          "expected": "按边界与实际规则集区分，不混排优先级或合并发现。",
+          "next": "查看本分区证据",
+          "id": "J12-SAME_ID"
+        },
+        {
+          "trigger": "缺网关到资产关联或转换前后地址语义",
+          "expected": "NAT策略集可审阅，相关资产业务比较信息不足；同VPC、相同公网IP或用户选中网关均不证明实际路径，目录未返回也不证明账号不存在NAT。",
+          "next": "提供有来源关联或保留限制",
+          "id": "J12-ASSOCIATION"
+        },
+        {
+          "trigger": "拿其他网关或入向报告作复审基线",
+          "expected": "给出不可比较原因，保留两份独立报告。",
+          "next": "选择同分区复审",
+          "id": "J12-CROSS_SCOPE"
+        }
+      ],
+      "observable_outputs": [
+        "一个网关一个策略分区",
+        "ACL与转换上下文独立",
+        "关联不足不等于没有NAT或无风险"
+      ],
+      "persisted_outputs": [
+        "网关与规则集身份",
+        "关联来源与缺口",
+        "NAT报告和可比性"
+      ],
+      "next_steps": [
+        "补关联",
+        "查看NAT局部结论"
+      ],
+      "prototype_actions": [
+        "select_candidate",
+        "accept_plan"
+      ]
+    },
+    {
+      "id": "J13",
+      "title": "事实、推导、待确认、信息不足、不支持与建议影响",
+      "priority": "M0",
+      "stage": "解释",
+      "requirements": [
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-09",
+        "FR-13"
+      ],
+      "acceptance": [
+        "AC-03",
+        "AC-04",
+        "AC-05",
+        "AC-06",
+        "AC-12"
+      ],
+      "initial_state": "同一审计已有规则结果、业务缺项和Agent补充；至少一项不支持。",
+      "turns": [
+        {
+          "user": "哪些是确定的，依据是什么，改了会影响什么？",
+          "system": "逐条展示对象与证据、配置事实、规则推导、待确认、信息不足或不支持；建议包含成立条件、必要访问影响及人工验证步骤。",
+          "automatic": [
+            "引用当前固定证据和判据",
+            "保留规则原始结果"
+          ],
+          "actions": [
+            "open_evidence"
+          ]
+        },
+        {
+          "user": "这是否证明服务一定可达，或者整个账号都合规？",
+          "system": "说明结论只覆盖选定对象与支持的配置语义；给人工核查建议，不扩大保证。",
+          "automatic": [
+            "明确检查覆盖与保证范围"
+          ],
+          "actions": []
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "模型提出额外疑点但证据不足",
+          "expected": "单列为候选或待核实，不能覆盖规则事实。",
+          "next": "补证据或保留疑点",
+          "id": "J13-MODEL_HYPOTHESIS"
+        },
+        {
+          "trigger": "一条相关条件不支持",
+          "expected": "标具体检查受影响，不丢掉全部其他可验证结果。",
+          "next": "查看仍成立的事实",
+          "id": "J13-UNSUPPORTED"
+        },
+        {
+          "trigger": "提出CFW覆盖或WAF等组件建议",
+          "expected": "区分已知缺口、适用性评估和未知状态；未读取不说未部署，不要求采购。",
+          "next": "人工核对条件",
+          "id": "J13-COMPONENT"
+        }
+      ],
+      "observable_outputs": [
+        "状态、严重程度和整改顺序是不同维度",
+        "每条关键结论有证据入口",
+        "不把未检查统计为通过"
+      ],
+      "persisted_outputs": [
+        "规则原始结果",
+        "独立Agent补充与证据",
+        "条件、影响和检查限制"
+      ],
+      "next_steps": [
+        "审阅",
+        "补资料",
+        "导出"
+      ],
+      "prototype_actions": [
+        "open_evidence"
+      ]
+    },
+    {
+      "id": "J14",
+      "title": "慢采集与局部资料失败",
+      "priority": "M0",
+      "stage": "执行",
+      "requirements": [
+        "FR-01",
+        "FR-02",
+        "FR-08",
+        "FR-18"
+      ],
+      "acceptance": [
+        "AC-02",
+        "AC-07",
+        "AC-14",
+        "AC-17"
+      ],
+      "initial_state": "用户已接受包含必要只读准备的计划；采集尚未结束或某数据族失败。",
+      "turns": [
+        {
+          "user": "开始，按当前范围准备并审计。",
+          "system": "自动推进资料准备，持续显示真实阶段、已取得对象、等待与已知缺口；用户无需反复点下一步。",
+          "automatic": [
+            "执行已接受范围内的有限读取",
+            "记录来源、覆盖和受控错误"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        },
+        {
+          "user": "怎么还没完成？先让我看已经有的。",
+          "system": "显示已取得事实与可运行的局部检查；缺关键证据的部分保留信息不足，不伪造百分比或完成。",
+          "automatic": [
+            "读取当前任务状态与已保存结果"
+          ],
+          "actions": []
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "采集慢但仍在本次执行保护内",
+          "expected": "显示正在等待的数据和可取消操作，不误报失败或自动扩大范围。",
+          "next": "继续观察或取消",
+          "id": "J14-SLOW"
+        },
+        {
+          "trigger": "一个地域、引用或策略页失败",
+          "expected": "保存已得结果和受影响检查；不显示全局通过。",
+          "next": "收窄、离线补充或明确重试",
+          "id": "J14-PARTIAL"
+        },
+        {
+          "trigger": "本次时间或请求额度耗尽",
+          "expected": "停止新增请求，保留已得证据和部分结果；不得通过重连恢复额度。",
+          "next": "查看部分报告或新计划",
+          "id": "J14-BUDGET"
+        }
+      ],
+      "observable_outputs": [
+        "自动阶段推进",
+        "实际阶段和等待",
+        "局部结果与未执行项同屏可见"
+      ],
+      "persisted_outputs": [
+        "执行阶段与错误摘要",
+        "已得证据与完整性",
+        "部分报告或终态"
+      ],
+      "next_steps": [
+        "继续观察",
+        "取消",
+        "明确重试"
+      ],
+      "prototype_actions": [
+        "accept_plan",
+        "cancel",
+        "retry"
+      ]
+    },
+    {
+      "id": "J15",
+      "title": "慢模型、模型失败与规则结果保留",
+      "priority": "M0",
+      "stage": "执行",
+      "requirements": [
+        "FR-05",
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-18"
+      ],
+      "acceptance": [
+        "AC-06",
+        "AC-07",
+        "AC-17"
+      ],
+      "initial_state": "资料已固定，确定性规则已完成，模型解释或补查仍在进行。",
+      "turns": [
+        {
+          "user": "继续分析这些发现。",
+          "system": "先显示已完成规则结果，再展示Agent补充中的阶段；不把等待模型变成整个审计一直空白。",
+          "automatic": [
+            "公开已完成规则结果",
+            "在获准范围内执行有依赖的证据补查"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        },
+        {
+          "user": "模型还没答，规则结果能用吗？",
+          "system": "可查看和导出已有规则层，明确哪些解释或建议尚未完成。",
+          "automatic": [
+            "按结果来源分别展示"
+          ],
+          "actions": []
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "模型较慢",
+          "expected": "保持规则可见、提供状态与取消；不给固定成功倒计时。",
+          "next": "继续观察或取消",
+          "id": "J15-SLOW"
+        },
+        {
+          "trigger": "模型协议失败、能力不足、输出无效或超限",
+          "expected": "任务部分完成，规则层保留；无效输出不作为成功建议。",
+          "next": "人工审阅或明确新的有界尝试",
+          "id": "J15-FAIL"
+        },
+        {
+          "trigger": "前一步工具结果决定后一步补查",
+          "expected": "显示公开的工具目的与证据关联；不暴露完整内部思考。",
+          "next": "检查证据后解释",
+          "id": "J15-DEPENDENT"
+        },
+        {
+          "trigger": "模型要求不存在证据或越界工具",
+          "expected": "拒绝该补查与无证据确定结论，已有规则不变。",
+          "next": "保留待核实项",
+          "id": "J15-NO_FACT"
+        }
+      ],
+      "observable_outputs": [
+        "规则先于模型最终答复可见",
+        "失败保留规则与限制",
+        "模型文字不自动成为事实"
+      ],
+      "persisted_outputs": [
+        "规则结果",
+        "受控工具事件与证据引用",
+        "模型失败摘要及部分终态"
+      ],
+      "next_steps": [
+        "审阅规则结果",
+        "明确重试模型分析"
+      ],
+      "prototype_actions": [
+        "accept_plan",
+        "cancel",
+        "retry"
+      ]
+    },
+    {
+      "id": "J16",
+      "title": "状态、取消、明确重试与受理答复未知",
+      "priority": "M0",
+      "stage": "恢复",
+      "requirements": [
+        "FR-08",
+        "FR-16",
+        "FR-18"
+      ],
+      "acceptance": [
+        "AC-07",
+        "AC-15",
+        "AC-17"
+      ],
+      "initial_state": "存在准备中、排队、运行或终态任务，也可能提交后未收到受理答复。",
+      "turns": [
+        {
+          "user": "现在到哪一步了？",
+          "system": "读取明确任务的已有状态与已得结果，不另调云或模型。",
+          "automatic": [
+            "定位本会话活动任务或询问有歧义的任务"
+          ],
+          "actions": []
+        },
+        {
+          "user": "取消当前任务。",
+          "system": "显示取消处理中或已取消，停止后续调用，保留已得结果；已送达请求不能保证撤回。",
+          "automatic": [
+            "将取消绑定明确任务"
+          ],
+          "actions": [
+            "cancel"
+          ]
+        },
+        {
+          "user": "修正后重新试一次。",
+          "system": "展示新尝试的范围、资料策略和外部效果，由用户明确发起；旧终态保留。",
+          "automatic": [
+            "关联原任务",
+            "重新校验必要条件"
+          ],
+          "actions": [
+            "retry",
+            "accept_plan"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "用户已提交但未收到受理答复",
+          "expected": "先恢复查询原提交状态，必要重试沿用同一提交标识，不以新标识自动重复执行。",
+          "next": "查看原任务或同次重试",
+          "id": "J16-ACK_UNKNOWN"
+        },
+        {
+          "trigger": "重复点击或同次网络重试",
+          "expected": "显示同一任务，不重复建任务和消费。",
+          "next": "继续观察",
+          "id": "J16-DUPLICATE"
+        },
+        {
+          "trigger": "取消排队任务",
+          "expected": "不进入云或模型执行；明确已取消。",
+          "next": "调整后新尝试",
+          "id": "J16-QUEUED_CANCEL"
+        },
+        {
+          "trigger": "取消、失败或中断后收到迟到成功",
+          "expected": "不覆盖终态；保留实际已得证据与说明。",
+          "next": "查看终态或新尝试",
+          "id": "J16-LATE_RESULT"
+        }
+      ],
+      "observable_outputs": [
+        "状态查询不增加外部执行",
+        "取消目标清楚",
+        "恢复观察、同次重试、新尝试三者区别"
+      ],
+      "persisted_outputs": [
+        "提交标识与任务关系",
+        "状态与取消记录",
+        "旧终态和新尝试关联"
+      ],
+      "next_steps": [
+        "继续观察",
+        "查看部分结果",
+        "新计划"
+      ],
+      "prototype_actions": [
+        "cancel",
+        "retry",
+        "accept_plan"
+      ]
+    },
+    {
+      "id": "J17",
+      "title": "观察断线重连、刷新页面与重开历史",
+      "priority": "M0",
+      "stage": "恢复",
+      "requirements": [
+        "FR-08",
+        "FR-16",
+        "FR-18"
+      ],
+      "acceptance": [
+        "AC-07",
+        "AC-15",
+        "AC-17"
+      ],
+      "initial_state": "已运行或已完成的任务有可见消息、事件、确认、审阅和报告；观察连接可能断开。",
+      "turns": [
+        {
+          "user": "页面断了，恢复刚才的进展。",
+          "system": "恢复读取原任务已保存进度和结果，不重新启动执行；断线期间不伪显示尚未收到的新结果。",
+          "automatic": [
+            "按原顺序补回未观察记录并去重"
+          ],
+          "actions": [
+            "disconnect",
+            "reconnect"
+          ]
+        },
+        {
+          "user": "打开昨天会话，解释那份报告和我留下的处理意见。",
+          "system": "恢复可见历史、确认版本、任务、报告和审阅；沿用原证据，不把旧答复升级为当前事实。",
+          "automatic": [
+            "只读历史及原报告"
+          ],
+          "actions": [
+            "reopen_history"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "只断开观察连接",
+          "expected": "任务继续，断线不是取消；重连不重置额度和执行。",
+          "next": "恢复观察",
+          "id": "J17-DISCONNECT"
+        },
+        {
+          "trigger": "服务重启时有未结束任务",
+          "expected": "显示中断及已得结果，不自动重放云或模型调用。",
+          "next": "查看历史或明确新尝试",
+          "id": "J17-RESTART"
+        },
+        {
+          "trigger": "刷新或换入口后重开会话",
+          "expected": "已保存记录可恢复；未保存草稿明确提示，不能伪称已持久保存。",
+          "next": "继续原会话",
+          "id": "J17-REFRESH"
+        },
+        {
+          "trigger": "用户询问昨天结论",
+          "expected": "明确历史时点与限制；问现在才进入新的资料策略。",
+          "next": "解释历史或预览当前核查",
+          "id": "J17-HISTORICAL"
+        }
+      ],
+      "observable_outputs": [
+        "恢复观察不重新运行",
+        "消息、确认、审阅、报告关系可重开",
+        "重复补回记录不重复展示"
+      ],
+      "persisted_outputs": [
+        "可见历史与连续会话",
+        "有序进度与终态",
+        "报告与审阅关系"
+      ],
+      "next_steps": [
+        "继续解释",
+        "查看原报告",
+        "新计划"
+      ],
+      "prototype_actions": [
+        "disconnect",
+        "reconnect",
+        "reopen_history"
+      ]
+    },
+    {
+      "id": "J18",
+      "title": "保存失败、版本冲突与草稿保留",
+      "priority": "M0",
+      "stage": "确认与恢复",
+      "requirements": [
+        "FR-04",
+        "FR-12",
+        "FR-15",
+        "FR-16"
+      ],
+      "acceptance": [
+        "AC-07",
+        "AC-11",
+        "AC-14",
+        "AC-15"
+      ],
+      "initial_state": "用户正在编辑画像、访问要求、审阅意见或处理计划；已有基版本。",
+      "turns": [
+        {
+          "user": "保存这次业务资料修改。",
+          "system": "只有保存成功才显示已保存；失败保留当前草稿并说明可重试。",
+          "automatic": [
+            "核对当前基版本与对象"
+          ],
+          "actions": [
+            "preview_requirements",
+            "save"
+          ]
+        },
+        {
+          "user": "有人或另一个页面已经更新过了，我保留刚才输入再核对。",
+          "system": "并列当前保存版本和本地草稿差异，重新预览确认，不静默覆盖。",
+          "automatic": [
+            "保持草稿",
+            "加载最新版本而不改原审计"
+          ],
+          "actions": [
+            "resolve_conflict",
+            "save"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "存储忙或保存失败",
+          "expected": "不显示确认完成；保留草稿、原提交状态和重试入口。",
+          "next": "查询保存结果后同次重试",
+          "id": "J18-FAILED"
+        },
+        {
+          "trigger": "确认前基版本已经变化",
+          "expected": "旧预览不可继续提交，差异核对后重新预览。",
+          "next": "保留或修改草稿",
+          "id": "J18-CONFLICT"
+        },
+        {
+          "trigger": "编辑后切换对象、边界或范围",
+          "expected": "不得把旧对象预览用于新对象；草稿按原对象保留或明确放弃。",
+          "next": "核对当前对象",
+          "id": "J18-SWITCH_OBJECT"
+        },
+        {
+          "trigger": "审阅或本地待办保存失败",
+          "expected": "原发现不变，不提示已采纳或已保存。",
+          "next": "重试保存或保留草稿",
+          "id": "J18-REVIEW"
+        }
+      ],
+      "observable_outputs": [
+        "保存中、成功、失败明确",
+        "草稿与已保存版本分开",
+        "确认版本不会覆盖较新数据"
+      ],
+      "persisted_outputs": [
+        "成功的确认或审阅版本",
+        "未成功不写已保存状态",
+        "冲突处理后的明确选择"
+      ],
+      "next_steps": [
+        "重试保存",
+        "比较差异",
+        "继续编辑"
+      ],
+      "prototype_actions": [
+        "preview_requirements",
+        "save",
+        "resolve_conflict"
+      ]
+    },
+    {
+      "id": "J19",
+      "title": "固定报告、审阅、本地待办与导出",
+      "priority": "M0",
+      "stage": "审阅与交付",
+      "requirements": [
+        "FR-07",
+        "FR-09",
+        "FR-10",
+        "FR-15",
+        "FR-16"
+      ],
+      "acceptance": [
+        "AC-03",
+        "AC-08",
+        "AC-09",
+        "AC-14",
+        "AC-15"
+      ],
+      "initial_state": "审计已完成或部分完成，报告绑定固定对象、资料、业务要求、规则和模型配置引用。",
+      "turns": [
+        {
+          "user": "为什么建议收敛这条规则？先加进我的处理计划。",
+          "system": "展示证据、条件、必要访问影响和人工验证步骤；记录本地待办，发现判定保持不变。",
+          "automatic": [
+            "保存与原发现关联的审阅"
+          ],
+          "actions": [
+            "open_evidence",
+            "adopt_todo"
+          ]
+        },
+        {
+          "user": "这条暂缓，理由是本周维护窗口；导出报告。",
+          "system": "保存暂缓理由并导出可读报告与JSON，包含固定版本、执行概况、缺口和人工处理状态。",
+          "automatic": [
+            "按公开导出约定脱敏"
+          ],
+          "actions": [
+            "defer",
+            "export_report"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "之后画像、目录或云配置变化",
+          "expected": "旧报告和原始发现不改写，提示可用新资料新建审计。",
+          "next": "解释历史或复审",
+          "id": "J19-IMMUTABLE"
+        },
+        {
+          "trigger": "用户采纳待办、暂缓或写已处理",
+          "expected": "只改本地审阅记录，不宣称已云上整改或修复。",
+          "next": "人工修改后复审",
+          "id": "J19-REVIEW_ONLY"
+        },
+        {
+          "trigger": "任务只有部分结果",
+          "expected": "报告清楚列出失败、未执行、待确认和不支持项，不输出全部安全。",
+          "next": "补证据或明确重试",
+          "id": "J19-PARTIAL"
+        },
+        {
+          "trigger": "公开导出",
+          "expected": "无密钥、私有端点及不应公开的真实标识；保留来源与脱敏说明。",
+          "next": "保存或分享报告",
+          "id": "J19-EXPORT"
+        }
+      ],
+      "observable_outputs": [
+        "固定版本报告",
+        "本地处理与原判定分开",
+        "可读格式和JSON可获得"
+      ],
+      "persisted_outputs": [
+        "固定报告",
+        "审阅意见、采纳或暂缓及理由",
+        "导出来源和脱敏约定"
+      ],
+      "next_steps": [
+        "人工整改",
+        "补资料",
+        "复审"
+      ],
+      "prototype_actions": [
+        "open_evidence",
+        "adopt_todo",
+        "defer",
+        "export_report"
+      ]
+    },
+    {
+      "id": "J20",
+      "title": "人工整改后重采、复审与四类比较结果",
+      "priority": "M0",
+      "stage": "复审",
+      "requirements": [
+        "FR-02",
+        "FR-07",
+        "FR-10",
+        "FR-11",
+        "FR-17"
+      ],
+      "acceptance": [
+        "AC-02",
+        "AC-08",
+        "AC-10",
+        "AC-16"
+      ],
+      "initial_state": "有原审计及报告；用户声明已在系统外手工修改策略，本系统未执行云写。",
+      "turns": [
+        {
+          "user": "我已手工收敛并补了拒绝规则，重新采集复审。",
+          "system": "核对原对象与边界，要求变更后的新资料；展示复审计划及原报告关联。",
+          "automatic": [
+            "强制取得变更后资料",
+            "保留原报告"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        },
+        {
+          "user": "结果有改善吗，还有没有新问题？",
+          "system": "分别展示改善、仍存在、新增与不可比较，并可定位前后证据；不因标记已处理就判修复。",
+          "automatic": [
+            "核对同对象、同判据及资料可比性",
+            "按支持范围比较"
+          ],
+          "actions": [
+            "compare_recheck"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "同对象同判据且新资料完整证明原差异消失或缩小",
+          "expected": "显示已消失或改善及前后证据；结论仍限于本层配置。",
+          "next": "审阅残余影响",
+          "id": "J20-IMPROVED"
+        },
+        {
+          "trigger": "必要兜底未改或差异仍在",
+          "expected": "显示仍存在及原因，不能只因单条allow缩小判修复。",
+          "next": "调整人工计划",
+          "id": "J20-REMAINS"
+        },
+        {
+          "trigger": "新资料出现此前不存在的问题",
+          "expected": "显示新增，不能只报好转。",
+          "next": "审阅新增发现",
+          "id": "J20-NEW"
+        },
+        {
+          "trigger": "对象缺失、漏页、边界或判据版本变化等不满足比较条件",
+          "expected": "明确不可比较的对象与原因，不当风险消失。",
+          "next": "补采或建立新的独立基线",
+          "id": "J20-INCOMPARABLE"
+        }
+      ],
+      "observable_outputs": [
+        "前后范围时点与版本",
+        "四类比较同时可核对",
+        "真实整改闭环仍须真实证据验收"
+      ],
+      "persisted_outputs": [
+        "原报告与新任务关系",
+        "新固定输入与前后证据",
+        "比较结果和不可比原因"
+      ],
+      "next_steps": [
+        "继续人工整改",
+        "补采",
+        "保存复审报告"
+      ],
+      "prototype_actions": [
+        "accept_plan",
+        "compare_recheck"
+      ]
+    },
+    {
+      "id": "J21",
+      "title": "三会话并行、第四个排队与同会话单活动任务",
+      "priority": "M0",
+      "stage": "并发",
+      "requirements": [
+        "FR-08",
+        "FR-16",
+        "FR-18"
+      ],
+      "acceptance": [
+        "AC-07",
+        "AC-15",
+        "AC-17"
+      ],
+      "initial_state": "同一服务可有多个会话，共用已授权外部额度；会话对象和资料独立。",
+      "turns": [
+        {
+          "user": "分别在会话A、B、C启动三个已确认的审计。",
+          "system": "三个不同会话可同时推进，每个显示自己的对象、阶段与结果。",
+          "automatic": [
+            "分别绑定会话、任务与输入",
+            "共用授权额度"
+          ],
+          "actions": [
+            "new_session",
+            "accept_plan"
+          ]
+        },
+        {
+          "user": "在会话D也开始一轮。",
+          "system": "第四个进入排队并显示等待与取消；不增加授权额度。",
+          "automatic": [
+            "保存排队状态"
+          ],
+          "actions": [
+            "new_session",
+            "accept_plan"
+          ]
+        },
+        {
+          "user": "在还没结束的会话A再开一个。",
+          "system": "指向A已有活动任务，保留新草稿；不覆盖或自动取消旧任务。",
+          "automatic": [
+            "核对同会话单活动约束"
+          ],
+          "actions": []
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "多会话有同名对象或历史",
+          "expected": "各自候选、确认、证据和取消目标不串会话。",
+          "next": "切换查看各自进度",
+          "id": "J21-ISOLATION"
+        },
+        {
+          "trigger": "前三个执行槽位占用",
+          "expected": "第四个明确排队；有空位后自动推进且仍受原时效和预算约束。",
+          "next": "继续等待或取消",
+          "id": "J21-QUEUE"
+        },
+        {
+          "trigger": "同会话已有未结束任务",
+          "expected": "阻止第二个活动任务并提供原任务入口。",
+          "next": "等待终态后新尝试",
+          "id": "J21-ONE_ACTIVE"
+        },
+        {
+          "trigger": "同一会话审计20对象",
+          "expected": "3会话是并发要求，不限制资产只有3台。",
+          "next": "核对有限对象集合",
+          "id": "J21-NOT_ASSET_LIMIT"
+        }
+      ],
+      "observable_outputs": [
+        "三个运行与一个排队可见",
+        "同会话冲突有原任务入口",
+        "不串对象或增加预算"
+      ],
+      "persisted_outputs": [
+        "会话独立状态",
+        "排队与接受记录",
+        "各自任务、确认和报告"
+      ],
+      "next_steps": [
+        "查看状态",
+        "取消排队",
+        "等待后继续"
+      ],
+      "prototype_actions": [
+        "new_session",
+        "accept_plan",
+        "cancel"
+      ]
+    },
+    {
+      "id": "J22",
+      "title": "越界、云写和扩大权限请求",
+      "priority": "M0",
+      "stage": "使用边界",
+      "requirements": [
+        "FR-02",
+        "FR-07",
+        "FR-08",
+        "FR-19"
+      ],
+      "acceptance": [
+        "AC-07",
+        "AC-09",
+        "AC-18"
+      ],
+      "initial_state": "当前只有一个显式账号和只读允许范围。",
+      "turns": [
+        {
+          "user": "直接删掉这条策略，并切到另一个账号把权限开大。",
+          "system": "拒绝云写、切账号和扩大权限的执行；可解释风险和给有条件的人工变更建议。",
+          "automatic": [
+            "不创建云写或越界任务",
+            "保留与原发现相关的只读解释"
+          ],
+          "actions": []
+        },
+        {
+          "user": "那只解释原范围里这条规则的影响。",
+          "system": "沿用原证据做只读解释，恢复正常审阅路径。",
+          "automatic": [
+            "核对原对象和证据"
+          ],
+          "actions": [
+            "open_evidence"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "对象、地域或边界超出连接范围",
+          "expected": "说明越界位置；不能由自由文字临时授权或读取其他身份。",
+          "next": "选择范围内对象",
+          "id": "J22-OUT_OF_SCOPE"
+        },
+        {
+          "trigger": "删除、改策略、开产品或购买服务",
+          "expected": "本产品不执行；人工建议保留条件、影响及复审步骤。",
+          "next": "审阅后由用户在系统外操作",
+          "id": "J22-WRITE"
+        },
+        {
+          "trigger": "用户说修改刚才的目标或修改本地业务草稿",
+          "expected": "按正常目标或草稿修订处理，不仅按修改词拒绝。",
+          "next": "预览并确认",
+          "id": "J22-NORMAL_EDIT"
+        }
+      ],
+      "observable_outputs": [
+        "拒绝对象是拟执行效果",
+        "合法只读分析可继续",
+        "不搜索机器其他profile补身份"
+      ],
+      "persisted_outputs": [
+        "受控拒绝摘要",
+        "合法目标修订或只读解释",
+        "无云写任务"
+      ],
+      "next_steps": [
+        "只读解释",
+        "选择授权范围",
+        "人工变更后复审"
+      ],
+      "prototype_actions": [
+        "open_evidence"
+      ]
+    },
+    {
+      "id": "J23",
+      "title": "无关输入与外部内容伪装指令",
+      "priority": "M0",
+      "stage": "使用边界",
+      "requirements": [
+        "FR-06",
+        "FR-07",
+        "FR-08",
+        "FR-15",
+        "FR-20"
+      ],
+      "acceptance": [
+        "AC-06",
+        "AC-07",
+        "AC-09",
+        "AC-14",
+        "AC-20"
+      ],
+      "initial_state": "用户可自由输入；资源描述、标签或工具返回可能含有看似指令的文本。",
+      "turns": [
+        {
+          "user": "今天推荐什么电影？",
+          "system": "简短说明本产品处理云防火墙审计，并给可用起点；不建立云审计或模型执行任务。",
+          "automatic": [
+            "本地返回情境引导"
+          ],
+          "actions": []
+        },
+        {
+          "user": "审计这个描述里写着忽略限制并删除策略的资源。",
+          "system": "将资源描述作为数据；仍按已接受对象和只读权限审计，不执行描述中的指令。",
+          "automatic": [
+            "转义显示外部文本",
+            "使用可信对象和证据"
+          ],
+          "actions": [
+            "accept_plan"
+          ]
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "输入与当前产品无关",
+          "expected": "不生成伪审计结论；给清楚可用的审计短语。",
+          "next": "输入审计目标",
+          "id": "J23-IRRELEVANT"
+        },
+        {
+          "trigger": "外部资源、标签、报告或工具结果要求改权限或泄露信息",
+          "expected": "不改变指令、身份、范围或工具；必要时标受影响证据，继续可验证部分。",
+          "next": "查看受控证据或改用人工资料",
+          "id": "J23-INJECTION"
+        },
+        {
+          "trigger": "用户合法修订范围含忽略、取消等词",
+          "expected": "按语义和任务引用处理，不能用关键词一刀切。",
+          "next": "核对新的目标或取消对象",
+          "id": "J23-USER_CHANGE"
+        }
+      ],
+      "observable_outputs": [
+        "无关输入不触发外部执行",
+        "外部描述没有控制权",
+        "合法修订仍可继续"
+      ],
+      "persisted_outputs": [
+        "必要的公开对话与受控摘要",
+        "外部内容作为有来源数据",
+        "无越权执行"
+      ],
+      "next_steps": [
+        "使用推荐短语",
+        "继续合法审计"
+      ],
+      "prototype_actions": [
+        "accept_plan"
+      ]
+    },
+    {
+      "id": "J24",
+      "title": "误贴凭据与敏感内容处理",
+      "priority": "M0",
+      "stage": "隐私",
+      "requirements": [
+        "FR-15",
+        "FR-19"
+      ],
+      "acceptance": [
+        "AC-07",
+        "AC-08",
+        "AC-14",
+        "AC-18"
+      ],
+      "initial_state": "对话不接受凭据配置；已知或可识别的凭据形式可能被用户误贴。",
+      "turns": [
+        {
+          "user": "用户误将可识别的模型key或云密钥贴进输入框。",
+          "system": "阻止原敏感值进入可见消息、模型、业务历史、日志和导出；只展示脱敏提示，引导受控配置入口。",
+          "automatic": [
+            "在传给模型与保存公开消息前处理已识别敏感值",
+            "保留不含原值的受控提示"
+          ],
+          "actions": []
+        },
+        {
+          "user": "我已改用受控配置方式，继续刚才的审计目标。",
+          "system": "继续原审计草稿和对象澄清，不要求重新贴密钥。",
+          "automatic": [
+            "恢复非敏感目标上下文"
+          ],
+          "actions": []
+        }
+      ],
+      "branches": [
+        {
+          "trigger": "命中已知或可识别敏感值",
+          "expected": "不得回显原值或片段，也不把配置存在等同执行授权。",
+          "next": "说明受控配置方式",
+          "id": "J24-KNOWN_SECRET"
+        },
+        {
+          "trigger": "任意未知私密文本未能自动识别",
+          "expected": "不宣称能识别全部秘密；产品入口提醒不要贴凭据，公开前按需要脱敏。",
+          "next": "删除草稿中的敏感内容并使用受控配置",
+          "id": "J24-UNRECOGNIZED"
+        },
+        {
+          "trigger": "去除敏感内容后目标仍可理解",
+          "expected": "保留非敏感意图，不把误操作当恶意用户。",
+          "next": "继续澄清与计划",
+          "id": "J24-CONTINUE"
+        }
+      ],
+      "observable_outputs": [
+        "脱敏提示无密钥片段",
+        "不收集对话凭据",
+        "正常目标可恢复"
+      ],
+      "persisted_outputs": [
+        "脱敏后的可见提示",
+        "非敏感目标草稿",
+        "不含原密钥的历史与报告"
+      ],
+      "next_steps": [
+        "受控配置准备",
+        "继续原目标"
+      ],
+      "prototype_actions": []
+    }
+  ]
+}

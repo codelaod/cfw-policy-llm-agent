@@ -12,6 +12,7 @@ import (
 
 	"cfw-policy-llm-agent/server/internal/audit"
 	"cfw-policy-llm-agent/server/internal/domain"
+	"cfw-policy-llm-agent/server/internal/workload"
 	"gorm.io/gorm"
 )
 
@@ -141,7 +142,7 @@ func privateCloudArtifacts(raw json.RawMessage) bool {
 	var artifacts []CloudRawArtifact
 	d := json.NewDecoder(strings.NewReader(string(raw)))
 	d.DisallowUnknownFields()
-	if d.Decode(&artifacts) != nil || artifacts == nil || len(artifacts) > 100 {
+	if d.Decode(&artifacts) != nil || artifacts == nil || len(artifacts) > workload.MaxCounter {
 		return false
 	}
 	var extra any
@@ -189,7 +190,7 @@ func privateCloudArtifacts(raw json.RawMessage) bool {
 }
 
 func normalizeCloud(content CloudContent) (CloudContent, error) {
-	if !attemptAlias(content.JobID) || !enum(content.Kind, "collect", "connection_check") || !attemptAlias(content.ScopeRef) || !attemptAlias(content.SourceRef) || !attemptAlias(content.ConfigRevision) || content.SnapshotID != "" || !content.IdentityVerified || len(content.Observations) > 100 || len(content.Limitations) > 100 {
+	if !attemptAlias(content.JobID) || !enum(content.Kind, "collect", "connection_check") || !attemptAlias(content.ScopeRef) || !attemptAlias(content.SourceRef) || !attemptAlias(content.ConfigRevision) || content.SnapshotID != "" || !content.IdentityVerified || len(content.Observations) > workload.MaxCounter || len(content.Limitations) > 100 {
 		return CloudContent{}, ErrInputInvalid
 	}
 	seen := map[string]bool{}
@@ -207,7 +208,7 @@ func normalizeCloud(content CloudContent) (CloudContent, error) {
 	content.Limitations = limitations
 	productObserved := false
 	for _, o := range content.Observations {
-		if !cloudProductOperation(o.Operation) || o.Round < 1 || o.Round > 2 || o.Pages < 1 || o.Pages > 100 {
+		if !cloudProductOperation(o.Operation) || o.Round < 1 || o.Round > 2 || o.Pages < 0 || o.Pages > workload.MaxCounter || o.Pages == 0 && o.EnumerationComplete {
 			return CloudContent{}, ErrInputInvalid
 		}
 		start, e1 := time.Parse(time.RFC3339Nano, o.StartedAt)
@@ -216,7 +217,7 @@ func normalizeCloud(content CloudContent) (CloudContent, error) {
 		if e1 != nil || e2 != nil || finish.Before(start) || e3 != nil || len(hash) != 32 || o.SemanticSHA256 != strings.ToLower(o.SemanticSHA256) {
 			return CloudContent{}, ErrInputInvalid
 		}
-		productObserved = true
+		productObserved = productObserved || o.Pages > 0
 		if !o.EnumerationComplete && !seen["OBSERVATION_INCOMPLETE"] {
 			content.Limitations = append(content.Limitations, "OBSERVATION_INCOMPLETE")
 			seen["OBSERVATION_INCOMPLETE"] = true
@@ -243,7 +244,7 @@ func normalizeCloud(content CloudContent) (CloudContent, error) {
 			return CloudContent{}, ErrInputInvalid
 		}
 	}
-	if _, err := marshalBounded(content, 64<<10); err != nil {
+	if _, err := marshalBounded(content, 2<<20); err != nil {
 		return CloudContent{}, err
 	}
 	// Detach all slices, including the private artifact buffer, from the caller.
@@ -382,7 +383,7 @@ func (s *Store) FinalizeCloud(ctx context.Context, jobID string, content CloudCo
 		if e != nil {
 			return e
 		}
-		body, e := marshalBounded(content, 64<<10)
+		body, e := marshalBounded(content, 2<<20)
 		if e != nil {
 			return e
 		}

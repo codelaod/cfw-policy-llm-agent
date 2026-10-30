@@ -2,6 +2,7 @@
 package storage
 
 import (
+	"cfw-policy-llm-agent/server/internal/workload"
 	"context"
 	"database/sql"
 	"encoding/json"
@@ -27,23 +28,26 @@ var (
 )
 
 type Job struct {
-	ID                string `json:"id" gorm:"column:id"`
-	ConversationID    string `json:"conversation_id"`
-	ClientRequestID   string `json:"-"`
-	RequestDigest     string `json:"-"`
-	Kind              string `json:"kind" enums:"e0_probe,audit,collect,connection_check,assistant_turn"`
-	PlanID            string `json:"plan_id,omitempty"`
-	Status            string `json:"status"`
-	ViewSeq           int64  `json:"view_seq"`
-	CreatedAt         string `json:"created_at"`
-	StartedAt         string `json:"started_at,omitempty"`
-	FinishedAt        string `json:"finished_at,omitempty"`
-	QueueDeadline     string `json:"queue_deadline"`
-	RootDeadline      string `json:"root_deadline"`
-	ExecutionDeadline string `json:"execution_deadline,omitempty"`
-	ResultRef         string `json:"result_ref,omitempty"`
-	ErrorCode         string `json:"error_code,omitempty"`
-	BudgetRef         string `json:"budget_ref"`
+	ParentJobID string `json:"parent_job_id,omitempty"`
+
+	Workload          workload.Resolved `json:"workload" gorm:"-"`
+	ID                string            `json:"id" gorm:"column:id"`
+	ConversationID    string            `json:"conversation_id"`
+	ClientRequestID   string            `json:"-"`
+	RequestDigest     string            `json:"-"`
+	Kind              string            `json:"kind" enums:"e0_probe,audit,collect,connection_check,assistant_turn"`
+	PlanID            string            `json:"plan_id,omitempty"`
+	Status            string            `json:"status"`
+	ViewSeq           int64             `json:"view_seq"`
+	CreatedAt         string            `json:"created_at"`
+	StartedAt         string            `json:"started_at,omitempty"`
+	FinishedAt        string            `json:"finished_at,omitempty"`
+	QueueDeadline     string            `json:"queue_deadline"`
+	RootDeadline      string            `json:"root_deadline"`
+	ExecutionDeadline string            `json:"execution_deadline,omitempty"`
+	ResultRef         string            `json:"result_ref,omitempty"`
+	ErrorCode         string            `json:"error_code,omitempty"`
+	BudgetRef         string            `json:"budget_ref"`
 }
 
 type Event struct {
@@ -175,6 +179,9 @@ func get(tx *gorm.DB, id string) (Job, error) {
 	if r.RowsAffected == 0 {
 		return j, ErrNotFound
 	}
+	if err := hydrateWorkload(tx, &j); err != nil {
+		return j, err
+	}
 	return j, nil
 }
 func (s *Store) Get(ctx context.Context, id string) (Job, error) {
@@ -212,21 +219,27 @@ func (s *Store) Claim(ctx context.Context) (j Job, found bool, err error) {
 			return e
 		}
 		var active int64
-		if e := tx.Raw("SELECT count(*) FROM e0_jobs WHERE status IN ('running','cancelling')").Scan(&active).Error; e != nil {
+		if e := tx.Raw("SELECT count(*) FROM e0_jobs WHERE parent_job_id IS NULL AND status IN ('running','cancelling')").Scan(&active).Error; e != nil {
 			return e
 		}
 		if active >= 3 {
 			return nil
 		}
 		var candidate Job
-		r := tx.Raw("SELECT * FROM e0_jobs WHERE status='queued' ORDER BY created_at,id LIMIT 1").Scan(&candidate)
+		r := tx.Raw("SELECT * FROM e0_jobs WHERE parent_job_id IS NULL AND status='queued' ORDER BY created_at,id LIMIT 1").Scan(&candidate)
 		if r.Error != nil {
 			return r.Error
 		}
 		if r.RowsAffected == 0 {
 			return nil
 		}
-		_, execution := timingFor(candidate.Kind)
+		if err := hydrateWorkload(tx, &candidate); err != nil {
+			return err
+		}
+		execution, e := workload.Seconds(candidate.Workload.Limits.ExecutionSeconds)
+		if e != nil {
+			return ErrInputInvalid
+		}
 		at := time.Now().UTC()
 		deadline := at.Add(execution)
 		root, e := time.Parse(time.RFC3339Nano, candidate.RootDeadline)
@@ -243,6 +256,7 @@ func (s *Store) Claim(ctx context.Context) (j Job, found bool, err error) {
 		if r.RowsAffected == 0 {
 			return nil
 		}
+		j.Workload = candidate.Workload
 		found = true
 		if e := appendEvent(tx, &j, "job_status", map[string]any{"status": "running"}); e != nil {
 			return e
@@ -275,6 +289,21 @@ func (s *Store) Cancel(ctx context.Context, id string) (j Job, err error) {
 			return nil
 		}
 		if j.Status == "queued" {
+			var batchCount int64
+			if e = tx.Raw("SELECT count(*) FROM batch_requests WHERE parent_job_id=?", j.ID).Scan(&batchCount).Error; e != nil {
+				return e
+			}
+			if batchCount != 0 {
+				if e = stopBatch(tx, j, "cancelled", "CANCELLED"); e != nil {
+					return e
+				}
+				// stopBatch appended its committed stage event; reload seq before
+				// adding the parent's terminal event in this same transaction.
+				j, e = get(tx, id)
+				if e != nil {
+					return e
+				}
+			}
 			j.Status = "cancelled"
 			j.FinishedAt = now()
 		} else {
@@ -309,7 +338,14 @@ func (s *Store) Recover(ctx context.Context) error {
 			return e
 		}
 		for i := range jobs {
-			if e := finishJob(tx, &jobs[i], "interrupted", "JOB_INTERRUPTED"); e != nil {
+			current, e := get(tx, jobs[i].ID)
+			if e != nil {
+				return e
+			}
+			if terminal(current.Status) {
+				continue
+			}
+			if e = finishJob(tx, &current, "interrupted", "JOB_INTERRUPTED"); e != nil {
 				return e
 			}
 		}

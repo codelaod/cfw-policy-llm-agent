@@ -92,13 +92,35 @@ func (s *ConfirmationService) ReadAssets(ctx context.Context, snapshotID string,
 }
 
 func (s *ConfirmationService) ReadAssetContext(ctx context.Context, snapshotID, assetID string) (AssetView, error) {
-	page, err := s.ReadAssets(ctx, snapshotID, 0, 100)
+	snapshot, err := s.Store.GetSnapshot(ctx, snapshotID)
 	if err != nil {
 		return AssetView{}, err
 	}
-	for _, item := range page.Items {
-		if item.Asset.ID == assetID {
-			return item, nil
+	in, heads, err := s.Store.FreezeInput(ctx, snapshotID)
+	if err != nil {
+		return AssetView{}, err
+	}
+	for _, asset := range in.Assets {
+		if asset.ID != assetID {
+			continue
+		}
+		for _, original := range snapshot.Input.Assets {
+			if original.ID != assetID {
+				continue
+			}
+			for _, head := range heads {
+				if head.AssetID != assetID {
+					continue
+				}
+				sections := []string{}
+				if head.ProfileVersionID != "" {
+					sections = append(sections, "roles")
+				}
+				if head.IntentVersionID != "" {
+					sections = append(sections, "access")
+				}
+				return AssetView{Asset: asset, DeclaredAsset: original, Head: head, LocalConfirmedSections: sections, SourceKind: snapshot.SourceKind}, nil
+			}
 		}
 	}
 	return AssetView{}, storage.ErrNotFound

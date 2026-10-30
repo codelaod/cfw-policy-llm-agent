@@ -352,7 +352,7 @@ func TestLogicalHardLimitsCannotBeRaisedByConfig(t *testing.T) {
 			})
 			runTask.Kind = test.kind
 			out, err := Run(context.Background(), runTask, Config{MaxModelCalls: 999, MaxToolCalls: 999, ModelTimeout: time.Hour}, noSink)
-			if err == nil || out.ErrorCode != "MODEL_CALL_LIMIT" || out.ModelCalls != test.models || out.ToolCalls != test.models || q.turns != test.models {
+			if err == nil || out.ErrorCode != "MODEL_CALL_LIMIT" || out.ModelCalls != test.models || out.ToolCalls != test.models-1 || q.turns != test.models {
 				t.Fatalf("bad model bound %+v %v turns=%d", out, err, q.turns)
 			}
 			q = newQuery(test.kind)

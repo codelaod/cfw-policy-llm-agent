@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"cfw-policy-llm-agent/server/internal/outbound"
+	"cfw-policy-llm-agent/server/internal/workload"
 	openai "github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
@@ -47,7 +48,7 @@ type Factory struct {
 
 func New(manager *outbound.Manager, cfg Config) (*Factory, error) {
 	u, err := url.Parse(cfg.BaseURL)
-	if manager == nil || err != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.RawPath != "" || u.Opaque != "" || cfg.APIKey == "" || strings.TrimSpace(cfg.APIKey) != cfg.APIKey || strings.ContainsAny(cfg.APIKey, "\r\n\x00") || cfg.Model == "" || len(cfg.Model) > 128 || strings.ContainsAny(cfg.Model, "\r\n\x00") || cfg.MaxOutputTokens < 1 || cfg.MaxOutputTokens > 1024 || (cfg.ProviderProfile != "openai-compatible" && cfg.ProviderProfile != "minimax") {
+	if manager == nil || err != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.RawPath != "" || u.Opaque != "" || cfg.APIKey == "" || strings.TrimSpace(cfg.APIKey) != cfg.APIKey || strings.ContainsAny(cfg.APIKey, "\r\n\x00") || cfg.Model == "" || len(cfg.Model) > 128 || strings.ContainsAny(cfg.Model, "\r\n\x00") || cfg.MaxOutputTokens < 1 || cfg.MaxOutputTokens > workload.MaxCounter || (cfg.ProviderProfile != "openai-compatible" && cfg.ProviderProfile != "minimax") {
 		return nil, Failure("MODEL_CONFIGURATION_INVALID")
 	}
 	if u.Scheme != "https" {

@@ -10,6 +10,7 @@ export type Job = {
   started_at?: string | null
   finished_at?: string | null
   kind?: string
+  parent_job_id?: string
   result_ref?: string
   error_code?: string
 }
@@ -57,7 +58,8 @@ async function readJSON(response: Response): Promise<unknown> {
 export function decodeJob(value: unknown, id?: string): Job {
   if (!record(value) || typeof value.id !== 'string' || (id && value.id !== id)
     || typeof value.conversation_id !== 'string' || !statuses.includes(value.status as JobStatus)
-    || !Number.isSafeInteger(value.view_seq) || Number(value.view_seq) < 0 || !validTime(value.created_at)) {
+    || !Number.isSafeInteger(value.view_seq) || Number(value.view_seq) < 0 || !validTime(value.created_at)
+    || value.parent_job_id !== undefined && (typeof value.parent_job_id !== 'string' || value.parent_job_id !== '' && !/^[A-Za-z0-9_-]{1,128}$/.test(value.parent_job_id))) {
     throw new ProtocolError('任务响应校验失败。')
   }
   return value as Job

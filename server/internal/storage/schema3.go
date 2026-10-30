@@ -5,7 +5,7 @@ import (
 	"gorm.io/gorm"
 )
 
-const BusinessSchemaVersion = 4
+const BusinessSchemaVersion = 5
 
 func checkAdmissionShape(db *gorm.DB) error {
 	var shape int
@@ -15,7 +15,10 @@ func checkAdmissionShape(db *gorm.DB) error {
 	if shape != 4 {
 		return errors.New("admission schema is incomplete; explicit migration required")
 	}
-	return checkCloudShape(db)
+	if err := checkCloudShape(db); err != nil {
+		return err
+	}
+	return checkWorkflowShape(db)
 }
 
 func migrateAdmissionSchema(tx *gorm.DB) error {
@@ -23,7 +26,7 @@ func migrateAdmissionSchema(tx *gorm.DB) error {
 	if err := tx.Raw("SELECT version FROM business_schema").Scan(&version).Error; err != nil {
 		return err
 	}
-	if version != 2 && version != 3 && version != BusinessSchemaVersion {
+	if version != 2 && version != 3 && version != 4 && version != BusinessSchemaVersion {
 		return errors.New("unsupported business schema for admission migration")
 	}
 	if err := migrateBudgets(tx); err != nil {
@@ -39,5 +42,8 @@ func migrateAdmissionSchema(tx *gorm.DB) error {
 			}
 		}
 	}
-	return migrateCloudSchema(tx)
+	if err := migrateCloudSchema(tx); err != nil {
+		return err
+	}
+	return migrateWorkflowSchema(tx)
 }

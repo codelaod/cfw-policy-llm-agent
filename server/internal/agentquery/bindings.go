@@ -1,6 +1,7 @@
 package agentquery
 
 import (
+	"context"
 	"encoding/json"
 	"net/netip"
 	"sort"
@@ -49,6 +50,17 @@ func (s *Service) addressPointers() map[string]string {
 	for ai, a := range s.input.Assets {
 		base := assetPath(ai, -1)
 		add(a.Address, base+"/address")
+		for gi, group := range a.SecurityGroups {
+			for pi, permission := range group.Permissions {
+				path := base + "/security_groups/" + strconv.Itoa(gi) + "/permissions/" + strconv.Itoa(pi)
+				if permission.Source != "" {
+					add(permission.Source, path+"/source")
+				}
+				if permission.Destination != "" {
+					add(permission.Destination, path+"/destination")
+				}
+			}
+		}
 		accesses(a.Allowed, base+"/allowed")
 		for si, v := range a.Services {
 			base := assetPath(ai, si)
@@ -99,6 +111,10 @@ func (s *Service) bindingField(alias string, r reference, addresses map[string]s
 		return "input", assetPath(r.asset, -1), true
 	case "service":
 		return "input", assetPath(r.asset, r.service), true
+	case "label":
+		return "input", r.field, r.field != ""
+	case "security_group":
+		return "input", r.key, true
 	case "association":
 		return "input", assetPath(r.asset, -1) + "/association", true
 	case "business":
@@ -126,6 +142,9 @@ func (s *Service) bindingField(alias string, r reference, addresses map[string]s
 			return "input", "/protection/evidence_ref", true
 		}
 		for ai, a := range s.input.Assets {
+			if a.Protection != nil && r.key == a.Protection.EvidenceRef {
+				return "input", assetPath(ai, -1) + "/protection/evidence_ref", true
+			}
 			if r.key == a.Association.EvidenceRef {
 				return "input", assetPath(ai, -1) + "/association/evidence_ref", true
 			}
@@ -140,6 +159,8 @@ func (s *Service) bindingField(alias string, r reference, addresses map[string]s
 		}
 	case "evidence":
 		switch {
+		case strings.HasPrefix(r.key, "input-pointer/"):
+			return "input", strings.TrimPrefix(r.key, "input-pointer/"), true
 		case r.key == "partition":
 			return "input", "", true
 		case strings.HasPrefix(r.key, "baseline/"):
@@ -286,7 +307,17 @@ func (s *Service) canonicalBinding(kind, document, field string) (LocalBinding, 
 				valid = len(parts) == 3 && parts[2] == "association"
 			}
 			if kind == "evidence" {
-				valid = root || len(parts) == 3 && parts[2] == "association"
+				valid = root || len(parts) == 3 && (parts[2] == "association" || parts[2] == "protection" && s.input.Assets[ai].Protection != nil) || s.metadataPointer(parts)
+			}
+			if kind == "label" {
+				valid = s.metadataPointer(parts)
+				r.field = field
+			}
+			if kind == "security_group" && len(parts) == 4 && parts[2] == "security_groups" {
+				gi, exists := pointerIndex(parts[3], len(s.input.Assets[ai].SecurityGroups))
+				valid = exists
+				r.index = gi
+				r.key = field
 			}
 			if kind == "access" {
 				last := ""
@@ -308,7 +339,7 @@ func (s *Service) canonicalBinding(kind, document, field string) (LocalBinding, 
 				}
 			}
 			if kind == "record" {
-				valid = len(parts) == 4 && parts[2] == "association" && parts[3] == "evidence_ref" && s.input.Assets[ai].Association.EvidenceRef != ""
+				valid = len(parts) == 4 && parts[3] == "evidence_ref" && (parts[2] == "association" && s.input.Assets[ai].Association.EvidenceRef != "" || parts[2] == "protection" && s.input.Assets[ai].Protection != nil && s.input.Assets[ai].Protection.EvidenceRef != "")
 			}
 		}
 		if len(parts) == 2 && parts[0] == "policies" {
@@ -351,6 +382,9 @@ func (s *Service) canonicalBinding(kind, document, field string) (LocalBinding, 
 		return b, r, state, false
 	}
 	r.asset, r.service = ai, si
+	if kind == "evidence" && document == "input" {
+		r.key = "input-pointer/" + field
+	}
 	if ai >= 0 {
 		b.AssetRef = s.input.Assets[ai].ID
 		if si >= 0 {
@@ -379,10 +413,13 @@ func validBindingAlias(alias, kind string) (string, bool) {
 	return nonce, e == nil && n > 0 && strconv.Itoa(n) == tail[split+1:]
 }
 func serviceFromBindings(input domain.Input, result *domain.Result, bindings map[string]LocalBinding) (*Service, error) {
+	return serviceFromBindingsContext(context.Background(), input, result, bindings)
+}
+func serviceFromBindingsContext(ctx context.Context, input domain.Input, result *domain.Result, bindings map[string]LocalBinding) (*Service, error) {
 	if len(bindings) == 0 || len(bindings) > 20000 {
 		return nil, ErrFinal
 	}
-	s, e := New(input, result)
+	s, e := NewWithContext(ctx, input, result)
 	if e != nil {
 		return nil, ErrFinal
 	}
@@ -422,11 +459,17 @@ func serviceFromBindings(input domain.Input, result *domain.Result, bindings map
 // ValidateLocalBindings is for trusted server-captured metadata, including failed
 // runs. It validates every entry; it cannot recreate evidence of model calls.
 func ValidateLocalBindings(input domain.Input, result *domain.Result, bindings map[string]LocalBinding) error {
-	_, e := serviceFromBindings(input, result, bindings)
+	return ValidateLocalBindingsContext(context.Background(), input, result, bindings)
+}
+func ValidateLocalBindingsContext(ctx context.Context, input domain.Input, result *domain.Result, bindings map[string]LocalBinding) error {
+	_, e := serviceFromBindingsContext(ctx, input, result, bindings)
 	return e
 }
 func ValidateBoundOutput(input domain.Input, result *domain.Result, out Output, bindings map[string]LocalBinding) error {
-	s, e := serviceFromBindings(input, result, bindings)
+	return ValidateBoundOutputContext(context.Background(), input, result, out, bindings)
+}
+func ValidateBoundOutputContext(ctx context.Context, input domain.Input, result *domain.Result, out Output, bindings map[string]LocalBinding) error {
+	s, e := serviceFromBindingsContext(ctx, input, result, bindings)
 	if e != nil {
 		return e
 	}
@@ -443,4 +486,66 @@ func ValidateBoundOutput(input domain.Input, result *domain.Result, out Output, 
 		return ErrFinal
 	}
 	return nil
+}
+
+// metadataPointer admits only the frozen metadata sections exposed by these tools.
+func (s *Service) metadataPointer(parts []string) bool {
+	if len(parts) < 3 || parts[0] != "assets" {
+		return false
+	}
+	ai, ok := pointerIndex(parts[1], len(s.input.Assets))
+	if !ok {
+		return false
+	}
+	a := s.input.Assets[ai]
+	if len(parts) == 3 {
+		switch parts[2] {
+		case "name":
+			return a.Name != ""
+		case "region":
+			return a.Region != ""
+		case "operating_system":
+			return a.OperatingSystem != ""
+		}
+	}
+	if len(parts) == 4 && parts[2] == "tags" {
+		_, exists := a.Tags[parts[3]]
+		return exists
+	}
+	if len(parts) < 4 || parts[2] != "security_groups" {
+		return false
+	}
+	gi, ok := pointerIndex(parts[3], len(a.SecurityGroups))
+	if !ok {
+		return false
+	}
+	g := a.SecurityGroups[gi]
+	if len(parts) == 4 {
+		return true
+	}
+	if len(parts) == 5 && parts[4] == "region" {
+		return g.Region != ""
+	}
+	if len(parts) == 6 && parts[4] == "limitations" {
+		_, ok := pointerIndex(parts[5], len(g.Limitations))
+		return ok
+	}
+	if len(parts) < 6 || parts[4] != "permissions" {
+		return false
+	}
+	pi, ok := pointerIndex(parts[5], len(g.Permissions))
+	if !ok {
+		return false
+	}
+	if len(parts) == 6 {
+		return true
+	}
+	if len(parts) == 7 && has([]string{"direction", "action", "protocol", "port_range", "priority", "source", "destination"}, parts[6]) {
+		return true
+	}
+	if len(parts) == 8 && parts[6] == "conditions" {
+		_, exists := g.Permissions[pi].Conditions[parts[7]]
+		return exists
+	}
+	return false
 }

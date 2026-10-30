@@ -9,7 +9,9 @@ import (
 	"strings"
 
 	"cfw-policy-llm-agent/server/internal/agentquery"
+	"cfw-policy-llm-agent/server/internal/audit"
 	"cfw-policy-llm-agent/server/internal/domain"
+	"cfw-policy-llm-agent/server/internal/workload"
 )
 
 const agentProjectionVersion = "agent-public-v1"
@@ -44,7 +46,7 @@ func usageProjection(usage *AgentUsage, modelCalls int) (AgentUsageProjection, e
 	if usage == nil {
 		return p, nil
 	}
-	if usage.PhysicalAttempts < 0 || usage.PhysicalAttempts > 6 || usage.KnownUsageResponses < 0 || usage.UnknownUsageAttempts < 0 || usage.KnownUsageResponses > usage.PhysicalAttempts || usage.UnknownUsageAttempts > usage.PhysicalAttempts || usage.KnownUsageResponses+usage.UnknownUsageAttempts != usage.PhysicalAttempts || modelCalls == 0 && usage.PhysicalAttempts > 0 {
+	if usage.PhysicalAttempts < 0 || usage.PhysicalAttempts > workload.MaxCounter || usage.KnownUsageResponses < 0 || usage.UnknownUsageAttempts < 0 || usage.KnownUsageResponses > usage.PhysicalAttempts || usage.UnknownUsageAttempts > usage.PhysicalAttempts || usage.KnownUsageResponses+usage.UnknownUsageAttempts != usage.PhysicalAttempts || modelCalls == 0 && usage.PhysicalAttempts > 0 {
 		return p, ErrInvalidResult
 	}
 	if usage.UsageTotalsOverflow {
@@ -82,7 +84,27 @@ func emptySupplement(s AgentSupplement) bool {
 	return s.Output == nil && len(s.Bindings) == 0 && s.ModelCalls == 0 && s.ToolCalls == 0 && s.ErrorCode == "" && s.Usage == nil
 }
 func validateSupplement(ctx context.Context, input domain.Input, result domain.Result, execution Execution, s AgentSupplement) error {
-	if _, e := agentquery.New(input, &result); e != nil {
+	limits := workload.Default("audit")
+	if execution.Workload != nil {
+		resolved, e := workload.Normalize("audit", *execution.Workload)
+		if e != nil {
+			return ErrInvalidResult
+		}
+		limits = resolved.Limits
+	}
+	var limitErr error
+	validationCells := []int{}
+	if limits.MaxQueryCells > 0 {
+		validationCells = append(validationCells, limits.MaxQueryCells)
+	}
+	ctx, limitErr = audit.WithInputObjectLimits(ctx, limits.AssetsPerBatch, limits.MaxPolicies, validationCells...)
+	if limitErr != nil {
+		return ErrInvalidResult
+	}
+	if _, e := agentquery.NewWithContext(ctx, input, &result); e != nil {
+		return ErrInvalidResult
+	}
+	if s.Usage != nil && s.Usage.PhysicalAttempts > int64(limits.ModelHTTPAttempts) {
 		return ErrInvalidResult
 	}
 	if e := ctx.Err(); e != nil {
@@ -94,7 +116,7 @@ func validateSupplement(ctx context.Context, input domain.Input, result domain.R
 		}
 		return nil
 	}
-	if execution.Mode != "rules_and_agent" || !member(execution.ModelStage, "completed", "not_configured", "not_completed") || s.ModelCalls < 0 || s.ModelCalls > 6 || s.ToolCalls < 0 || s.ToolCalls > 12 || s.ToolCalls > 0 && s.ModelCalls == 0 {
+	if execution.Mode != "rules_and_agent" || !member(execution.ModelStage, "completed", "not_configured", "not_completed") || s.ModelCalls < 0 || s.ModelCalls > limits.ModelLogicalCalls || s.ToolCalls < 0 || s.ToolCalls > limits.ToolCalls || s.ToolCalls > 0 && s.ModelCalls == 0 {
 		return ErrInvalidResult
 	}
 	if s.ToolCalls == 0 {
@@ -108,7 +130,7 @@ func validateSupplement(ctx context.Context, input domain.Input, result domain.R
 		if execution.ModelStage != "completed" || s.ErrorCode != "" || s.ModelCalls < 1 {
 			return ErrInvalidResult
 		}
-		if e := agentquery.ValidateBoundOutput(input, &result, *s.Output, s.Bindings); e != nil {
+		if e := agentquery.ValidateBoundOutputContext(ctx, input, &result, *s.Output, s.Bindings); e != nil {
 			return ErrInvalidResult
 		}
 	} else {
@@ -119,7 +141,7 @@ func validateSupplement(ctx context.Context, input domain.Input, result domain.R
 			return ErrInvalidResult
 		}
 		if len(s.Bindings) > 0 {
-			if e := agentquery.ValidateLocalBindings(input, &result, s.Bindings); e != nil {
+			if e := agentquery.ValidateLocalBindingsContext(ctx, input, &result, s.Bindings); e != nil {
 				return ErrInvalidResult
 			}
 		}

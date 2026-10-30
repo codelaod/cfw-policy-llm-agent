@@ -95,26 +95,7 @@ func migrateBudgets(tx *gorm.DB) error {
 func boundedBudgetLimit(value int64) bool { return value >= 0 && value <= 1_000_000_000 }
 
 func (s *Store) ConfigureBudgetPolicy(ctx context.Context, policy BudgetPolicy) error {
-	expires, err := time.Parse(time.RFC3339Nano, policy.ExpiresAt)
-	if !validKey(policy.Ref) || err != nil || !boundedBudgetLimit(policy.ApplicationCloudAttempts) || !boundedBudgetLimit(policy.ApplicationModelAttempts) || !boundedBudgetLimit(policy.SessionCloudAttempts) || !boundedBudgetLimit(policy.SessionModelAttempts) {
-		return ErrInputInvalid
-	}
-	policy.ExpiresAt = expires.UTC().Format(time.RFC3339Nano)
-	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		var old BudgetPolicy
-		r := tx.Raw("SELECT * FROM budget_policies WHERE ref=?", policy.Ref).Scan(&old)
-		if r.Error != nil {
-			return r.Error
-		}
-		if r.RowsAffected == 0 {
-			return tx.Exec("INSERT INTO budget_policies(ref,application_cloud_attempts,application_model_attempts,session_cloud_attempts,session_model_attempts,expires_at,created_at) VALUES(?,?,?,?,?,?,?)", policy.Ref, policy.ApplicationCloudAttempts, policy.ApplicationModelAttempts, policy.SessionCloudAttempts, policy.SessionModelAttempts, policy.ExpiresAt, now()).Error
-		}
-		oldExpiry, e := time.Parse(time.RFC3339Nano, old.ExpiresAt)
-		if e != nil || expires.After(oldExpiry) || policy.ApplicationCloudAttempts > old.ApplicationCloudAttempts || policy.ApplicationModelAttempts > old.ApplicationModelAttempts || policy.SessionCloudAttempts > old.SessionCloudAttempts || policy.SessionModelAttempts > old.SessionModelAttempts {
-			return ErrConflict
-		}
-		return tx.Exec("UPDATE budget_policies SET application_cloud_attempts=?,application_model_attempts=?,session_cloud_attempts=?,session_model_attempts=?,expires_at=? WHERE ref=?", policy.ApplicationCloudAttempts, policy.ApplicationModelAttempts, policy.SessionCloudAttempts, policy.SessionModelAttempts, policy.ExpiresAt, policy.Ref).Error
-	})
+	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error { return configureBudgetPolicy(tx, policy) })
 }
 
 func budgetPolicy(tx *gorm.DB, ref string) (policy BudgetPolicy, err error) {
@@ -146,7 +127,10 @@ func attemptAlias(value string) bool {
 // ReserveAttempt must commit before the transport sends bytes. The accepted
 // job/plan is the authority; callers cannot supply a fresh budget reference or
 // effects. Credentials and cloud APIs share one cloud bucket at every level.
-func (s *Store) ReserveAttempt(ctx context.Context, jobID, class, sourceRef, configRevision string) (id string, err error) {
+func (s *Store) ReserveAttempt(ctx context.Context, jobID, class, sourceRef, configRevision string) (string, error) {
+	return s.reserveAttempt(ctx, jobID, class, sourceRef, configRevision, nil)
+}
+func (s *Store) reserveAttempt(ctx context.Context, jobID, class, sourceRef, configRevision string, private *AttemptCeiling) (id string, err error) {
 	if !enum(class, "model", "cloud", "credential") || !attemptAlias(sourceRef) {
 		return "", ErrInputInvalid
 	}
@@ -175,6 +159,29 @@ func (s *Store) ReserveAttempt(ctx context.Context, jobID, class, sourceRef, con
 		if plan.BudgetRef != job.BudgetRef {
 			return ErrAttemptEffectDenied
 		}
+		authority, e := batchAuthority(tx, job)
+		if e != nil {
+			return e
+		}
+		authorityPlan := plan
+		taskIDs := []string{job.ID}
+		if authority.ID != job.ID || plan.Batch != nil {
+			if authority.Status != "running" {
+				return ErrBudgetClosed
+			}
+			deadline, e := earlierBatchDeadline(authority)
+			if e != nil || !at.Before(deadline) {
+				return ErrBudgetClosed
+			}
+			authorityPlan, e = planRecord(tx, authority.PlanID)
+			if e != nil {
+				return e
+			}
+			taskIDs, e = batchAttemptJobIDs(tx, authority.ID)
+			if e != nil {
+				return e
+			}
+		}
 		bucket, taskLimit := "cloud", int64(plan.EffectCeiling.CloudHTTPAttempts)
 		if class == "model" {
 			// The current single configured model has a server-owned alias. Input
@@ -189,27 +196,73 @@ func (s *Store) ReserveAttempt(ctx context.Context, jobID, class, sourceRef, con
 		} else if !plan.EffectCeiling.AllowCloudReads || !enum(job.Kind, "audit", "collect", "connection_check") {
 			return ErrAttemptEffectDenied
 		}
+		rootLimit := int64(authorityPlan.EffectCeiling.CloudHTTPAttempts)
+		if class == "model" {
+			rootLimit = int64(authorityPlan.EffectCeiling.ModelHTTPAttempts)
+			if !authorityPlan.EffectCeiling.AllowModelRequests {
+				return ErrAttemptEffectDenied
+			}
+		} else if !authorityPlan.EffectCeiling.AllowCloudReads {
+			return ErrAttemptEffectDenied
+		}
 		policy, e := budgetPolicy(tx, job.BudgetRef)
 		if e != nil {
 			return e
 		}
-		expires, e := time.Parse(time.RFC3339Nano, policy.ExpiresAt)
-		if e != nil || !at.Before(expires) {
-			return ErrBudgetExpired
+		head, e := budgetHead(tx, job.BudgetRef)
+		if e != nil {
+			return e
+		}
+		if !reflect.DeepEqual(head.Policy, policy) {
+			return ErrBudgetClosed
+		}
+		if policy.ExpiresAt != "" {
+			expires, e := time.Parse(time.RFC3339Nano, policy.ExpiresAt)
+			if e != nil || !at.Before(expires) {
+				return ErrBudgetExpired
+			}
 		}
 		appLimit, sessionLimit := policy.ApplicationCloudAttempts, policy.SessionCloudAttempts
 		if bucket == "model" {
 			appLimit, sessionLimit = policy.ApplicationModelAttempts, policy.SessionModelAttempts
 		}
+		if private != nil {
+			if private.Ref != "" && private.Ref != job.BudgetRef {
+				return ErrAttemptEffectDenied
+			}
+			if private.ExpiresAt != "" {
+				expiry, e := time.Parse(time.RFC3339Nano, private.ExpiresAt)
+				if e != nil || !at.Before(expiry) {
+					return ErrBudgetExpired
+				}
+			}
+			if private.ApplicationAttempts != nil {
+				appLimit = min(appLimit, *private.ApplicationAttempts)
+			}
+			if private.SessionAttempts != nil {
+				sessionLimit = min(sessionLimit, *private.SessionAttempts)
+			}
+		}
 		if taskLimit <= 0 || appLimit <= 0 || sessionLimit <= 0 {
 			return ErrBudgetExhausted
 		}
 		var used struct{ Application, Session, Task int64 }
-		e = tx.Raw(`SELECT count(*) AS application,coalesce(sum(CASE WHEN conversation_id=? THEN 1 ELSE 0 END),0) AS session,coalesce(sum(CASE WHEN job_id=? THEN 1 ELSE 0 END),0) AS task FROM outbound_attempts WHERE budget_ref=? AND bucket=?`, job.ConversationID, job.ID, job.BudgetRef, bucket).Scan(&used).Error
+		e = tx.Raw(`SELECT count(*) AS application,coalesce(sum(CASE WHEN conversation_id=? THEN 1 ELSE 0 END),0) AS session,coalesce(sum(CASE WHEN job_id IN ? THEN 1 ELSE 0 END),0) AS task FROM outbound_attempts WHERE budget_ref=? AND bucket=?`, job.ConversationID, taskIDs, job.BudgetRef, bucket).Scan(&used).Error
 		if e != nil {
 			return e
 		}
-		if used.Application >= appLimit || used.Session >= sessionLimit || used.Task >= taskLimit {
+		if used.Application >= appLimit || used.Session >= sessionLimit || used.Task >= rootLimit {
+			return ErrBudgetExhausted
+		}
+		if authority.ID != job.ID {
+			var own int64
+			if e = tx.Raw("SELECT count(*) FROM outbound_attempts WHERE job_id=? AND bucket=?", job.ID, bucket).Scan(&own).Error; e != nil {
+				return e
+			}
+			if own >= taskLimit {
+				return ErrBudgetExhausted
+			}
+		} else if used.Task >= taskLimit {
 			return ErrBudgetExhausted
 		}
 		if e = ctx.Err(); e != nil {
@@ -317,8 +370,8 @@ func budgetUsage(tx *gorm.DB, budgetRef, conversationID, jobID string) (usage At
 		args = append(args, conversationID)
 	}
 	if jobID != "" {
-		where += " AND job_id=?"
-		args = append(args, jobID)
+		where += " AND (job_id=? OR job_id IN (SELECT id FROM e0_jobs WHERE parent_job_id=?))"
+		args = append(args, jobID, jobID)
 	}
 	err = func() error {
 		query := `SELECT coalesce(sum(CASE WHEN bucket='cloud' THEN 1 ELSE 0 END),0) AS cloud_attempts,coalesce(sum(CASE WHEN bucket='model' THEN 1 ELSE 0 END),0) AS model_attempts,coalesce(sum(CASE WHEN state IN ('reserved','unknown') THEN 1 ELSE 0 END),0) AS unknown_delivery` + where

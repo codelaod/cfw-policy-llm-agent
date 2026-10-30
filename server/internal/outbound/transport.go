@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"cfw-policy-llm-agent/server/internal/domain"
+	"cfw-policy-llm-agent/server/internal/workload"
 )
 
 type Failure string
@@ -69,6 +70,7 @@ type Route struct {
 	Actions []string
 }
 type Source struct {
+	Ceiling           *workload.AttemptCeiling
 	Ref               string
 	Class             string
 	Origin            string
@@ -126,6 +128,22 @@ func NewManager(ledger Ledger, config Config) (*Manager, error) {
 	ctx, stop := context.WithCancel(context.Background())
 	m := &Manager{ledger: ledger, revision: config.Revision, sources: map[string]source{}, cloud: make(chan struct{}, 2), model: make(chan struct{}, 3), tasks: map[string]*taskGate{}, ctx: ctx, stop: stop}
 	for _, item := range config.Sources {
+		if item.Ceiling != nil {
+			value := *item.Ceiling
+			if value.Validate() != nil {
+				return nil, Failure("OUTBOUND_CONFIGURATION_INVALID")
+			}
+			if value.ApplicationAttempts != nil {
+				v := *value.ApplicationAttempts
+				value.ApplicationAttempts = &v
+			}
+			if value.SessionAttempts != nil {
+				v := *value.SessionAttempts
+				value.SessionAttempts = &v
+			}
+			item.Ceiling = &value
+		}
+
 		u, err := url.Parse(item.Origin)
 		if err != nil || len(item.Origin) > 2048 || !safeAlias(item.Ref) || item.Class != "cloud" && item.Class != "credential" && item.Class != "model" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Opaque != "" || u.Path != "" && u.Path != "/" || len(item.Routes) == 0 || len(item.Routes) > 16 {
 			return nil, Failure("OUTBOUND_CONFIGURATION_INVALID")
@@ -140,9 +158,9 @@ func NewManager(ledger Ledger, config Config) (*Manager, error) {
 			}
 		}
 		if item.Timeout == 0 {
-			item.Timeout = 30 * time.Second
+			item.Timeout, _ = workload.Seconds(workload.Default("audit").ModelRequestSeconds)
 		}
-		if item.Timeout <= 0 || item.Timeout > 30*time.Second {
+		if item.Timeout <= 0 {
 			return nil, Failure("OUTBOUND_CONFIGURATION_INVALID")
 		}
 		if item.MaxResponseBytes == 0 {
@@ -184,7 +202,11 @@ func NewManager(ledger Ledger, config Config) (*Manager, error) {
 	// any SDK/application retry must enter this guard and reserve again.
 	protocols := new(http.Protocols)
 	protocols.SetHTTP1(true)
-	m.transport = &http.Transport{Proxy: nil, DialContext: (&net.Dialer{Timeout: 10 * time.Second, KeepAlive: -1}).DialContext, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 10 * time.Second, ResponseHeaderTimeout: 30 * time.Second, MaxResponseHeaderBytes: 32 << 10, DisableKeepAlives: true, DisableCompression: true, Protocols: protocols}
+	// Each physical attempt already has a source/task/root deadline spanning
+	// slot wait, dial, TLS, headers and body. Shared transport constants must
+	// not silently clip an explicitly longer profile; zero here adds no
+	// independent timeout and does not remove the enclosing deadline.
+	m.transport = &http.Transport{Proxy: nil, DialContext: (&net.Dialer{KeepAlive: -1}).DialContext, TLSClientConfig: &tls.Config{MinVersion: tls.VersionTLS12}, TLSHandshakeTimeout: 0, ResponseHeaderTimeout: 0, MaxResponseHeaderBytes: 32 << 10, DisableKeepAlives: true, DisableCompression: true, Protocols: protocols}
 	return m, nil
 }
 
@@ -442,7 +464,18 @@ func (g *guard) RoundTrip(req *http.Request) (response *http.Response, err error
 	if g.manager.blocked.Load() {
 		return nil, Failure("ATTEMPT_RECORD_FAILED")
 	}
-	attemptID, err := g.manager.ledger.ReserveAttempt(ctx, g.jobID, g.source.Class, g.source.Ref, g.manager.revision)
+	var attemptID string
+	if g.source.Ceiling != nil {
+		ledger, ok := g.manager.ledger.(interface {
+			ReserveAttemptWithCeiling(context.Context, string, string, string, string, workload.AttemptCeiling) (string, error)
+		})
+		if !ok {
+			return nil, Failure("ADMISSION_UNAVAILABLE")
+		}
+		attemptID, err = ledger.ReserveAttemptWithCeiling(ctx, g.jobID, g.source.Class, g.source.Ref, g.manager.revision, *g.source.Ceiling)
+	} else {
+		attemptID, err = g.manager.ledger.ReserveAttempt(ctx, g.jobID, g.source.Class, g.source.Ref, g.manager.revision)
+	}
 	if err != nil {
 		code := ErrorCode(err)
 		if code == "UPSTREAM_FAILURE" {

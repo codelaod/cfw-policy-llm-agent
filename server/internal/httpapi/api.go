@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"cfw-policy-llm-agent/server/internal/app"
+	"cfw-policy-llm-agent/server/internal/sensitive"
 	"cfw-policy-llm-agent/server/internal/storage"
 	"github.com/gin-gonic/gin"
 )
@@ -35,6 +36,7 @@ type CreateJob struct {
 }
 
 type API struct {
+	intents         *app.IntentService
 	engine          *app.Engine
 	token           [32]byte
 	sensitiveValues []string
@@ -69,8 +71,26 @@ func New(engine *app.Engine, token string, options ...Options) (*gin.Engine, err
 			}
 		}
 	}
+	a.intents = &app.IntentService{Store: engine.Store, Plans: a.plans, Engine: engine, SensitiveValues: append([]string(nil), a.sensitiveValues...)}
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.New()
+	// Artifact-local object IDs are opaque and may contain an encoded slash.
+	// Match the escaped segment first, then unescape only the selected parameter.
+	r.UseRawPath = true
+	r.UnescapePathValues = false
+	r.Use(func(c *gin.Context) {
+		if c.Request.URL.RawPath != "" {
+			for i := range c.Params {
+				value, err := url.PathUnescape(c.Params[i].Value)
+				if err != nil || strings.ContainsAny(value, "\x00\r\n") {
+					fail(c, 422, "INVALID_PATH", "invalid encoded path parameter")
+					return
+				}
+				c.Params[i].Value = value
+			}
+		}
+		c.Next()
+	})
 	r.Use(gin.CustomRecoveryWithWriter(io.Discard, func(c *gin.Context, _ any) { fail(c, 500, "INTERNAL_ERROR", "request failed") }), a.protect)
 	r.GET("/api/v1/health", a.health)
 	r.POST("/api/v1/e0/jobs", a.create)
@@ -165,8 +185,24 @@ func (a *API) protect(c *gin.Context) {
 				fail(c, 422, "INVALID_REQUEST", "one JSON value required")
 				return
 			}
+			inspected := tree
+			if strings.HasPrefix(c.Request.URL.Path, "/api/v1/conversations/") && strings.HasSuffix(c.Request.URL.Path, "/intent-turns") {
+				if fields, ok := tree.(map[string]any); ok {
+					clone := make(map[string]any, len(fields))
+					for k, v := range fields {
+						if k != "text" {
+							clone[k] = v
+						}
+					}
+					inspected = clone
+				}
+			}
+			if recognizableTree(inspected) {
+				fail(c, 422, "CREDENTIAL_IN_PAYLOAD", "recognizable credentials cannot enter business data")
+				return
+			}
 			for _, value := range a.sensitiveValues {
-				if hasSecret(tree, value) {
+				if hasSecret(inspected, value) {
 					fail(c, 422, "CREDENTIAL_IN_PAYLOAD", "server credentials or private connection values cannot enter business data")
 					return
 				}
@@ -489,4 +525,24 @@ func (a *API) stream(c *gin.Context) {
 			return
 		}
 	}
+}
+
+func recognizableTree(value any) bool {
+	switch v := value.(type) {
+	case string:
+		return sensitive.Recognizable(v)
+	case []any:
+		for _, x := range v {
+			if recognizableTree(x) {
+				return true
+			}
+		}
+	case map[string]any:
+		for k, x := range v {
+			if sensitive.Recognizable(k) || recognizableTree(x) {
+				return true
+			}
+		}
+	}
+	return false
 }

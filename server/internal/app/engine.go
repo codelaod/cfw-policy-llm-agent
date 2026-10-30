@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"cfw-policy-llm-agent/server/internal/storage"
+	"cfw-policy-llm-agent/server/internal/workload"
 )
 
 type RunFunc func(context.Context, storage.Job) error
@@ -44,7 +45,8 @@ type Engine struct {
 }
 
 func New(store *storage.Store, run RunFunc) *Engine {
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancelCause := context.WithCancelCause(context.Background())
+	cancel := func() { cancelCause(ErrStopping) }
 	return &Engine{Store: store, run: run, ctx: ctx, stop: cancel, active: map[string]context.CancelFunc{}}
 }
 
@@ -99,6 +101,13 @@ func (e *Engine) EnqueueAssistant(ctx context.Context, plan storage.ExecutionPla
 }
 
 func (e *Engine) Cancel(ctx context.Context, id string) (storage.Job, error) {
+	target, err := e.Store.Get(ctx, id)
+	if err != nil {
+		return target, err
+	}
+	if target.ParentJobID != "" {
+		id = target.ParentJobID
+	}
 	j, err := e.Store.Cancel(ctx, id)
 	if err != nil {
 		return j, err
@@ -162,22 +171,27 @@ func (e *Engine) invoke(ctx context.Context, job storage.Job) (err error) {
 }
 
 func (e *Engine) execute(j storage.Job) {
-	maximum := 240 * time.Second
-	switch j.Kind {
-	case "assistant_turn", "collect":
-		maximum = 90 * time.Second
-	case "connection_check", "e0_probe":
-		maximum = 30 * time.Second
+	resolved, limitErr := workload.Normalize(j.Kind, j.Workload)
+	maximum := time.Duration(0)
+	if limitErr == nil {
+		maximum, limitErr = workload.Seconds(resolved.Limits.ExecutionSeconds)
+		j.Workload = resolved
 	}
 	deadline := time.Now().Add(maximum)
 	if stored, err := time.Parse(time.RFC3339Nano, j.ExecutionDeadline); err == nil && stored.Before(deadline) {
 		deadline = stored
+	}
+	if root, err := time.Parse(time.RFC3339Nano, j.RootDeadline); err == nil && root.Before(deadline) {
+		deadline = root
 	}
 	ctx, cancel := context.WithDeadline(e.ctx, deadline)
 	e.mu.Lock()
 	e.active[j.ID] = cancel
 	e.mu.Unlock()
 	current, err := e.Store.Get(ctx, j.ID)
+	if limitErr != nil {
+		err = JobFailure{Code: "WORKLOAD_INVALID"}
+	}
 	if err == nil && current.Status == "running" {
 		err = e.invoke(ctx, j)
 	} else if err == nil {
@@ -224,4 +238,22 @@ func (e *Engine) execute(j storage.Job) {
 	e.mu.Lock()
 	delete(e.active, j.ID)
 	e.mu.Unlock()
+}
+
+func (e *Engine) AcceptIntentProposal(ctx context.Context, conversation, proposalID, key, configRevision string, revision int64) (storage.IntentAcceptResult, error) {
+	e.admission.RLock()
+	defer e.admission.RUnlock()
+	if e.stopping {
+		return storage.IntentAcceptResult{}, ErrStopping
+	}
+	return e.Store.AcceptIntentProposal(ctx, conversation, proposalID, key, configRevision, revision)
+}
+
+func (e *Engine) AcceptIntentTurn(ctx context.Context, turn storage.SaveIntentTurn) (storage.IntentTurnResult, error) {
+	e.admission.RLock()
+	defer e.admission.RUnlock()
+	if e.stopping {
+		return storage.IntentTurnResult{}, ErrStopping
+	}
+	return e.Store.SaveIntentRevision(ctx, turn)
 }

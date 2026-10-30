@@ -1,6 +1,6 @@
 # 数据、任务与Web API设计
 
-基线：需求v0.6／B2、设计v0.6，G1／G2已通过。本文为该领域的现行详细设计；实际运行验收另行取证。
+基线：需求v0.6／B2、设计v0.6，G1／G2已通过。本文为该领域的现行详细设计；实际运行验收另行取证。2026-10-30已接对话意图、来源隔离资源目录、业务草稿／归属、同audit准备与分批持久结构。当前business schema 5须显式迁移；物理表、DTO和路由以源码及实际生成规范为准，逻辑实体不保证一一对应同名表。限定证据见[当前代码记录](../validation/evidence/conversation-implementation-local.md)，完整M0与真实接入尚未验收。
 
 E0保留独立的`/api/v1/e0/*`人工联调子集；当前正式业务API已按实际注册生成[实际规范](../api/README.md)。两类任务按kind隔离，不得把人工任务入口替代计划消费或业务确认。
 
@@ -20,21 +20,35 @@ E1已实现输入、原始规则／证据、审阅、固定公开报告和配置
 
 每条规则、引用、证据、业务要求、输入清单和报告携带分区归属；唯一性不能只靠 AclUuid。请求中的 scope 引用必须属于当前 workspace／connection 的获准目录。scope 由服务端显式允许的边界／网关配置或已授权导入／采集结果产生，未知能力不会触发目录自动发现。后端校验实际 owner，不能以客户端传的 direction、MemberUid、API 名或网关名称作为授权依据。
 
-选择模式为 `assets`（1～50 个明确资产）或 NAT 专用 `gateway_policy`（恰好一个网关，可以没有资产）。assets 列表须无重复且原始长度在上限内，不能去重后绕过数量保护。资产空列表不是全部资产；网关模式只执行网关适用项，资产级规则仍需可定位的关联。具体键与厂商字段映射见 [云采集设计](aliyun-collector.md)。
+审计选择模式为`assets`（明确资产集合）或NAT专用`gateway_policy`（一个明确网关，可以没有资产）。单批资产数量由服务端版本化执行profile的assets_per_batch约束；legacy值50只是未校准兼容值。超过单批时保留完整有限集合，用户明确选择同分区串行分批或收窄，不截前N。材料导入另受5 MiB／结构／总对象边界保护，不能用单批大小限制整份材料或目录容量。assets列表须无重复且原始长度在本次上限内，不能去重后绕过保护。资产空列表不是全部资产；网关模式只执行网关适用项，资产级规则仍需可定位的关联。一次任务一个分区／一个NAT网关的首版语义保持，具体映射见[云采集设计](aliyun-collector.md)。
+
+### 1.2 资源目录与连接权限上界
+
+连接配置只承担认证、期望单账号、允许地域／边界／类型／只读操作及预算等权限上界；对象allowlist是可选的进一步限制，不能要求把账号全部资产预列为配置才能使用产品。ResourceCatalog由获准采集／发现或有来源导入持久化，不能以配置数组伪装真实业务目录；当前configured_scope_catalog与业务resource_catalog已分离，来源／账号参与检索与身份隔离。
+
+规范资源键包含来源限定的`provider + account_ref + region + resource_type + provider_resource_id`，内部发放不透明`resource_ref`；没有云ID的导入对象使用artifact_local＋固定身份上下文／本地资产ID，不能冒充provider metadata。名称、标签、系统类型、地址、关联组／网卡和已确认业务归属分别保留来源、观察时点、完整性与版本；名称／标签不参与身份唯一键，也不证明业务授权。catalog记录存在不等于当前云对象仍存在、保护开启或可供模型全部读取。
+
+ResourceCatalog按连接／账号、地域、类型与名称／ID过滤，采用稳定分页和有界候选返回；保存查询覆盖、游标／截断、资料年龄和失败类别。目录成员数量与单批执行profile分别限制，至少可检索超过当前50资产批次暂值的目录；后续通过索引和检索接口演进规模，当前无百万级能力或性能证据。每次计划绑定有界候选与目录版本，不能把全目录内容发给模型。
+
+已确认业务组的检索覆盖只指该来源／账号下已确认版本的有限成员，标记CONFIRMED_GROUP_MEMBERSHIP_ONLY，不等账号资产目录完整。成员超过一页时沿同版本cursor穷尽，不把第一页冒充全组；确认更新提高目录修订，旧cursor失效。普通group标签和外部自称已确认不参加可信组过滤。
 
 ## 2. 逻辑实体与主要字段
 
-下表为逻辑数据契约，实际物理结构见storage显式迁移。当前business schema 4保留共享预算／usage和Agent结果，并增加配置范围目录／云产品结果与私有原文；旧版或缺必要表／列的非完整库拒启，正常启动不AutoMigrate。JSON结构受版本／长度／数量约束；每连接启用并验证foreign_keys，不能以ORM关系代替实际约束。
+下表为逻辑数据契约，实际物理结构见storage显式迁移。当前business schema 5保留共享预算／usage、Agent和云结果，并新增意图／目录／准备、共用业务草稿／可信归属、分批请求／子段及授权revision／head；旧版或缺必要表／列的非完整库拒启，正常启动不AutoMigrate。JSON结构受版本／长度／数量约束；每连接启用并验证foreign_keys，不能以ORM关系代替实际约束。
 
 | 实体 | 核心内容 | 不变性／约束 |
 | --- | --- | --- |
 | `audit_workspaces` | 默认空间、来源／范围与资料引用 | 不引入组织／多租户 |
-| `conversations` | 标题、范围、归档、当前上下文摘要引用 | 多轮复用，归档不删证据 |
+| `conversations` | 标题、可空的待解析范围、账号上下文、归档、当前上下文摘要引用 | 无snapshot也可规划／澄清；执行前再绑定规范scope，多轮复用，归档不删证据 |
 | `conversation_context_summaries` | 会话＋规范分区／字段投影版本、覆盖消息位置、结构化公共摘要 | 不把其他分区的历史或旧工具片段混入当前外发上下文 |
-| `conversation_messages` | 序号、用户／助手公开正文／事件、scope 归属、引用、建议版本与时间 | 不存凭据／reasoning，不孤立重放旧 tool 消息 |
-| `conversation_turns` | 用户消息、执行、公开答复关系及状态／幂等／上下文 | 与消息／任务事务绑定，同会话一个未结束执行槽位 |
-| `collection_policies` | 来源／范围、enabled、周期／时效／next_due | 默认关，只采集数据、不自动调模型 |
-| `data_sources` | 标签、厂商、允许地域／范围、凭据引用、连接状态 | 不保存到公共 DTO 的密钥；连接由服务端配置，不接受任意 URL |
+| `conversation_messages` | 序号、用户／助手公开正文／事件、可空的待解析scope、意图／资料引用、建议版本与时间 | 未解析消息只供本次规划；审计外发仍按绑定scope筛选，不存凭据／reasoning或孤立旧tool消息 |
+| `conversation_turns` | 用户消息、执行、公开答复关系及状态／幂等／上下文 | 规划／澄清可无job；实际执行仍与消息／任务事务绑定，同会话一个未结束执行槽位 |
+| `conversation_intents` | 会话／来源消息、修订、动作、账号上下文、地域／名称／ID／类型选择器、边界、数据策略与字段来源 | 未解析字段不冒充scope；澄清只产生同意图新修订，未确认不授予执行权限 |
+| `resource_catalog` | 规范资源键、不透明引用、名称／标签／系统类型、关联证据、观察版本、时点／覆盖与已确认归属 | 由采集／发现／导入形成；权限、名称、目录时效与快照事实分别判断；有界分页检索 |
+| 澄清记录（保存在意图修订中） | 意图修订、缺项／歧义原因、有限候选集合与版本、用户选择／答复 | 不默认首候选；过期选择重解析，用户答复不自动产生业务授权 |
+| `action_proposals` | 规范动作／选择器、已解析对象、目录／配置修订、效果上限、数据策略、缺口与确认状态 | 仅服务端生成可接受结构；确认后进入现有execution_plans，不由模型自行消费 |
+| `collection_policies`（可选周期的逻辑契约，尚未交付独立调度） | 来源／范围、缓存时效和可选周期enabled／next_due | M0缓存复用／按需刷新必需；仅周期默认关闭，启用后只采集不自动调模型 |
+| `data_sources` | 连接标签、厂商、期望账号、允许地域／范围／操作、可选对象限制、凭据引用、连接状态 | 连接认证与权限上界由服务端配置，业务目录另存；不接受任意URL或对话凭据 |
 | `policy_scopes` | 服务端范围引用、规范分区键、来源配置版本、允许对象／动作 | 无实时隐式发现；无跨账号／网关自动扩展 |
 | `execution_plans` | 规范请求、预估数据计划、效果上限、配置／资料版本、摘要、到期和消费引用 | 本地预览不外呼；内部助手计划只来自明确发送；创建任务时原子验证并消费，同键重试返回原任务 |
 | `nat_associations` | 网关／防火墙／资产地址、观察位置、来源、窗口、evidenced／candidate／unknown／conflict | 关系证据不是可达性；转换条目不混成 ACL |
@@ -44,12 +58,15 @@ E1已实现输入、原始规则／证据、审阅、固定公开报告和配置
 | `asset_profile_versions` | 资产／服务、角色、环境／应用、重要性、来源和确认 | 多角色可用；候选不在此自动生成确认版 |
 | `business_intent_versions` | 服务／发起资产、方向／分区、必要访问、允许上界、完整性、明确拒绝、例外及有效期 | 角色确认不自动生成授权；明确禁止和未知不同 |
 | `asset_heads` | 当前画像／业务版本指针、聚合修订号 | 条件更新；任何已确认字段变动增加修订号 |
-| `profile_drafts` | 资产集合、旧基版本、结构化候选、用户修订、有限公共对话摘要、状态 | 不存完整模型／思考消息；批量预览逐资产列差异 |
+| `profile_drafts` | 资产集合、旧基版本、结构化候选、用户修订、有限公共对话摘要、状态 | 同稿恢复保留原对象／映射；核对最新稿／head后逐字段选择，不自动确认 |
+| `profile_draft_rebase_requests` | 原草稿、规范请求摘要、幂等键与固定回执 | schema 5必要表；旧body/key先回放原回执，不以当前新修订冒充原保存结果 |
 | `confirmation_previews` | 草稿修订号、目标基版本、规范化差异、可确认部分、摘要 | 一次确认对应一份有效预览；改变草稿需重新预览，无需再次调用模型 |
 | `baseline_versions` | 启用检查、风险端口／模板、语义支持、例外政策、版本 | 模型只读；B0 的 M1 默认未启用 |
 | `jobs` | 会话／消息引用、计划引用／请求／sealed输入、policy_scope_ref、阶段／耗时／预算与取消 | 请求先固定，准备后实际输入只封存一次；不隐式重复执行 |
-| `budget_policies`／`outbound_attempts` | 显式预算周期、应用／会话／任务预记、物理结果／受控错误和可空usage | 先提交预记再发送，未知或预记后未发仍占用；重启／换密钥不清零 |
+| `budget_policies`／`budget_policy_revisions`／`budget_policy_heads`／`outbound_attempts` | 显式预算周期、应用／会话／任务预记、物理结果／受控错误和可空usage | 先提交预记再发送，未知或预记后未发仍占用；重启／换密钥不清零 |
 | `job_agent_results` | job绑定的固定manifest、经校验产品输出、本地证据绑定、逻辑计数与上下文覆盖 | 不含原始wire／reasoning；保存与公开投影前重验，模型不覆盖规则 |
+| `resource_group_versions`／heads／members／previews／requests | 可信归属的来源／账号、有限成员、授权说明、基版本及幂等回执 | 未知授权来源不能确认；组版本更新使未接受计划失效，已接受任务仍用原成员 |
+| `batch_requests`／`batch_segments` | 同分区完整集合、父任务、顺序子段、逐段input_manifest／audit_ref／report_ref和用量 | 父只占一个槽位；covered只指有审计证据，failed／unprocessed保留，不创建合并Audit／Report |
 | `configured_scope_catalog` | 显式云来源／配置版本／scope本地目录与active状态 | 注册不核身份、不扩大授权；旧任务仍绑定受理计划，目录不替换其scope |
 | `job_cloud_results` | job绑定CloudRecord、受控观察／局限、私有raw_artifacts与请求摘要 | raw以原bytes哈希／base64私存，不由API读取；snapshot／sealed／消息／终态原子提交 |
 | `job_events` | schema_version、job_id＋严格递增 seq、type、occurred_at、受控 payload／证据引用 | 状态／引用与事件同事务、提交后发送；终态最后；SSE 与轮询同源，不存 Eino 原始消息／reasoning，见[前端与事件](frontend-and-events.md) |
@@ -59,6 +76,8 @@ E1已实现输入、原始规则／证据、审阅、固定公开报告和配置
 | `review_actions` | 发现／任务引用、comment／plan_change、意见、采纳／暂缓与理由、修订、幂等和保存时间 | 追加历史；不改变原始风险判定；不能由模型自动创建用户审阅 |
 | `review_heads` | 发现／建议的当前本地计划与 review_revision | 与追加 action 同事务 CAS；不是原始规则状态 |
 | `reports` | job 输入／结果版本、本地处理头版本、公开投影版本、格式／内容摘要 | 每次生成固定版本；新审阅记录不原地改写旧报告 |
+
+上表是领域逻辑，不声称每项均有独立同名物理表；当前澄清／候选随不可变intent修订保存，来源窗口／完整性随固定输入与产品绑定保存。任意snapshot_sections拼接与可选周期调度未交付；当前M0复用完整已提交合格snapshot及本次所选投影。
 
 `evidence` 的来源可以是快照字段、已确认业务要求或基线条目；来源类型与对应外键必须一致且属于当前任务允许的版本和规范分区，不接受模型随意拼出的路径。
 
@@ -78,7 +97,11 @@ SQLite常规连接池下，仓储在序列化／网络响应前关闭行游标�
 
 采集记录真实请求过滤器和控制面参数，区分资产所处地域与厂商接口的控制面地域；不凭同名 Region 字段假设等价。读取 CFW 策略不只过滤 accept；必要的 drop／状态／高级条件都要保留。分页按对应接口版本的契约耗尽，计数矛盾、截断或限额触发均标部分读取。
 
-目标设计中的`discover_region`与`explicit_ids`是collect资源发现选择器，不是audit的selection.kind；当前E4尚未实现discover_region，实际只接受配置目录的assets或NAT gateway_policy。审计只接受已明确的 assets 或 gateway_policy；先发现再选对象，不通过空资产列表在审计中隐式发现全账号。空 ID 列表不隐式变成全部账号；显式列表预先超过上限直接拒绝，发现过程中达到上限则记录截断和部分范围。发现模式仅在用户明确选定的有限地域内执行，达到上限就停止并说明，不能静默扩大范围。所选方向／网关分区的全部相关规则仍需收齐，否则受影响检查降级。
+目标设计中的`discover_region`与`explicit_ids`是有界collect资源发现选择器，不是封存审计输入的selection.kind。选择器来自已确认意图或辅助表单，须携带有限地域、类型、名称／ID／标签或显式集合语义，以及结果页与请求上限；有限地域ECS集合可不逐台给名称／ID，仍不能用空资产列表表示无限全账号扫描。发现结果进入目录并经Resolver唯一解析／用户消歧后，审计只绑定明确assets或gateway_policy。达到发现页／对象／请求上限时保留游标、截断和部分范围，不能把前若干对象说成全目录；显式单批超限应提供收窄或完整范围分批选择；用户确认分批效果后才生成同分区父请求及串行内部批段，各段有固定输入与覆盖，不静默截取或启动额外范围。所选方向／网关分区的全部相关规则仍需收齐，否则受影响检查降级。当前正式对话准备已支持接受后的有限元数据发现和明确ID定位；未知显式ECS ID在单个明确地域可先发现后分批，不要求预列每台资产。独立collect仍保留明确assets／NAT gateway_policy入口，不能把内部准备选择器伪装为已注册的通用collect请求字段。
+
+名称、标签、地域、资源类型、系统类型与关联安全组须形成版本化snapshot_items／section及证据引用；安全组规则保留方向、协议、动作、地址／端口、引用和关联依据，缺失与无法关联分别标记。目录元数据只用于定位／线索，真正审计和角色候选读取本次封存版本，不能临时从最新目录拼入旧快照。当前Asset固定输入已包含这些有来源元数据与结构化安全组规则，工具按任务投影及已返回的关联引用查询；私有原文另存，不进入模型或公开报告。
+
+互联网`Asset`可选`protection`保存该对象的Applicable／Required、状态和固定证据引用；存在时，CHK-05与该对象的配置路径前提采用它。缺字段的既有导入／人工固定输入继续采用原分区`protection`断言，不改写历史含义；新采集为每台对象显式记录，未知不能借分区已开启补齐。NAT保护仍属于网关分区，拒绝资产覆盖字段。该增量随既有snapshot／sealed JSON保存，无新增表或启动迁移；业务画像绑定不能替换它。旧互联网live快照缺该逐资产节时，新的prefer_fresh请求以`ASSET_PROTECTION_NOT_RECORDED`拒绝缓存并准备刷新；pinned历史和离线导入保持原断言。规则证据定位`/assets/{index}/protection`，模型工具只投影安全枚举和任务内证据别名，公开报告继续使用固定规则结果和脱敏证据。
 
 为证明匹配完整性，采集范围可能需要读取所选账号整个所选方向／网关策略分区；这要在采集前明确展示，而不是把“审计几台资产”误解成只读几条 allow。区分云读取范围、所审资产范围和模型外发范围：模型仅能获取与所选端点／发现关联的证据，不因同一快照含其他策略而获得全账号阅读权。
 
@@ -93,6 +116,8 @@ SQLite常规连接池下，仓储在序列化／网络响应前关闭行游标�
 配置族封存包含适用的 owner 元数据、全相关 ACL、静态引用与 provider_semantics；默认最多两轮完整复读，规则条件／顺序／引用／状态指纹一致才记录 observed_stable，命中统计不参与配置指纹。缺少第二轮或观察变化时保留证据、标局限，受影响路径检查不能输出通过。实际策略与预算见[会话与执行](session-and-execution.md)／[云采集设计](aliyun-collector.md)。
 
 导入可以保存用户关于时间／完整性的声明，但来源可信度仍为 imported；不能伪装 live_readonly 或由上传 JSON 自行批准 provider_semantics。内置 synthetic 样例的设定与实际产品状态严格分开。
+
+采集失败分开保存：合法partial输入携带缺口进入限定检查；无法合法封存时，仅保存安全的CloudRecord观察，product_ready=false、无snapshot，带COLLECTION_ABORTED／NO_SEALED_INPUT及受控code，不生成audit或报告。私有原文不随失败记录公开；取消／中断窗口也不能借迟到成功封存新资料。
 
 ## 4. 画像、业务授权和确认
 
@@ -126,9 +151,9 @@ SQLite常规连接池下，仓储在序列化／网络响应前关闭行游标�
 
 ## 5. 连续会话、任务与幂等
 
-业务会话保存可见消息与被引用资料／报告；任务是执行边界。kind 为 collect、assistant_turn（画像引导／审计追问）、audit、connection_check。历史解释不自动重收集，新消息不丢前轮确认，旧答不当当前事实。
+业务会话以对话规划开始，可无snapshot／scope地保存意图和澄清，再绑定对象与被引用资料／报告；任务是实际执行边界。已实现kind为collect、assistant_turn（固定资料画像引导／审计追问）、audit、connection_check；规划状态不冒充新增已注册job kind。历史解释不自动重收集，新消息不丢前轮确认，旧答不当当前事实。
 
-发送带 client_message_id，用户消息、轮次、幂等和排队执行一次事务提交。同会话已有 queued／running／cancelling 执行时明确等待／取消，不自动抢占长期审计；结果完成追加公开答复与引用，中断保留历史。ContextBuilder 取同空间且当前分区／外发投影获准的近期消息、结构化摘要与固定资料，裁剪范围有记录，不存／回放完整模型 wire message 或 reasoning。
+发送带client_message_id；纯规划／澄清将消息、意图修订和幂等结果短事务保存，实际执行再将用户接受的轮次、计划和排队引用原子受理。同会话已有queued／running／cancelling执行时明确等待／取消，不自动抢占长期审计；结果完成追加公开答复与引用，中断保留历史。ContextBuilder取同空间且当前分区／外发投影获准的近期消息、结构化摘要与固定资料，未解析历史不能混入审计事实，裁剪范围有记录，不存／回放完整模型wire message或reasoning。
 
 ### 5.1 统一准入、预览与明确发送
 
@@ -140,42 +165,61 @@ SQLite常规连接池下，仓储在序列化／网络响应前关闭行游标�
 | --- | --- | --- |
 | audit | 按数据策略可能读云；按 mode 可能调用模型 | 用户接受计划，/jobs 仅提交 plan_id |
 | collect | 白名单云／凭据查询，无模型 | 用户接受只读采集计划；可选定时仅使用明确启用的采集授权 |
-| connection_check | 有界身份／产品只读探测，无模型 | 用户接受检查计划；GET 状态和 config-check 仍零外呼 |
+| connection_check | 显式identity_only，只核所选连接身份，无模型／产品采集 | 无需资产或网关；asset_ids与gateway_ref须空，用户接受后才GetCallerIdentity，GET／config-check零外呼 |
 | assistant_turn | 仅模型与本地固定资料工具，云调用上限为零 | 用户明确发送且界面显示当前范围／模型效果；服务端原子形成并消费内部计划，不由模型或推荐自动启动 |
 
-公开计划的 kind 仅为 audit／collect／connection_check，采用分类型 DTO：audit 固定审计对象，collect 使用明确的资源发现选择器，connection_check 仅检查所选连接。未知／越界字段返回 422。assistant_turn 计划只由消息处理器根据已认证操作者的明确发送创建，authorization_origin 由服务端赋值，不信任客户端或模型自称“已确认”。
+公开计划的 kind 仅为 audit／collect／connection_check，采用分类型 DTO：audit 固定审计对象，collect 使用明确的资源发现选择器，connection_check 仅检查所选连接。未知／越界字段返回 422。assistant_turn不能由客户端直接用公开预览DTO创建：传统固定资料消息的明确模型发送可在同事务形成并消费内部计划；历史解释intent-turn先形成待确认内部提议，仍须单独接受。authorization_origin由服务端赋值，不信任客户端或模型自称“已确认”。
 
-普通聊天不用每条消息再弹一个审计确认框，但发送必须显式 `model_use_accepted=true`、绑定当前 scope／资料和字段投影。配置密钥、打开页面、点击推荐或保存草稿均不构成发送授权。资料不足时助手返回采集计划入口，不在助手预算内偷偷刷新云；旧报告解释固定旧版本。
+固定资料助手不用每条消息再弹审计确认框，但模型发送必须显式`model_use_accepted=true`并绑定当前scope／资料和字段投影；九工具云读取仍为零。对话规划与澄清允许无snapshot，按第5.4节形成action proposal；资料不足时在同意图中说明有界发现／必要刷新效果，经统一执行准入后才读云，不在固定资料助手预算内偷偷刷新。配置密钥、打开页面、点击推荐或保存草稿均不构成执行授权；旧报告解释固定旧版本。
 
 prefer_fresh 预览须说明排队后可能刷新；pinned_snapshot 云读取上限为零。`POST /jobs` 只消费 plan_id，kind／scope／mode／预算从服务端计划读取，不接受客户端覆盖。事务内核对期限、资料／配置、容量和幂等；同键重试先返回原任务，已消费计划换新键为 409 PLAN_CONSUMED。内部助手计划不开放给 /jobs 重复消费。
 
-POST messages 在授权、参数或队列检查失败时不半提交用户消息和任务；界面保留输入并标未发送。正常路径将消息、轮次、内部计划／请求清单和任务一次事务落地。同会话未结束执行不被新消息自动抢占；本地历史读取、确认和审阅不占执行槽位。
+纯本地规划／澄清将公开消息、意图修订及幂等结果短事务保存，不因无任务槽位丢掉目标；明确执行或模型轮次在授权、参数或队列检查失败时不半提交消息和任务，界面保留输入并标未发送。执行路径将消息、轮次、计划／请求清单和任务一次事务落地。同会话未结束执行不被新消息自动抢占；本地历史读取、确认和审阅不占执行槽位。
 
 ### 5.2 请求与实际输入
 
 request_manifest 受理即固定会话／意图、scope、资料基版、数据策略、配置／外发政策和预算；data_plan 区分拟复用／刷新与原因。准备完成、规则开始前只封存一次 resolved_input_manifest，固定实际快照／各族原时点和 evaluation_at，之后不切最新。
 
-需刷新时 audit 在自身阶段调用采集服务，不排子 collect 后等待同工作器；合格既有快照可复用，同范围后台请求可被本次产物满足。根预算覆盖所有阶段，L1 缓存预览不是最终输入。
+需刷新时 audit 在自身阶段调用采集服务，不排子 collect 后等待同工作器；合格既有快照可复用，仅已经提交且合格的同范围不可变产物可供复用；首版不合并进行中的刷新，不共享任务取消。根预算覆盖所有阶段，L1 缓存预览不是最终输入。
 
 ### 5.3 状态与幂等
 
 queued→running→completed／partial／failed／cancelled；queued 取消直接 cancelled，运行中取消才置 cancelling。独占进程锁取得后才能把上次遗留运行中置 interrupted，不自动重放。completed 是流程结束而非整体安全。历史保留后用户可继续新轮次，不是恢复上次付费请求。
 
-单进程3个任务槽位、最多10个待执行任务，同会话1个未结束任务；可选定时默认关。后台使用服务根 context＋任务剩余时间，不保留 Gin 请求 context 或池化对象。总时间／阶段上限以 20 为准。
+单进程3个任务槽位、最多10个待执行任务，同会话1个未结束任务；可选定时默认关。后台使用服务根 context＋任务剩余时间，不保留 Gin 请求 context 或池化对象。总时间／阶段与workload profile契约以[会话执行](session-and-execution.md)为准；当前硬值尚未校准。
 
 持久 jobs 是队列事实来源，容量／会话槽位与插入同事务；内存通知仅用于唤醒。排队过期在凭据解析前落 failed／QUEUE_DEADLINE_EXCEEDED，零外呼；状态终结释放会话槽位。
 
 同幂等键同内容返回原对象、异内容 409，键／摘要／消息／轮次／任务同一短事务及唯一约束；防止客户端重发，不保证供应商网络重试计费恰一次。尝试预记并计失败，共用任务／会话／应用更严限额，会话汇总不是货币账单，新会话不能清空应用已用量。
 
+### 5.4 对话意图、Resolver与proposal确认
+
+下述意图／提议已由schema 5和正式应用服务承接，GET当前意图、intent-turns、intent-choices、proposal接受及Guidance等路径以实际Go路由和生成规范为准。本文保留逻辑契约，不虚构尚不存在的通用接口。自然确认与显式接受均原子消费同一plan及intent revision；同键重试或重复确认不新建执行。
+
+| 结构／阶段 | 必需内容与校验 |
+| --- | --- |
+| `ConversationIntent` | `intent_id / revision / conversation_id / source_message_id`；有限`action`为audit、explain、recheck、collect、confirm_profile、status、cancel、local_navigation；账号上下文、地域、resource_type、名称／原始ID选择器、boundary／direction、数据策略、字段来源与缺项；status／cancel动作本身绑定本会话明确任务且不触发云／模型调用，清晰status／cancel优先本地分流，含糊指代先本地澄清，不为状态查询启动规划模型；不能携带任意API／URL／工具名 |
+| `IntentPlanner` | 仅读同会话已确认约束与本地ResourceCatalog，提取和校验有限schema；若使用模型，沿用明确模型授权／外发投影和共享预算，不拥有云Reader；当前固定资料九工具不承担规划云查询 |
+| `ResourceResolver` | 交叉核对单账号连接和权限上界，再做ID精确匹配或名称／类型／地域过滤；返回resolved、ambiguous、catalog_missing、catalog_stale、partial或outside_scope及有界候选，无法证明不存在时不得返回确定不存在 |
+| `ClarificationRequest` | 绑定原意图修订、候选引用／目录版本与缺项；答复可补充地域、ID、类型或在候选中选择；未知客户／租户仅保持未解析，已有可信业务归属才可作过滤，不创建身份或扩权限 |
+| `ActionProposal` | 绑定intent修订、已解析对象或有限发现选择器、连接／目录版本、数据策略、模型模式、业务基版、可外呼效果及预算上限、到期和缺口；服务端生成typed字段，模型自由文案不作为可执行参数 |
+| 确认与受理 | 用户接受当前proposal修订，服务端重验身份／范围／版本／效果并生成现有execution-plan；消息、确认引用、计划及幂等执行受理短事务落地；无外部执行的澄清不强建收费任务 |
+
+对象已解析时，同一已接受audit意图在本任务内完成合格缓存复用／必要刷新→一次封存→规则→按模式Agent。目录缺失时，proposal可以先声明受限的发现和后续准备／审计效果；发现阶段通过现有collect准入共享根预算，输出持久目录。只有唯一匹配原选择器或用户已消歧的对象才能进入审计，实际对象超出原条件／效果上限时停下重新预览，不默认首条或隐式全账号。这里的collect是阶段职责，不要求工作器排子任务并等待自己的队列。
+
+确认对象与确认业务授权是两种不同动作：资源选择不能确认角色／访问要求；模型候选经本地绑定校验后进入第4节共用草稿，仍须preview／confirm。普通聊天“这是客户甲的Web机”只产生有来源草稿／筛选候选，不能自动成为已批准归属或访问授权。
+
+一次已接受的范围／效果内，身份核对、分页、重试和必要刷新不逐HTTP索取授权；账号不符先停止并澄清，不读其他账号；获准地域、类型／对象选择器、模型模式或效果上限改变时需新proposal修订，仍不得突破连接权限上界。计划消费／消息重试沿用原幂等绑定，断线只恢复观察，重启不重放外呼。解释历史报告保持原输入零云读取，问“现在”重新做M0数据时效判断，不能因无snapshot拒绝建立会话。
+
 ## 6. 业务 API 清单与实现边界
 
-前缀 `/api/v1`。所有数据／任务接口需要本地应用访问保护，云／模型凭据不进入这些 DTO。列表有界分页；响应可带 request_id／版本，不输出原始错误正文。下表保留完整目标契约；当前实际支持范围以[生成规范](../api/README.md)为准。默认仍可local-offline／pinned_snapshot；E4显式配置云来源可预览并接受collect／connection_check，当前仅force_refresh＋rules_only、assets或NAT gateway_policy，不执行discover_region。collect先存新快照，用户随后另行pinned audit；身份检查仅IDENTITY_ONLY partial。云／模型只有接受计划或明确发送后才可有界请求，启动／预览零外呼。
+前缀 `/api/v1`。所有数据／任务接口需要本地应用访问保护，云／模型凭据不进入这些 DTO。列表有界分页；响应可带 request_id／版本，不输出原始错误正文。下表保留完整目标契约；当前实际支持范围以[生成规范](../api/README.md)为准。local-offline／pinned_snapshot和独立collect／connection_check入口保留；E4历史collect切片仅force_refresh＋rules_only、assets或NAT gateway_policy。当前对话audit另支持接受范围内的发现／必要采集、prefer_fresh合格复用与晚封存，不虚构通用discover_region端点；身份检查仍仅IDENTITY_ONLY partial。云／模型只有接受计划或明确发送后才可有界请求，启动／预览零外呼。
 
 | 方法与路径 | 作用 | 关键契约 |
 | --- | --- | --- |
 | GET `/workspaces/current` | 默认空间与当前会话引用 | 不引入组织平台 |
 | GET／POST `/conversations`、GET／PATCH `/conversations/{id}` | 新建／重开／归档会话 | 不是每条消息新建，版本和范围受控 |
-| GET／POST `/conversations/{id}/messages` | 历史分页／明确发送 | client_message_id＋当前资料／scope＋model_use_accepted；统一准入后消息与有界助手任务原子保存 |
+| GET／POST `/conversations/{id}/messages` | 历史分页／明确发送 | 固定scope／snapshot助手的明确发送；无资料目标／澄清走正式intent-turns，需模型／执行时明确模式与接受效果 |
 | GET `/guidance` | 多入口推荐短语和下一步 | 本地查询，不调用云／模型／STS |
 | GET `/data-sources/{id}/auth-status` | 已有脱敏连接状态 | 配置不等身份验证，不在 GET 中换 STS |
 | GET／PATCH `/collection-policies/{id}` | 本地周期／时效设置 | 可选默认关，开启要有来源／范围，不自动调模型 |
@@ -193,6 +237,8 @@ queued→running→completed／partial／failed／cancelled；queued 取消直�
 | GET `/jobs/{id}/events/stream` | fetch SSE 订阅与补发 | 同应用访问头；after_seq、text/event-stream；终态尾部 204；只读、不隐式执行或取消，见[前端与事件](frontend-and-events.md) |
 | POST `/jobs/{id}/cancel` | 请求取消 | 终态不能恢复；合作停止与上游撤回区别明确 |
 | GET `/jobs/{id}/result` | 结果及覆盖 | 同读快照view_seq；返回snapshot_id、agent_result、attempt_usage、cloud_result与原audit；运行中is_final=false；recheck读取已保存比较，无记录为null；模型阶段与job终态分开 |
+| GET `/profile-drafts/{id}/current-base` | 原稿当前业务基版的只读投影 | draft_id／revision、固定snapshot／scope、当前heads与完整quiet changes，Declared均false，不自动确认 |
+| POST `/profile-drafts/{id}/rebase` | 用户核对后的同稿重绑定 | Idempotency-Key、expected_draft_revision＋expected_base_revisions双CAS，显式changes；同ID／snapshot／assetset、rev+1、status=draft、旧preview失效，原回执可重放 |
 | GET `/jobs/{id}/input` | 本任务sealed固定输入 | 受相同应用访问保护，只读任务封存输入；不以当前快照／业务头或其他任务别名替换 |
 | POST `/profile-drafts`、PATCH `/profile-drafts/{id}` | 人工／对话共用草稿 | 源自当前可访问对象；PATCH 带草稿修订条件 |
 | POST `/profile-drafts/{id}/preview` | 无模型的规范化差异 | 返回 preview_id／草稿修订／基版本／可确认部分，未知不自动补全 |
@@ -256,6 +302,8 @@ queued→running→completed／partial／failed／cancelled；queued 取消直�
 
 ## 8. 报告与复审一致性
 
+配置复审保留原evaluation_at并记录新collected_at。improved仅在原比较前提成立、同一查询域／动作下新违规并集为旧真子集时出现，原始fail和前后证据不变；对象或NAT原始网关身份变化、未知和缺页仍不可比。细节见[规则与Agent§4.3](audit-and-agent.md#43-配置复审的改善与不可比)。
+
 报告固定 job 输入／结果版本及生成时审阅头。公开导出使用报告内别名替代原资源／IP／证据位置；模板生成的规则解释和已验证结构可以输出，模型／用户自由文本默认不公开。所有模式均禁止导出凭据和内部推理。
 
 比较单位为规范分区键、稳定资产服务／网关策略对象、观察点和预定义问题族，保留原始各检查结果。新旧快照对象缺失、身份／方向／网关／观察点／业务／规则／时点不一致时说明可比性；不能把未采到、未检查或暂缓算作修复。变更已下发／真实业务恢复属于额外实际验证，不由本层配置比较证明。
@@ -264,7 +312,7 @@ queued→running→completed／partial／failed／cancelled；queued 取消直�
 
 RC-17 的条件更新／批量原子性和显式空集合；RC-18 的重复点击／网络超时／幂等冲突；RC-19 的请求账本／重启不重放；RC-20 的访问、范围和字段投影；导入来源伪造、路径引用、分页中断和大响应；取消后不再请求；旧报告和新资料独立。
 
-这些是完整契约要求。E1已执行输入／结果／审阅／报告／复审的离线子集；E2已接会话、确认、正式任务API及五视图，实际结果见E2记录；E3有界Runner／工具／持久账本已接入，已通过的人工协议回归见E3记录；E4当前只读适配切片已接入，最终人工协议结果见E4适配记录；真实账号、完整采集模式与整改复审仍待实现或取证。
+这些是完整契约要求。E1已执行输入／结果／审阅／报告／复审的离线子集；E2已接会话、确认、正式任务API及五视图，实际结果见E2记录；E3有界Runner／工具／持久账本已接入，已通过的人工协议回归见E3记录；E4当前只读适配切片已接入，最终人工协议结果见E4适配记录；本轮对话／目录、同audit准备、合格缓存、业务／归属与分批代码已有另列限定证据；真实账号、完整M0与真实整改复审仍待取证。
 
 历史、缓存、累计耗时、专用认证和跨入口引导验收见RC-21～31、AC-15～20。GORM与有限持久实体已有E1证据；E2会话／调度／业务接口已有离线实现，外部源和模型配置仍由服务端显式注入。
 
@@ -322,23 +370,23 @@ API 独立提供这些字段和来源依据版本，前端按对象、角色、�
 
 ## 14. 任务事件接口
 
-正式事件采用 [29 第 4～6 节](frontend-and-events.md) 的 schema、连续 seq、页／流共用协议、非法游标 422、终态尾部 204 与 view_seq。提交事件前先提交对应业务结果／引用，终态 CAS 与 job_terminal 同事务；SSE 不发送未保存结果，不把心跳写入历史。任务执行 context 与订阅 context 分开，断线不取消任务，重连不消费计划或重放旧模型／工具消息。
+正式事件采用 [前端与事件第4～6节](frontend-and-events.md) 的 schema、连续 seq、页／流共用协议、非法游标 422、终态尾部 204 与 view_seq。提交事件前先提交对应业务结果／引用，终态 CAS 与 job_terminal 同事务；SSE 不发送未保存结果，不把心跳写入历史。任务执行 context 与订阅 context 分开，断线不取消任务，重连不消费计划或重放旧模型／工具消息。
 
-所有 job kind 共用同一事件读取机制；执行权限仍只由原有准入授予。订阅端 401／403、429、网络重试和格式错误分开处理。首版保留完整可访问任务事件，不加入未设计的历史裁剪。此处为设计，不是已经存在的接口。
+所有 job kind 共用同一事件读取机制；执行权限仍只由原有准入授予。订阅端 401／403、429、网络重试和格式错误分开处理。首版保留完整可访问任务事件，不加入未设计的历史裁剪。实际事件接口已随E0～E4按当前路由注册并生成规范，见[API说明](../api/README.md)；本文完整目标与异常矩阵不等于均已实现或验收。
 
 ## 15. 接口规范生成与交付
 
 ### 15.1 推荐方案
 
-以Go DTO／Handler注释为REST结构源，固定版本的**swaggo/swag**生成接口文档。官方主线说明的是Swagger 2.0（OpenAPI 2.0），不能直接标成OAS 3（D6-02）。E0验证选定版本与本项目结构兼容；本方案不安装或伪造生成结果。
+以Go DTO／Handler注释为REST结构源，固定版本的**swaggo/swag**生成接口文档。官方主线说明的是Swagger 2.0（OpenAPI 2.0），不能直接标成OAS 3（D6-02）。E0已固定v1.16.6并验证生成兼容；当前正式路由与E0隔离接口的JSON／YAML均已生成留存，新增目标接口实现后再更新。
 
-实际工程建立后保留：
+现有工程保留以下产物，并随实现更新：
 
 - `docs/api/swagger.json`、`docs/api/swagger.yaml`：生成后纳入Git，接口变化同步更新。
-- `docs/api/README.md`：固定生成工具／版本和重复生成入口；`docs/api/CHANGELOG.md`记录兼容性变更。
-- SSE的事件schema／人工示例：对应29的seq、事件类型与恢复语义，不假定普通Swagger生成器能自动表达整个流状态机。
+- `docs/api/README.md`：固定生成工具／版本和重复生成入口；兼容性说明随实际接口变更维护，不编造尚无产物。
+- SSE的事件schema／人工示例：对应前端与事件设计的seq、事件类型与恢复语义，不假定普通Swagger生成器能自动表达整个流状态机。
 
-当前这些是目标产物路径，不是已经存在的正式规范。不手工维护一份与Go结构脱节的“第二套接口”；前端和后端共同使用生成契约，必要说明由设计文档补充。
+当前生成产物按实际注册路径覆盖正式会话规划、目录、业务与归属等接口；仍未实现的接口不建占位规范。不手工维护一份与Go结构脱节的“第二套接口”；前端和后端共同使用生成契约，必要说明由设计文档补充。
 
 ### 15.2 必需内容与检查
 
@@ -347,3 +395,23 @@ API 独立提供这些字段和来源依据版本，前端按对象、角色、�
 实现阶段检查：固定版本重新生成无意外差异；JSON／YAML一致；规范与实际路由双向对账；典型请求／响应和前端使用一致。文档浏览不触发云／模型，示例不含秘密。若提供交互文档入口，沿用同源应用访问保护，不另外开放公网匿名接口；默认不增加额外文档服务。
 
 这是用户要求的研发交付物，不是新业务功能。现有Markdown接口表不等于已生成Swagger，生成成功也不等于接口业务测试通过。
+
+## 16. 本轮实现与跨层逻辑一致性
+
+下列为跨层逻辑契约；规划／目录、资格检查、完整固定输入、分批及授权修订已有对应实现，未交付的任意section拼接／独立周期调度不冒称现有结构。实际字段由Go DTO生成Swagger，schema 5通过显式迁移承接。业务Store负责产品历史，Eino checkpoint不代替这些记录。
+
+| 产物 | 必需字段／约束 |
+| --- | --- |
+| CatalogQuery／Coverage | connection/account/scope_revision，地域／类型／选择器、观察时点、排序游标、枚举完成／截断／失败；可信空集必须有完整覆盖证明 |
+| ProfileBinding | 对象集合／service_id、policy_scope与direction、profile／intent基版、draft_revision；换组／移除／换方向使不匹配预览失效，旧确认版保留 |
+| DataPlan／Eligibility | 每族候选section、来源窗口、覆盖、版本、资格原因、拟reuse／refresh；计划时仅预判，执行前复核 |
+| ResolvedInputManifest | 实际section ID、原时点、枚举／一致性／关联与语义保证、固定业务／规则版、evaluation_at及获准投影；每批规则前只封存一次 |
+| BatchRequest（同分区） | 完整对象选择版本、客户接受的批次划分、顺序批段与manifest、逐段终态和总体覆盖；不跨方向／网关，不截前N当全量 |
+| WorkloadProfile／EffectiveLimits | 版本、根／阶段／单次限制、逻辑模型／物理HTTP／工具额度、响应大小／计算单元；计划冻结上限，发送前再取最新更严持久策略 |
+| BudgetPolicyRevision | 同budget_ref append的revision/base_revision/change_id/actor/reason、分类累计上限／期限；唯一幂等、旧attempt不变，禁用／收紧／续期／追加有审计依据 |
+
+历史解释绑定所选report／job，不取会话最新任务替代；从历史发起复审须用所选旧报告的对象／分区／业务基版，并明确新数据策略。准备新任务时旧报告不变，比较缺对象或分区变化列不可比。
+
+当前M0缓存复用完整已提交合格snapshot与所选投影；逻辑section窗口参与资格检查，但不声称任意section拼接。首版不合并inflight任务；warm reuse零云读取且不必再次身份请求，新云读取才核当前身份。不同业务版本重新计算规则／建议，不把旧结果当缓存事实。规则预处理与证据索引在本地，Agent按固定manifest取受控字段；云原文不因上传／采集成功就全部对模型开放。
+
+配置入口、disabled／expired状态、显式项目env兼容、预算分类追加及持续授权语义统一引用[凭据配置](credentials-and-permissions.md)与[执行策略](session-and-execution.md)，现已支持互斥模型JSON／显式env文件、schema5及可选授权到期／同Ref追加；具体未验与剩余项见实现台账。

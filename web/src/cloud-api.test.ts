@@ -21,3 +21,10 @@ test('the authoritative job result adapter rejects a cloud result belonging to a
   assert.equal((await client.jobResult('job-cloud')).cloud_result?.id, 'cloud-record')
   await assert.rejects(client.jobResult('job-other'), /当前任务/)
 })
+
+test('audit preparation cloud records are accepted under their original audit task without becoming connection checks', async t => {
+  const record = cloudRecordFixture(); record.content.kind = 'audit'
+  t.mock.method(globalThis, 'fetch', async () => Response.json({ is_final: false, view_seq: 5, cloud_result: record }))
+  const value = await new WorkspaceClient(() => 'public-test-access').jobResult('job-cloud')
+  assert.equal(value.cloud_result?.content.kind, 'audit'); assert.equal(value.cloud_result?.job_id, 'job-cloud')
+})

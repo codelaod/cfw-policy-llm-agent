@@ -8,7 +8,9 @@ import (
 	"sort"
 	"time"
 
+	"cfw-policy-llm-agent/server/internal/audit"
 	"cfw-policy-llm-agent/server/internal/domain"
+	"cfw-policy-llm-agent/server/internal/workload"
 	"gorm.io/gorm"
 )
 
@@ -26,6 +28,12 @@ type EffectCeiling struct {
 	ModelHTTPAttempts  int  `json:"model_http_attempts"`
 }
 type ExecutionPlan struct {
+	ResourceGroupVersionID string `json:"resource_group_version_id,omitempty" gorm:"-"`
+
+	Batch *BatchSpec `json:"batch,omitempty" gorm:"-"`
+
+	Preparation          *PreparationSpec   `json:"preparation,omitempty" gorm:"-"`
+	Workload             workload.Resolved  `json:"workload" gorm:"-"`
 	ID                   string             `json:"id"`
 	Kind                 string             `json:"kind"`
 	ConversationID       string             `json:"conversation_id"`
@@ -67,7 +75,7 @@ func migrateExecution(tx *gorm.DB) error {
 	if err := tx.Raw("SELECT version FROM business_schema").Scan(&version).Error; err != nil {
 		return err
 	}
-	if version == 2 || version == 3 || version == BusinessSchemaVersion {
+	if version == 2 || version == 3 || version == 4 || version == BusinessSchemaVersion {
 		return migrateCollaboration(tx)
 	}
 	if version != 1 {
@@ -121,27 +129,24 @@ func setBusinessSchema2(tx *gorm.DB) error {
 	return nil
 }
 
-func validateEffects(kind string, e EffectCeiling) error {
-	if e.CloudHTTPAttempts < 0 || e.CloudHTTPAttempts > 100 || e.ModelHTTPAttempts < 0 || e.ModelHTTPAttempts > 6 {
+func validateEffects(kind string, e EffectCeiling, limits workload.Limits) error {
+	if e.CloudHTTPAttempts < 0 || e.CloudHTTPAttempts > limits.CloudHTTPAttempts || e.ModelHTTPAttempts < 0 || e.ModelHTTPAttempts > limits.ModelHTTPAttempts {
 		return ErrInputInvalid
 	}
 	if (!e.AllowCloudReads && e.CloudHTTPAttempts != 0) || (!e.AllowModelRequests && e.ModelHTTPAttempts != 0) {
 		return ErrInputInvalid
 	}
-	if kind == "assistant_turn" && (e.AllowCloudReads || e.CloudHTTPAttempts != 0 || e.ModelHTTPAttempts > 4) {
+	if kind == "assistant_turn" && (e.AllowCloudReads || e.CloudHTTPAttempts != 0) {
 		return ErrInputInvalid
 	}
 	if (kind == "collect" || kind == "connection_check") && (e.AllowModelRequests || e.ModelHTTPAttempts != 0) {
-		return ErrInputInvalid
-	}
-	if kind == "connection_check" && e.CloudHTTPAttempts > 6 {
 		return ErrInputInvalid
 	}
 	return nil
 }
 
 func preparePlan(p ExecutionPlan, internal bool) (ExecutionPlan, error) {
-	if !enum(p.Kind, "audit", "collect", "connection_check", "assistant_turn") || (!internal && p.Kind == "assistant_turn") || p.ConversationID == "" || p.PolicyScopeRef == "" || p.DataSourceID == "" || p.ConversationRevision < 1 || len(p.ConfigRevision) > 128 {
+	if !enum(p.Kind, "audit", "collect", "connection_check", "assistant_turn") || (!internal && p.Kind == "assistant_turn") || p.ConversationID == "" || p.PolicyScopeRef == "" && p.Preparation == nil || p.DataSourceID == "" || p.ConversationRevision < 1 || len(p.ConfigRevision) > 128 {
 		return p, ErrInputInvalid
 	}
 	if p.Kind == "audit" && !enum(p.Mode, "rules_only", "rules_and_agent") {
@@ -150,8 +155,36 @@ func preparePlan(p ExecutionPlan, internal bool) (ExecutionPlan, error) {
 	if len(p.ContextReportID) > 128 || (p.ContextReportID != "" && p.Kind != "assistant_turn") || (p.Kind == "assistant_turn" && p.Mode != "assistant") {
 		return p, ErrInputInvalid
 	}
-	if err := validateEffects(p.Kind, p.EffectCeiling); err != nil {
+	var workloadErr error
+	p.Workload, workloadErr = workload.Normalize(p.Kind, p.Workload)
+	if workloadErr != nil {
+		return p, ErrInputInvalid
+	}
+	if err := validateEffects(p.Kind, p.EffectCeiling, p.Workload.Limits); err != nil {
 		return p, err
+	}
+	if p.Batch == nil {
+		if err := validatePreparation(p); err != nil {
+			return p, err
+		}
+	} else {
+		if _, err := batchSpec(p); err != nil {
+			return p, err
+		}
+	}
+
+	if p.Batch == nil && p.Preparation == nil && p.SnapshotID != "" && (p.Kind == "audit" || p.Kind == "assistant_turn") {
+		validationCells := []int{}
+		if p.Workload.Limits.MaxQueryCells > 0 {
+			validationCells = append(validationCells, p.Workload.Limits.MaxQueryCells)
+		}
+		bounded, e := audit.WithInputObjectLimits(context.Background(), p.Workload.Limits.AssetsPerBatch, p.Workload.Limits.MaxPolicies, validationCells...)
+		if e != nil {
+			return p, ErrInputInvalid
+		}
+		if e = audit.ValidateContext(bounded, p.PreparedInput); e != nil {
+			return p, ErrInputInvalid
+		}
 	}
 	if len(p.Request) == 0 {
 		p.Request = json.RawMessage(`{}`)
@@ -231,7 +264,24 @@ func insertPlan(tx *gorm.DB, p ExecutionPlan) error {
 	if conversation.Revision != p.ConversationRevision {
 		return ErrPlanStale
 	}
-	if p.ContextReportID != "" {
+	if err = validatePlanResourceGroup(tx, p); err != nil {
+		return err
+	}
+	if p.Batch != nil {
+		if conversation.PolicyScopeRef != p.PolicyScopeRef {
+			return ErrPlanStale
+		}
+		if err = validateBatchPlan(tx, p); err != nil {
+			return err
+		}
+	} else if p.Preparation != nil {
+		if conversation.PolicyScopeRef != p.PolicyScopeRef {
+			return ErrPlanStale
+		}
+		if _, err = validatePreparationGrant(tx, p); err != nil {
+			return err
+		}
+	} else if p.ContextReportID != "" {
 		if err = validateReportPlan(tx, p); err != nil {
 			return err
 		}
@@ -296,6 +346,13 @@ func planRecord(tx *gorm.DB, id string) (p ExecutionPlan, err error) {
 	if err = json.Unmarshal([]byte(row.Body), &p); err != nil {
 		return
 	}
+	p.Workload, err = workload.Normalize(p.Kind, p.Workload)
+	if err != nil {
+		return p, ErrInputInvalid
+	}
+	if err = validateEffects(p.Kind, p.EffectCeiling, p.Workload.Limits); err != nil {
+		return p, err
+	}
 	p.Body = row.Body
 	p.PreparedJSON = row.PreparedJSON
 	p.HeadsJSON = row.HeadsJSON
@@ -307,6 +364,13 @@ func planRecord(tx *gorm.DB, id string) (p ExecutionPlan, err error) {
 		return
 	}
 	err = json.Unmarshal([]byte(row.HeadsJSON), &p.Heads)
+	if err == nil {
+		if p.Batch == nil {
+			err = validatePreparation(p)
+		} else {
+			_, err = batchSpec(p)
+		}
+	}
 	return
 }
 func (s *Store) GetPlan(ctx context.Context, id string) (ExecutionPlan, error) {
@@ -314,22 +378,44 @@ func (s *Store) GetPlan(ctx context.Context, id string) (ExecutionPlan, error) {
 }
 
 func timingFor(kind string) (time.Duration, time.Duration) {
-	switch kind {
-	case "assistant_turn":
-		return 60 * time.Second, 90 * time.Second
-	case "connection_check":
-		return 60 * time.Second, 30 * time.Second
-	case "collect":
-		return 120 * time.Second, 90 * time.Second
-	case "e0_probe":
-		return 120 * time.Second, 30 * time.Second
-	default:
-		return 120 * time.Second, 240 * time.Second
+	limits := workload.Default(kind)
+	queue, _ := workload.Seconds(limits.QueueSeconds)
+	execution, _ := workload.Seconds(limits.ExecutionSeconds)
+	return queue, execution
+}
+
+// hydrateWorkload reads only the saved plan body, not its potentially large
+// prepared input, and never substitutes the current server profile.
+func hydrateWorkload(tx *gorm.DB, job *Job) error {
+	if job.PlanID == "" {
+		value, err := workload.Normalize(job.Kind, workload.Resolved{})
+		if err != nil {
+			return ErrInputInvalid
+		}
+		job.Workload = value
+		return nil
 	}
+	var body string
+	if err := tx.Raw("SELECT body FROM execution_plans WHERE id=?", job.PlanID).Scan(&body).Error; err != nil {
+		return err
+	}
+	var frozen struct {
+		Kind     string            `json:"kind"`
+		Workload workload.Resolved `json:"workload"`
+	}
+	if body == "" || json.Unmarshal([]byte(body), &frozen) != nil || frozen.Kind != job.Kind {
+		return ErrInputInvalid
+	}
+	value, err := workload.Normalize(job.Kind, frozen.Workload)
+	if err != nil {
+		return ErrInputInvalid
+	}
+	job.Workload = value
+	return nil
 }
 func queueAdmission(tx *gorm.DB, conversationID string) error {
 	var count int64
-	if err := tx.Raw("SELECT count(*) FROM e0_jobs WHERE conversation_id=? AND status IN ('queued','running','cancelling')", conversationID).Scan(&count).Error; err != nil {
+	if err := tx.Raw("SELECT count(*) FROM e0_jobs WHERE conversation_id=? AND parent_job_id IS NULL AND status IN ('queued','running','cancelling')", conversationID).Scan(&count).Error; err != nil {
 		return err
 	}
 	if count > 0 {
@@ -353,6 +439,9 @@ func existingJob(tx *gorm.DB, key, digest string) (job Job, found bool, err erro
 	}
 	if job.RequestDigest != digest {
 		return job, true, ErrConflict
+	}
+	if err := hydrateWorkload(tx, &job); err != nil {
+		return job, true, err
 	}
 	return job, true, nil
 }
@@ -379,7 +468,24 @@ func validatePlanForConsumption(tx *gorm.DB, p ExecutionPlan, config []string) e
 	if conversation.Revision != p.ConversationRevision {
 		return ErrPlanStale
 	}
-	if p.ContextReportID != "" {
+	if err = validatePlanResourceGroup(tx, p); err != nil {
+		return err
+	}
+	if p.Batch != nil {
+		if conversation.PolicyScopeRef != p.PolicyScopeRef {
+			return ErrPlanStale
+		}
+		if err = validateBatchPlan(tx, p); err != nil {
+			return err
+		}
+	} else if p.Preparation != nil {
+		if conversation.PolicyScopeRef != p.PolicyScopeRef {
+			return ErrPlanStale
+		}
+		if _, err = validatePreparationGrant(tx, p); err != nil {
+			return err
+		}
+	} else if p.ContextReportID != "" {
 		if err = validateReportPlan(tx, p); err != nil {
 			return err
 		}
@@ -404,9 +510,23 @@ func createPlannedJob(tx *gorm.DB, p ExecutionPlan, key, digest string, message 
 		return job, saved, err
 	}
 	at := time.Now().UTC()
-	queue, execution := timingFor(p.Kind)
-	job = Job{ID: id, ConversationID: p.ConversationID, ClientRequestID: key, RequestDigest: digest, Kind: p.Kind, PlanID: p.ID, Status: "queued", CreatedAt: at.Format(time.RFC3339Nano), QueueDeadline: at.Add(queue).Format(time.RFC3339Nano), RootDeadline: at.Add(queue + execution).Format(time.RFC3339Nano), BudgetRef: p.BudgetRef}
+	queue, err := workload.Seconds(p.Workload.Limits.QueueSeconds)
+	if err != nil {
+		return job, saved, ErrInputInvalid
+	}
+	execution, err := workload.Seconds(p.Workload.Limits.ExecutionSeconds)
+	if err != nil {
+		return job, saved, ErrInputInvalid
+	}
+	job = Job{ID: id, ConversationID: p.ConversationID, ClientRequestID: key, RequestDigest: digest, Kind: p.Kind, PlanID: p.ID, Status: "queued", CreatedAt: at.Format(time.RFC3339Nano), QueueDeadline: at.Add(queue).Format(time.RFC3339Nano), RootDeadline: at.Add(queue + execution).Format(time.RFC3339Nano), BudgetRef: p.BudgetRef, Workload: p.Workload}
 	if err = tx.Exec("INSERT INTO e0_jobs(id,conversation_id,client_request_id,request_digest,kind,plan_id,status,created_at,queue_deadline,root_deadline,budget_ref) VALUES(?,?,?,?,?,?,?,?,?,?,?)", id, job.ConversationID, key, digest, p.Kind, p.ID, "queued", job.CreatedAt, job.QueueDeadline, job.RootDeadline, job.BudgetRef).Error; err != nil {
+		return
+	}
+	if p.Batch != nil {
+		if err = recordBatchAcceptance(tx, p, job); err != nil {
+			return
+		}
+	} else if err = recordPreparedAcceptance(tx, p, job); err != nil {
 		return
 	}
 	message.JobID = id
@@ -535,7 +655,7 @@ func validResolvedConfiguration(base, in domain.Input) bool {
 	}
 	for _, asset := range in.Assets {
 		old, ok := known[asset.ID]
-		if !ok || !seen[asset.ID] || asset.ScopeRef != old.ScopeRef || asset.Address != old.Address || asset.AddressObserved != old.AddressObserved || !reflect.DeepEqual(asset.Association, old.Association) {
+		if !ok || !seen[asset.ID] || asset.ScopeRef != old.ScopeRef || asset.Address != old.Address || asset.AddressObserved != old.AddressObserved || !reflect.DeepEqual(asset.Association, old.Association) || !reflect.DeepEqual(asset.Protection, old.Protection) {
 			return false
 		}
 	}
@@ -562,7 +682,7 @@ func preparedSelection(tx *gorm.DB, snapshotID string, selection domain.Selectio
 		in.IntentVersion = base.Input.IntentVersion
 		return in, []AssetHeadVersion{}, nil
 	}
-	if selection.Kind != "assets" || len(selection.AssetIDs) == 0 || len(selection.AssetIDs) > 50 {
+	if selection.Kind != "assets" || len(selection.AssetIDs) == 0 || len(selection.AssetIDs) > len(in.Assets) {
 		return in, nil, ErrInputInvalid
 	}
 	selected := map[string]bool{}
@@ -661,6 +781,12 @@ func (s *Store) SealInput(ctx context.Context, jobID string, input domain.Input)
 			}
 			return nil
 		}
+		if e = batchPublicationOpen(tx, job); e != nil {
+			return e
+		}
+		if plan.Preparation != nil {
+			return ErrInputNotSealed
+		}
 		if input.EvaluationAt == "" {
 			input.EvaluationAt = now()
 		}
@@ -716,15 +842,22 @@ func (s *Store) ListJobs(ctx context.Context, conversationID string, offset, lim
 		return
 	}
 	jobs = []Job{}
-	query := "SELECT * FROM e0_jobs"
+	query := "SELECT * FROM e0_jobs WHERE parent_job_id IS NULL"
 	args := []any{}
 	if conversationID != "" {
-		query += " WHERE conversation_id=?"
+		query += " AND conversation_id=?"
 		args = append(args, conversationID)
 	}
 	query += " ORDER BY created_at DESC,id DESC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 	err = s.db.WithContext(ctx).Raw(query, args...).Scan(&jobs).Error
+	if err == nil {
+		for i := range jobs {
+			if e := hydrateWorkload(s.db.WithContext(ctx), &jobs[i]); e != nil {
+				return nil, e
+			}
+		}
+	}
 	return
 }
 func (s *Store) AppendJobEvent(ctx context.Context, id, typ string, payload map[string]any) error {
@@ -796,7 +929,7 @@ func (s *Store) SaveJobAudit(ctx context.Context, id string, result domain.Resul
 		if e != nil {
 			return e
 		}
-		plan, e := planRecord(tx, job.PlanID)
+		plan, e := executionPlanForJob(tx, job)
 		if e != nil {
 			return e
 		}
@@ -849,7 +982,7 @@ func (s *Store) AppendJobMessage(ctx context.Context, id string, input MessageIn
 		if job.Status != "running" {
 			return ErrJobTerminal
 		}
-		plan, e := planRecord(tx, job.PlanID)
+		plan, e := executionPlanForJob(tx, job)
 		if e != nil {
 			return e
 		}
@@ -917,10 +1050,13 @@ func (s *Store) FinalizeJobWithReport(ctx context.Context, id string, request Fi
 		if job.Status != "running" {
 			return ErrJobTerminal
 		}
+		if e = batchPublicationOpen(tx, job); e != nil {
+			return e
+		}
 		if job.Kind != "audit" || job.ResultRef == "" {
 			return ErrInputInvalid
 		}
-		plan, e := planRecord(tx, job.PlanID)
+		plan, e := executionPlanForJob(tx, job)
 		if e != nil {
 			return e
 		}
@@ -1064,7 +1200,7 @@ func finishJob(tx *gorm.DB, job *Job, status, code string) error {
 		status = "cancelled"
 		code = "CANCELLED"
 	}
-	if status == "completed" && job.Kind == "audit" && job.ResultRef == "" {
+	if status == "completed" && job.Kind == "audit" && job.ResultRef == "" && !batchCompleteEvidence(tx, *job) {
 		status = "failed"
 		code = "RESULT_NOT_SAVED"
 	}
@@ -1083,6 +1219,27 @@ func finishJob(tx *gorm.DB, job *Job, status, code string) error {
 	if code == "" && status == "partial" {
 		code = "PARTIAL_RESULT"
 	}
+	var batchState struct{ State string }
+	batchQuery := tx.Raw("SELECT state FROM batch_requests WHERE parent_job_id=?", job.ID).Scan(&batchState)
+	if batchQuery.Error != nil {
+		return batchQuery.Error
+	}
+	if batchQuery.RowsAffected == 1 {
+		if !terminal(batchState.State) {
+			if e := stopBatch(tx, *job, status, code); e != nil {
+				return e
+			}
+			refreshed, e := get(tx, job.ID)
+			if e != nil {
+				return e
+			}
+			*job = refreshed
+		} else if batchState.State != status {
+			if e := tx.Exec("UPDATE batch_requests SET state=?,error_code=?,finished_at=? WHERE parent_job_id=?", status, code, now(), job.ID).Error; e != nil {
+				return e
+			}
+		}
+	}
 	job.Status = status
 	job.ErrorCode = code
 	job.FinishedAt = now()
@@ -1099,7 +1256,7 @@ func finishJob(tx *gorm.DB, job *Job, status, code string) error {
 			return ErrInputInvalid
 		}
 		if turn.ReplyMessageID == "" {
-			plan, err := planRecord(tx, job.PlanID)
+			plan, err := executionPlanForJob(tx, *job)
 			if err != nil {
 				return err
 			}

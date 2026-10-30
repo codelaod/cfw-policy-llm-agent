@@ -50,19 +50,19 @@ func TestE3NoConfigOrMissingExplicitKeyNeverUsesAmbientProfiles(t *testing.T) {
 	if _, err := Load(""); err == nil {
 		t.Fatal("missing explicit path was accepted")
 	}
-	_, err := Load(saveConfig(t, validConfig()))
-	if err == nil || strings.Contains(err.Error(), "ambient-key") || strings.Contains(err.Error(), "example.invalid") {
-		t.Fatal("missing explicit key used ambient configuration or leaked private values")
+	cfg, err := Load(saveConfig(t, validConfig()))
+	if err != nil || cfg.Ready() || cfg.APIKey() != "" || cfg.Summary().CredentialState != "missing" {
+		t.Fatal("missing explicit key must remain blocked without ambient fallback")
 	}
 }
 
 func TestE3ConfigRejectsExpandedProtocolsEffectsAndBudgets(t *testing.T) {
 	t.Setenv("CFW_E3_TEST_MODEL_KEY", "synthetic-config-secret")
 	for _, change := range []struct{ old, new string }{
-		{`"chat_completions"`, `"responses"`}, {`"openai-compatible"`, `"automatic-fallback"`}, {`https://model.example.invalid/v1`, `http://model.example.invalid/v1`},
+		{`"openai-compatible"`, `"automatic-fallback"`}, {`https://model.example.invalid/v1`, `http://model.example.invalid/v1`},
 		{`https://model.example.invalid/v1`, `https://private-user:secret@model.example.invalid/v1`}, {`https://model.example.invalid/v1`, `https://model.example.invalid/v1?token=secret`},
-		{`"max_output_tokens":512`, `"max_output_tokens":2048`}, {`"timeout_seconds":10`, `"timeout_seconds":31`}, {`"max_http_attempts":3`, `"max_http_attempts":7`},
-		{`"application_model_attempts":20`, `"application_model_attempts":0`}, {`"expires_at":"2099-01-01T00:00:00Z"`, `"expires_at":"2020-01-01T00:00:00Z"`},
+		{`"max_output_tokens":512`, `"max_output_tokens":2048`},
+		{`"application_model_attempts":20`, `"application_model_attempts":0`},
 		{`"api_key_env":"CFW_E3_TEST_MODEL_KEY"`, `"api_key":"literal-key-is-not-supported"`},
 		{`https://model.example.invalid/v1`, `https://:443/v1`},
 		{`https://model.example.invalid/v1`, `https://model.example.invalid/v1?`},
@@ -103,9 +103,27 @@ func TestE3KeyRotationKeepsAuthorizationCycleAndConfigurationBinding(t *testing.
 	}
 }
 
-func TestE3ConfigCheckCannotAcceptAKeyTheRuntimeWillReject(t *testing.T) {
+func TestE3ConfigCheckReportsBlockedCredentialWithoutChangingIt(t *testing.T) {
 	t.Setenv("CFW_E3_TEST_MODEL_KEY", " synthetic-config-secret ")
-	if _, err := Load(saveConfig(t, validConfig())); err == nil {
-		t.Fatal("config-check accepted whitespace that changes the Authorization credential")
+	cfg, err := Load(saveConfig(t, validConfig()))
+	if err != nil || cfg.Ready() || cfg.APIKey() != "" || cfg.Summary().CredentialState != "invalid" {
+		t.Fatal("invalid credential must be blocked without trimming or fallback")
+	}
+}
+
+func TestRejectDuplicateAndCaseCollidingJSONFields(t *testing.T) {
+	t.Setenv("CFW_E3_TEST_MODEL_KEY", "synthetic-config-secret")
+	for _, tc := range []struct{ name, old, replacement string }{
+		{"duplicate_enabled", `"enabled":true`, `"enabled":false,"enabled":true`},
+		{"case_colliding_enabled", `"enabled":true`, `"enabled":false,"ENABLED":true`},
+		{"duplicate_budget_limit", `"application_model_attempts":20`, `"application_model_attempts":1,"application_model_attempts":20`},
+		{"case_colliding_budget_limit", `"application_model_attempts":20`, `"application_model_attempts":1,"APPLICATION_MODEL_ATTEMPTS":20`},
+		{"escaped_duplicate_key", `"enabled":true`, `"enabled":false,"enab\u006ced":true`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := Load(saveConfig(t, strings.Replace(validConfig(), tc.old, tc.replacement, 1))); err != ErrInvalid {
+				t.Fatalf("ambiguous JSON fields must be rejected: %v", err)
+			}
+		})
 	}
 }

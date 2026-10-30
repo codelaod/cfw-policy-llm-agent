@@ -4,6 +4,7 @@ package cloudconfig
 
 import (
 	"bytes"
+	"cfw-policy-llm-agent/server/internal/workload"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -56,10 +57,23 @@ type fileConfig struct {
 	Budget              Budget    `json:"budget"`
 }
 type Config struct {
+	modelBudgetDeclared         bool
 	settings                    fileConfig
 	ak, secret, token, revision string
+	credentialState             string
 }
 type Summary struct {
+	Ready                 bool   `json:"ready"`
+	SourceSelected        bool   `json:"source_selected"`
+	StructureValid        bool   `json:"structure_valid"`
+	CredentialLocalReady  bool   `json:"credential_local_ready"`
+	CredentialState       string `json:"credential_state"`
+	CredentialExpired     bool   `json:"credential_expired"`
+	ExecutionPolicyReady  bool   `json:"execution_policy_ready"`
+	AuthorizationState    string `json:"authorization_state"`
+	BlockedReason         string `json:"blocked_reason,omitempty"`
+	LedgerState           string `json:"ledger_state"`
+	UpstreamValidation    string `json:"upstream_validation"`
 	Configured            bool   `json:"configured"`
 	Enabled               bool   `json:"enabled"`
 	CredentialMode        string `json:"credential_mode"`
@@ -99,14 +113,20 @@ func uniqueJSON(data []byte) bool {
 			return true
 		}
 		if delim == '{' {
-			seen := map[string]bool{}
+			seen := []string{}
 			for d.More() {
 				k, e := d.Token()
 				s, ok := k.(string)
-				if e != nil || !ok || seen[s] {
+				if e != nil || !ok {
 					return false
 				}
-				seen[s] = true
+				// encoding/json matches struct fields with Unicode case folding.
+				for _, previous := range seen {
+					if strings.EqualFold(previous, s) {
+						return false
+					}
+				}
+				seen = append(seen, s)
 				if !visit(depth + 1) {
 					return false
 				}
@@ -129,7 +149,12 @@ func uniqueJSON(data []byte) bool {
 	_, e := d.Token()
 	return e == io.EOF
 }
-func Load(path string) (Config, error) {
+
+type envLookup func(string) (string, bool)
+
+func Load(path string) (Config, error) { return load(path, os.LookupEnv) }
+
+func load(path string, lookup envLookup) (Config, error) {
 	var result Config
 	if strings.TrimSpace(path) == "" {
 		return result, ErrInvalid
@@ -151,13 +176,30 @@ func Load(path string) (Config, error) {
 	if e != nil || len(body) > 64<<10 || !uniqueJSON(body) {
 		return result, ErrInvalid
 	}
+	var raw map[string]json.RawMessage
+	if json.Unmarshal(body, &raw) != nil {
+		return result, ErrInvalid
+	}
+	for key, value := range raw {
+		if strings.EqualFold(key, "budget") {
+			var fields map[string]json.RawMessage
+			if json.Unmarshal(value, &fields) != nil {
+				return result, ErrInvalid
+			}
+			for field := range fields {
+				if strings.EqualFold(field, "application_model_attempts") || strings.EqualFold(field, "session_model_attempts") {
+					result.modelBudgetDeclared = true
+				}
+			}
+		}
+	}
 	d := json.NewDecoder(bytes.NewReader(body))
 	d.DisallowUnknownFields()
 	var in fileConfig
 	if d.Decode(&in) != nil {
 		return result, ErrInvalid
 	}
-	if !alias.MatchString(in.ConnectionRef) || in.ConnectionRef == "local-offline" || !envName.MatchString(in.AccessKeyIDEnv) || !envName.MatchString(in.AccessKeySecretEnv) || in.AccessKeyIDEnv == in.AccessKeySecretEnv || !accountID.MatchString(in.ExpectedAccountID) || in.TimeoutSeconds < 1 || in.TimeoutSeconds > 30 || in.MaxHTTPAttempts < 1 || in.MaxHTTPAttempts > 100 {
+	if !alias.MatchString(in.ConnectionRef) || in.ConnectionRef == "local-offline" || !envName.MatchString(in.AccessKeyIDEnv) || !envName.MatchString(in.AccessKeySecretEnv) || in.AccessKeyIDEnv == in.AccessKeySecretEnv || !accountID.MatchString(in.ExpectedAccountID) || in.TimeoutSeconds < 1 || int64(in.TimeoutSeconds) > workload.MaxSeconds || in.MaxHTTPAttempts < 0 || in.MaxHTTPAttempts > workload.MaxCounter {
 		return result, ErrInvalid
 	}
 	if in.ControlPlaneRegion != "cn-hangzhou" && in.ControlPlaneRegion != "ap-southeast-1" && in.ControlPlaneRegion != "ap-southeast-3" {
@@ -173,8 +215,8 @@ func Load(path string) (Config, error) {
 		return result, ErrInvalid
 	}
 	if in.CredentialExpiresAt != "" {
-		expiry, e := time.Parse(time.RFC3339Nano, in.CredentialExpiresAt)
-		if e != nil || !expiry.After(time.Now()) {
+		_, e := time.Parse(time.RFC3339Nano, in.CredentialExpiresAt)
+		if e != nil {
 			return result, ErrInvalid
 		}
 	}
@@ -210,23 +252,25 @@ func Load(path string) (Config, error) {
 		}
 		seen[g.ID] = true
 	}
-	b := in.Budget
-	expiry, e := time.Parse(time.RFC3339Nano, b.ExpiresAt)
-	if !alias.MatchString(b.Ref) || e != nil || !expiry.After(time.Now()) || b.ApplicationCloudAttempts < 1 || b.ApplicationCloudAttempts > 1000000 || b.SessionCloudAttempts < 1 || b.SessionCloudAttempts > b.ApplicationCloudAttempts || b.ApplicationModelAttempts < 0 || b.ApplicationModelAttempts > 1000000 || b.SessionModelAttempts < 0 || b.SessionModelAttempts > b.ApplicationModelAttempts {
+	if !validBudget(in.Budget) {
 		return result, ErrInvalid
 	}
 	ak, secret, token := "", "", ""
+	credentialState := "disabled"
 	if in.Enabled {
-		ak = os.Getenv(in.AccessKeyIDEnv)
-		secret = os.Getenv(in.AccessKeySecretEnv)
-		if !validSecret(ak) || !validSecret(secret) {
-			return result, ErrCredential
-		}
+		ak, _ = lookup(in.AccessKeyIDEnv)
+		secret, _ = lookup(in.AccessKeySecretEnv)
 		if in.CredentialMode == "env_sts" {
-			token = os.Getenv(in.SecurityTokenEnv)
-			if !validSecret(token) {
-				return result, ErrCredential
-			}
+			token, _ = lookup(in.SecurityTokenEnv)
+		}
+		credentialState = "available"
+		if ak == "" || secret == "" || (in.CredentialMode == "env_sts" && token == "") {
+			credentialState = "missing"
+		} else if !validSecret(ak) || !validSecret(secret) || (in.CredentialMode == "env_sts" && !validSecret(token)) {
+			credentialState = "invalid"
+		}
+		if credentialState != "available" {
+			ak, secret, token = "", "", ""
 		}
 	}
 	// Set order is not a new authorization period or configuration change.
@@ -237,14 +281,18 @@ func Load(path string) (Config, error) {
 	})
 	sort.Slice(in.AllowedNATGateways, func(i, j int) bool { return in.AllowedNATGateways[i].ID < in.AllowedNATGateways[j].ID })
 	canonical, _ := json.Marshal(in)
-	result = Config{settings: in, ak: ak, secret: secret, token: token, revision: "cloud-config_" + digest(string(canonical))}
+	result = Config{modelBudgetDeclared: result.modelBudgetDeclared, settings: in, ak: ak, secret: secret, token: token, revision: "cloud-config_" + digest(string(canonical)), credentialState: credentialState}
 	return result, nil
 }
 func validSecret(s string) bool {
-	return len(s) > 0 && len(s) <= 8192 && strings.TrimSpace(s) == s && !strings.ContainsAny(s, "\r\n\x00")
+	return len(s) > 0 && len(s) <= 8192 && strings.TrimSpace(s) == s && strings.IndexFunc(s, func(r rune) bool { return r < 0x20 || r == 0x7f }) < 0
 }
-func digest(s string) string                 { sum := sha256.Sum256([]byte(s)); return hex.EncodeToString(sum[:])[:32] }
-func (c Config) Enabled() bool               { return c.settings.Enabled && c.ak != "" && c.secret != "" }
+func digest(s string) string            { sum := sha256.Sum256([]byte(s)); return hex.EncodeToString(sum[:])[:32] }
+func (c Config) RequestedEnabled() bool { return c.settings.Enabled }
+func (c Config) Ready() bool {
+	return c.revision != "" && c.settings.Enabled && c.credentialState == "available" && !c.credentialExpired() && c.authorizationState() == "active"
+}
+func (c Config) Enabled() bool               { return c.Ready() }
 func (c Config) Revision() string            { return c.revision }
 func (c Config) ConnectionRef() string       { return c.settings.ConnectionRef }
 func (c Config) ExpectedAccountID() string   { return c.settings.ExpectedAccountID }
@@ -333,6 +381,145 @@ func (c Config) bindings() []Binding {
 	}
 	return out
 }
+func validBudget(b Budget) bool {
+	if b.Ref == "" {
+		return b.ExpiresAt == "" && b.ApplicationCloudAttempts == 0 && b.SessionCloudAttempts == 0 && b.ApplicationModelAttempts == 0 && b.SessionModelAttempts == 0
+	}
+	if !alias.MatchString(b.Ref) || b.ApplicationCloudAttempts < 0 || b.ApplicationCloudAttempts > workload.MaxCounter || b.SessionCloudAttempts < 0 || b.SessionCloudAttempts > b.ApplicationCloudAttempts || b.ApplicationModelAttempts < 0 || b.ApplicationModelAttempts > workload.MaxCounter || b.SessionModelAttempts < 0 || b.SessionModelAttempts > b.ApplicationModelAttempts {
+		return false
+	}
+	if b.ExpiresAt != "" {
+		if _, err := time.Parse(time.RFC3339Nano, b.ExpiresAt); err != nil {
+			return false
+		}
+	}
+	return true
+}
+func (c Config) credentialExpired() bool {
+	if c.settings.CredentialExpiresAt == "" {
+		return false
+	}
+	at, err := time.Parse(time.RFC3339Nano, c.settings.CredentialExpiresAt)
+	return err != nil || !at.After(time.Now())
+}
+func (c Config) authorizationState() string {
+	b := c.settings.Budget
+	if b.Ref == "" {
+		return "not_configured"
+	}
+	if b.ExpiresAt != "" {
+		at, err := time.Parse(time.RFC3339Nano, b.ExpiresAt)
+		if err != nil || !at.After(time.Now()) {
+			return "expired"
+		}
+	}
+	if b.ApplicationCloudAttempts == 0 || b.SessionCloudAttempts == 0 || c.settings.MaxHTTPAttempts == 0 {
+		return "blocked"
+	}
+	return "active"
+}
+
+// WithBudget binds only an explicitly resolved policy and retains credentials,
+// limits and source scope. It does not establish a new authorization period.
+func (c Config) WithBudget(b Budget) (Config, error) {
+	if c.revision == "" || !validBudget(b) {
+		return Config{}, ErrInvalid
+	}
+	c.settings.Budget = b
+	canonical, _ := json.Marshal(c.settings)
+	c.revision = "cloud-config_" + digest(string(canonical))
+	return c, nil
+}
+func (c Config) AllowsAsset(region, id string) bool {
+	if c.revision == "" || !strings.HasPrefix(id, "i-") || !resourceID.MatchString(id) || c.ECSOrigin(region) == "" {
+		return false
+	}
+	if len(c.settings.AllowedAssets) == 0 {
+		return true
+	}
+	for _, a := range c.settings.AllowedAssets {
+		if a.Region == region && a.InstanceID == id {
+			return true
+		}
+	}
+	return false
+}
+func (c Config) AllowsGateway(region, id string) bool {
+	if c.revision == "" || !strings.HasPrefix(id, "ngw-") || !resourceID.MatchString(id) || c.ECSOrigin(region) == "" {
+		return false
+	}
+	allowed := false
+	for _, b := range c.settings.AllowedBoundaries {
+		if b == "nat/out" {
+			allowed = true
+		}
+	}
+	if !allowed {
+		return false
+	}
+	if len(c.settings.AllowedNATGateways) == 0 {
+		return true
+	}
+	for _, g := range c.settings.AllowedNATGateways {
+		if g.Region == region && g.ID == id {
+			return true
+		}
+	}
+	return false
+}
+
+// ScopeForGateway constructs only a previously resolved, bounded gateway scope;
+// it does not discover gateways or expand the configured account/regions.
+func (c Config) ScopeForGateway(region, id string) (Binding, bool) {
+	if !c.AllowsGateway(region, id) {
+		return Binding{}, false
+	}
+	identity := c.settings.ConnectionRef + "|" + c.settings.ExpectedAccountID + "|" + c.settings.ControlPlaneRegion + "|nat/out|" + id
+	key := digest(identity)
+	scope := domain.Scope{Ref: "scope_" + key, Provider: "aliyun", AccountRef: "account_" + digest(c.settings.ConnectionRef+"|"+c.settings.ExpectedAccountID), ControlPlaneRef: "control_" + digest(c.settings.ConnectionRef+"|"+c.settings.ControlPlaneRegion), IPFamily: "ipv4", Boundary: "nat", Direction: "out", PolicySetRef: "policy_" + key, GatewayRef: "gateway_" + digest(c.settings.ConnectionRef+"|"+id)}
+	return Binding{Scope: scope, GatewayID: id, Region: region}, true
+}
 func (c Config) Summary() Summary {
-	return Summary{Configured: c.revision != "", Enabled: c.Enabled(), CredentialMode: c.settings.CredentialMode, CredentialExpiryKnown: c.settings.CredentialExpiresAt != "", Refreshable: false, RegionCount: len(c.settings.AllowedRegions), AssetCount: len(c.settings.AllowedAssets), NATGatewayCount: len(c.settings.AllowedNATGateways), ScopeCount: len(c.Scopes()), TimeoutSeconds: c.settings.TimeoutSeconds, MaxHTTPAttempts: c.settings.MaxHTTPAttempts}
+	credentialState := c.credentialState
+	if c.RequestedEnabled() && credentialState == "available" && c.credentialExpired() {
+		credentialState = "expired"
+	}
+	out := Summary{Configured: c.revision != "", Enabled: c.RequestedEnabled(), Ready: c.Ready(), SourceSelected: c.revision != "", StructureValid: c.revision != "", CredentialLocalReady: c.credentialState == "available" && !c.credentialExpired(), CredentialState: credentialState, CredentialExpired: c.credentialExpired(), ExecutionPolicyReady: c.authorizationState() == "active", AuthorizationState: c.authorizationState(), LedgerState: "not_checked", UpstreamValidation: "not_checked", CredentialMode: c.settings.CredentialMode, CredentialExpiryKnown: c.settings.CredentialExpiresAt != "", Refreshable: false, RegionCount: len(c.settings.AllowedRegions), AssetCount: len(c.settings.AllowedAssets), NATGatewayCount: len(c.settings.AllowedNATGateways), ScopeCount: len(c.Scopes()), TimeoutSeconds: c.settings.TimeoutSeconds, MaxHTTPAttempts: c.settings.MaxHTTPAttempts}
+	switch {
+	case !out.Configured:
+		out.BlockedReason = "not_configured"
+		out.CredentialState = "not_checked"
+	case !out.Enabled:
+		out.BlockedReason = "disabled"
+	case !out.CredentialLocalReady:
+		out.BlockedReason = "credential_" + out.CredentialState
+	case !out.ExecutionPolicyReady:
+		out.BlockedReason = "authorization_" + out.AuthorizationState
+	}
+	return out
+}
+func (c Config) MarshalJSON() ([]byte, error) { return json.Marshal(c.Summary()) }
+func (c Config) String() string               { b, _ := c.MarshalJSON(); return string(b) }
+func (c Config) GoString() string             { return c.String() }
+
+func (c Config) AllowsBoundary(kind string) bool {
+	for _, boundary := range c.settings.AllowedBoundaries {
+		if boundary == kind {
+			return true
+		}
+	}
+	return false
+}
+func (c Config) AllowedBoundaries() []string {
+	return append([]string{}, c.settings.AllowedBoundaries...)
+}
+
+func (c Config) ModelBudgetDeclared() bool { return c.modelBudgetDeclared }
+
+// Local aliases carry no provider credential or raw account number.
+func (c Config) AccountAlias() string {
+	return "account_" + digest(c.settings.ConnectionRef+"|"+c.settings.ExpectedAccountID)
+}
+func (c Config) ControlPlaneAlias() string {
+	return "control_" + digest(c.settings.ConnectionRef+"|"+c.settings.ControlPlaneRegion)
 }

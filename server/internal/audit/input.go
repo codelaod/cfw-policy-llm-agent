@@ -17,6 +17,10 @@ import (
 )
 
 const MaxInputBytes = 5 << 20
+
+// Material ingestion has its own bounded structure, independent of the number
+// of assets accepted into one execution segment. The byte/token limits remain.
+const MaxMaterialAssets = 10000
 const MaxQueryCells = 50000
 const KernelVersion = "1"
 const NormalizerVersion = "1"
@@ -113,7 +117,7 @@ func ValidateContext(ctx context.Context, in domain.Input) error {
 	if _, err := time.Parse(time.RFC3339Nano, in.CollectedAt); err != nil {
 		return bad("collected_at must include a timezone")
 	}
-	if len(in.Policies) > 1000 || len(in.Assets) > 50 || len(in.Selection.AssetIDs) > 50 || len(in.AddressRefs)+len(in.PortRefs) > 2000 {
+	if len(in.Policies) > validationObjectLimits(ctx).MaxPolicies || len(in.Assets) > validationObjectLimits(ctx).MaxAssets || len(in.Selection.AssetIDs) > validationObjectLimits(ctx).MaxAssets || len(in.AddressRefs)+len(in.PortRefs) > 2*validationObjectLimits(ctx).MaxPolicies {
 		return bad("object limit exceeded")
 	}
 	if in.Semantics.Version != ProviderSemanticsVersion || in.Semantics.SourceRef == "" {
@@ -243,6 +247,12 @@ func ValidateContext(ctx context.Context, in domain.Input) error {
 			return bad("asset identity, selection, or scope mismatch")
 		}
 		seen[a.ID] = true
+		if a.Protection != nil {
+			p := a.Protection
+			if in.Scope.Boundary != "internet" || (p.State != "on" && p.State != "off" && p.State != "unknown" && p.State != "transitioning") || len(p.EvidenceRef) > 128 || ((p.State == "on" || p.State == "off") && p.EvidenceRef == "") {
+				return bad("invalid asset protection assertion")
+			}
+		}
 		if a.Address != "" {
 			ip, err := netip.ParseAddr(a.Address)
 			if err != nil || !ip.Is4() {
@@ -289,7 +299,7 @@ func ValidateContext(ctx context.Context, in domain.Input) error {
 				return bad("required access conflicts with explicit deny_all")
 			}
 			if s.RequiredConfirmed && s.AllowedConfirmed && s.AllowedComplete {
-				ok, err := requiredSubset(ctx, s.Required, s.Allowed)
+				ok, err := requiredSubset(inputValidationContext(ctx), s.Required, s.Allowed)
 				if err != nil {
 					return err
 				}
@@ -298,7 +308,7 @@ func ValidateContext(ctx context.Context, in domain.Input) error {
 				}
 			}
 			if s.RequiredConfirmed && a.AllowedConfirmed && a.AllowedComplete {
-				ok, err := requiredSubset(ctx, s.Required, a.Allowed)
+				ok, err := requiredSubset(inputValidationContext(ctx), s.Required, a.Allowed)
 				if err != nil {
 					return err
 				}
@@ -432,7 +442,7 @@ func requiredSubset(ctx context.Context, required, allowed []domain.Access) (boo
 			return false, ctx.Err()
 		}
 		addresses, ports := need.addresses, need.ports
-		if len(ports) > 0 && len(addresses) > MaxQueryCells/len(ports) {
+		if len(ports) > 0 && len(addresses) > queryCellLimit(ctx)/len(ports) {
 			return false, nil
 		}
 		protocols := []string{need.protocol}

@@ -1,9 +1,9 @@
 import { computed, inject, ref, type Ref, type InjectionKey } from 'vue'
-import { ApiError, ProtocolError, isTerminal } from './api'
-import { WorkspaceClient } from './workspace-api'
-import { LatestRead, mergeJobs } from './workspace-state'
-import { modelCapability } from './agent-view'
-import type { Capabilities, Conversation, ConversationMessage, Job, Page, ReportRecord, Snapshot } from './workspace-types'
+import { ApiError, ProtocolError, isTerminal } from './api.ts'
+import { WorkspaceClient } from './workspace-api.ts'
+import { LatestRead, mergeJobs } from './workspace-state.ts'
+import { modelCapability } from './agent-view.ts'
+import type { Capabilities, Conversation, ConversationMessage, Job, Page, ReportRecord, Snapshot, ConversationIntent, IntentTurnResponse, ResourceGroupResult } from './workspace-types.ts'
 
 export function errorText(error: unknown): string {
   if (error instanceof ProtocolError) return error.message
@@ -17,6 +17,7 @@ export function errorText(error: unknown): string {
       UNSUPPORTED_INPUT: '当前输入包含未支持的条件，请保留原资料并缩小可计算范围。', INVALID_EVENT_CURSOR: '事件游标与任务记录不一致，请从头只读恢复。',
       STORAGE_BUSY: '本地保存暂时繁忙，草稿未确认保存；请以原请求标识重试。', STORAGE_UNAVAILABLE: '本地保存未确认成功，草稿和原请求标识已保留。',
       SOURCE_NOT_CONFIGURED: '当前没有就绪的真实只读来源，可先使用人工样例或导入。', QUEUE_LIMIT: '待执行任务已满，请等待现有任务结束。',
+      INTENT_STALE: '会话目标已变化，请重新读取并核对候选和计划。', PROPOSAL_STALE: '该计划已被后续目标替代，请核对当前计划。', CANDIDATE_STALE: '候选目录或目标版本已变化，请重新读取并选择。', CREDENTIAL_IN_PAYLOAD: '检测到可能凭据，内容未发送保存。请通过受控配置入口处理。',
       SERVER_STOPPING: '服务正在停止，请待服务恢复后读取已有任务。',
     }
     if (error.status === 401) return '访问口令已失效，请重新解锁；不会自动重发操作。'
@@ -39,17 +40,19 @@ export function createWorkspace() {
   const access = ref(''), unlocked = ref(false), loading = ref(false), error = ref('')
   let generation = 0
   let pointerLoaded = false
-  const refreshReads = new LatestRead(), snapshotReads = new LatestRead(), conversationReads = new LatestRead()
+  const refreshReads = new LatestRead(), snapshotReads = new LatestRead(), conversationReads = new LatestRead(), messageReads = new LatestRead(), intentReads = new LatestRead()
   const api = new WorkspaceClient(() => access.value, () => lock('访问口令已失效，请重新解锁；待核对操作不会自动重发。'))
   const snapshots = ref<Snapshot[]>([]), conversations = ref<Conversation[]>([]), jobs = ref<Job[]>([]), reports = ref<ReportRecord[]>([])
-  const messagesHasMore = ref(false)
+  const messagesHasMore = ref(false), intents = ref<Record<string, ConversationIntent | null>>({})
   const capabilities = ref<Capabilities>({}), snapshotID = ref(''), conversationID = ref(''), messages = ref<ConversationMessage[]>([])
   const currentSnapshot = computed(() => snapshots.value.find(item => item.id === snapshotID.value) ?? null)
   const currentConversation = computed(() => conversations.value.find(item => item.id === conversationID.value) ?? null)
+  const currentIntent = computed(() => intents.value[conversationID.value] ?? null)
   const activeJobs = computed(() => jobs.value.filter(job => !isTerminal(job.status)))
   const modelState = computed(() => modelCapability(capabilities.value))
   const modelAvailable = computed(() => modelState.value.ready)
   const drafts = new Map<string, unknown>()
+  const groupResults = ref<Record<string,{sequence:number;result:ResourceGroupResult}>>({})
   type ListKind = 'snapshots' | 'conversations' | 'jobs' | 'reports'
   const listHasMore = ref<Record<ListKind, boolean>>({snapshots:false,conversations:false,jobs:false,reports:false}), listsLoading = ref(false)
   async function appendPage<T extends {id:string}>(kind: ListKind, target: Ref<T[]>, read: (offset:number)=>Promise<Page<T>>) {
@@ -88,7 +91,7 @@ export function createWorkspace() {
       if (conversationID.value && !conversations.value.some(item => item.id === conversationID.value)) {
         try { const conversation = await api.conversation(conversationID.value); if (!current() || requestGeneration !== generation) return; conversations.value.unshift(conversation) } catch { /* The main page can still show available records. */ }
       }
-      if (conversationID.value) { try { await loadMessages() } catch (cause) { messageError = errorText(cause) } }
+      if (conversationID.value) { try { await Promise.all([loadMessages(), loadIntent()]) } catch (cause) { messageError = errorText(cause) } }
     }
     if (!current() || requestGeneration !== generation) return
     const rejected = results.find(result => result.status === 'rejected')
@@ -99,7 +102,7 @@ export function createWorkspace() {
     try { await new WorkspaceClient(() => value).health(); access.value = value; unlocked.value = true; generation++; await refresh() }
     finally { loading.value = false }
   }
-  function lock(reason = '') { generation++; pointerLoaded = false; access.value = ''; unlocked.value = false; messages.value = []; messagesHasMore.value = false; capabilities.value = {}; error.value = reason; refreshReads.invalidate(); snapshotReads.invalidate(); conversationReads.invalidate() }
+  function lock(reason = '') { generation++; pointerLoaded = false; access.value = ''; unlocked.value = false; messages.value = []; messagesHasMore.value = false; capabilities.value = {}; error.value = reason; refreshReads.invalidate(); snapshotReads.invalidate(); conversationReads.invalidate(); messageReads.invalidate(); intentReads.invalidate(); intents.value = {}; groupResults.value={} }
   async function selectSnapshot(id: string, checkGuard = true) {
     if (checkGuard && id !== snapshotID.value && sourceGuard && !sourceGuard()) return
     if (!id) { snapshotID.value = ''; return }
@@ -113,7 +116,7 @@ export function createWorkspace() {
   async function loadMessages(append = false) {
     const id = conversationID.value
     if (!id || !unlocked.value) { messages.value = []; messagesHasMore.value = false; return }
-    const requestGeneration = generation
+    const requestGeneration = generation, current = messageReads.begin()
     const collected: ConversationMessage[] = append ? [...messages.value] : []
     let after = collected.at(-1)?.seq ?? 0, hasMore = false
     for (let i = 0; i < 10; i++) {
@@ -123,7 +126,7 @@ export function createWorkspace() {
       hasMore = page.has_more
       if (!hasMore) break
     }
-    if (requestGeneration === generation && conversationID.value === id) { messages.value = collected; messagesHasMore.value = hasMore }
+    if (current() && requestGeneration === generation && conversationID.value === id) { messages.value = collected; messagesHasMore.value = hasMore }
   }
   async function selectConversation(id: string) {
     if (!id) return
@@ -131,19 +134,57 @@ export function createWorkspace() {
     const current = await api.workspace()
     await api.setCurrentConversation(id, current.revision)
     if (!selected() || requestGeneration !== generation) return
-    conversationID.value = id; messages.value = []; messagesHasMore.value = false; pointerLoaded = true; await loadMessages()
+    conversationID.value = id; messages.value = []; messagesHasMore.value = false; pointerLoaded = true; await Promise.all([loadMessages(), loadIntent()])
   }
   async function newConversation(title = '', source: Snapshot | null = currentSnapshot.value) {
     const scope = source?.input.scope
-    return newConversationForScope(scope?.ref ?? '', title.trim() || `${scopeLabel(scope?.boundary, scope?.direction)}审计`)
+    return newConversationForScope(scope?.ref ?? '', title.trim() || (scope ? `${scopeLabel(scope.boundary, scope.direction)}审计` : '新的审计对话'))
   }
   async function newConversationForScope(scopeRef: string, title: string) {
-    if (!scopeRef) throw new Error('先选择明确的业务范围。')
+    const requestGeneration = generation, originalConversation = conversationID.value, selectionCurrent = conversationReads.begin()
     const conversation = await api.createConversation(title, scopeRef)
-    conversations.value.unshift(conversation); conversationID.value = conversation.id; messages.value = []
+    if (requestGeneration !== generation || !unlocked.value) throw new Error('工作区已锁定，请重新核对会话。')
+    conversations.value = [conversation, ...conversations.value.filter(item => item.id !== conversation.id)]
+    if (!selectionCurrent() || conversationID.value !== originalConversation) return conversation
+    conversationID.value = conversation.id; messages.value = []; messagesHasMore.value = false; intents.value[conversation.id] = null
     pointerLoaded = true
     return conversation
   }
+  async function newPlanningConversation(title = '新的审计对话', key?: string) {
+    const requestGeneration = generation, originalConversation = conversationID.value, selectionCurrent = conversationReads.begin()
+    const conversation = await api.createConversation(title, '', key)
+    if (requestGeneration !== generation || !unlocked.value) throw new Error('工作区已锁定，请重新核对会话。')
+    conversations.value = [conversation, ...conversations.value.filter(item => item.id !== conversation.id)]
+    if (!selectionCurrent() || conversationID.value !== originalConversation) return conversation
+    conversationID.value = conversation.id; messages.value = []; messagesHasMore.value = false; intents.value[conversation.id] = null; pointerLoaded = true
+    return conversation
+  }
+  async function loadIntent() {
+    const id = conversationID.value, requestGeneration = generation, current = intentReads.begin()
+    if (!id || !unlocked.value) return
+    const value = await api.currentIntent(id)
+    if (current() && requestGeneration === generation && conversationID.value === id) {
+      const previous = intents.value[id]
+      if (value && (!previous || value.revision >= previous.revision)) intents.value[id] = value
+      else if (!value && !previous) intents.value[id] = null
+    }
+  }
+  function applyIntentResponse(response: IntentTurnResponse) {
+    const id = response.conversation.id
+    const previous = conversations.value.find(item => item.id === id)
+    if (!previous || response.conversation.revision >= previous.revision) conversations.value = [response.conversation, ...conversations.value.filter(item => item.id !== id)]
+    const previousIntent = intents.value[id]
+    if (id === conversationID.value) intentReads.invalidate()
+    if (response.intent && (!previousIntent || response.intent.revision >= previousIntent.revision)) intents.value[id] = response.intent
+    else if (!previousIntent) intents.value[id] = null
+    if (response.group) {
+      const sequence=response.reply?.seq ?? response.message?.seq ?? 0, previous=groupResults.value[id]
+      if(!previous || sequence>=previous.sequence)groupResults.value[id]={sequence,result:response.group}
+    }
+    if (response.job) updateJob(response.job)
+  }
+  function captureContext() { const version = generation; return () => unlocked.value && version === generation }
+  function containsAppCredential(text: string) { return access.value.length >= 8 && text.includes(access.value) }
   async function ensureConversation(source: Snapshot | null = currentSnapshot.value) {
     const scope = source?.input.scope.ref ?? ''
     if (currentConversation.value && !currentConversation.value.archived && currentConversation.value.policy_scope_ref === scope) return currentConversation.value
@@ -155,7 +196,7 @@ export function createWorkspace() {
   async function importInput(value: unknown) { const item = await api.importSnapshot(value); snapshots.value.unshift(item); snapshotID.value = item.id; return item }
   function updateJob(job: Job) { jobs.value = mergeJobs(jobs.value, [job]) }
   function setSourceGuard(guard: (() => boolean) | null) { sourceGuard = guard }
-  return { api, unlocked, loading, error, snapshots, conversations, jobs, reports, capabilities, snapshotID, conversationID, messages, messagesHasMore, currentSnapshot, currentConversation, activeJobs, modelAvailable, modelState, drafts, listHasMore, listsLoading, loadMore, unlock, lock, refresh, selectSnapshot, selectConversation, newConversation, newConversationForScope, ensureConversation, loadMessages, addExample, importInput, updateJob, setSourceGuard }
+  return { api, unlocked, loading, error, snapshots, conversations, jobs, reports, capabilities, snapshotID, conversationID, messages, messagesHasMore, currentSnapshot, currentConversation, activeJobs, modelAvailable, modelState, currentIntent, intents, groupResults, loadIntent, applyIntentResponse, captureContext, containsAppCredential, newPlanningConversation, drafts, listHasMore, listsLoading, loadMore, unlock, lock, refresh, selectSnapshot, selectConversation, newConversation, newConversationForScope, ensureConversation, loadMessages, addExample, importInput, updateJob, setSourceGuard }
 }
 
 export type Workspace = ReturnType<typeof createWorkspace>

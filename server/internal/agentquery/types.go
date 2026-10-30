@@ -70,7 +70,7 @@ type Output struct {
 }
 type RoleCandidate struct {
 	AssetRef              string   `json:"asset_ref"`
-	ServiceRef            string   `json:"service_ref"`
+	ServiceRef            string   `json:"service_ref,omitempty"`
 	Role                  string   `json:"role"`
 	SupportingEvidence    []string `json:"supporting_evidence"`
 	ContradictingEvidence []string `json:"contradicting_evidence"`

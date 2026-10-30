@@ -16,11 +16,13 @@ import (
 
 	"cfw-policy-llm-agent/server/internal/cloudconfig"
 	"cfw-policy-llm-agent/server/internal/outbound"
+	"cfw-policy-llm-agent/server/internal/workload"
 	cloudfw "github.com/alibabacloud-go/cloudfw-20171207/v11/client"
 	openapi "github.com/alibabacloud-go/darabonba-openapi/v2/client"
 	openapiutil "github.com/alibabacloud-go/darabonba-openapi/v2/utils"
 	"github.com/alibabacloud-go/tea/dara"
 	credential "github.com/aliyun/credentials-go/credentials"
+	"unicode/utf8"
 )
 
 const MaxResponseBytes = 2 << 20
@@ -119,12 +121,14 @@ func New(manager *outbound.Manager, cfg Config) (*Factory, error) {
 }
 
 type Reader struct {
-	factory  *Factory
-	ctx      context.Context
-	jobID    string
-	mu       sync.Mutex
-	verified bool
-	groups   map[string]bool
+	factory   *Factory
+	ctx       context.Context
+	jobID     string
+	mu        sync.Mutex
+	verified  bool
+	groups    map[string]bool
+	instances map[string]string
+	gateways  map[string]string
 }
 
 func (f *Factory) Reader(ctx context.Context, jobID string) (*Reader, error) {
@@ -134,7 +138,7 @@ func (f *Factory) Reader(ctx context.Context, jobID string) (*Reader, error) {
 	if _, e := f.manager.Client(ctx, jobID, IdentitySource); e != nil {
 		return nil, safeError(e)
 	}
-	return &Reader{factory: f, ctx: ctx, jobID: jobID, groups: map[string]bool{}}, nil
+	return &Reader{factory: f, ctx: ctx, jobID: jobID, groups: map[string]bool{}, instances: map[string]string{}, gateways: map[string]string{}}, nil
 }
 func (r *Reader) VerifyIdentity(ctx context.Context) error {
 	_, e := r.Read(ctx, "GetCallerIdentity", nil)
@@ -180,6 +184,9 @@ func (r *Reader) Read(ctx context.Context, operation string, query map[string]st
 	}()
 	if operation == "GetCallerIdentity" {
 		r.verified = false
+		r.groups = map[string]bool{}
+		r.instances = map[string]string{}
+		r.gateways = map[string]string{}
 	}
 	if ctx == nil {
 		return nil, Failure("CLOUD_CONTEXT_INVALID")
@@ -232,7 +239,7 @@ func (r *Reader) Read(ctx context.Context, operation string, query map[string]st
 		case "DescribeNatFirewallList":
 			page, _ := strconv.ParseInt(q["PageNo"], 10, 64)
 			size, _ := strconv.ParseInt(q["PageSize"], 10, 64)
-			_, e = sdk.DescribeNatFirewallListWithContext(ctx, &cloudfw.DescribeNatFirewallListRequest{NatGatewayId: ptr(q, "NatGatewayId"), RegionNo: ptr(q, "RegionNo"), PageNo: dara.Int64(page), PageSize: dara.Int64(size)}, runtime)
+			_, e = sdk.DescribeNatFirewallListWithContext(ctx, &cloudfw.DescribeNatFirewallListRequest{NatGatewayId: ptr(q, "NatGatewayId"), ProxyName: ptr(q, "ProxyName"), ProxyId: ptr(q, "ProxyId"), RegionNo: ptr(q, "RegionNo"), PageNo: dara.Int64(page), PageSize: dara.Int64(size)}, runtime)
 		case "DescribeAddressBook":
 			_, e = sdk.DescribeAddressBookWithContext(ctx, &cloudfw.DescribeAddressBookRequest{GroupUuid: ptr(q, "GroupUuid"), Query: ptr(q, "Query"), GroupType: ptr(q, "GroupType"), CurrentPage: ptr(q, "CurrentPage"), PageSize: ptr(q, "PageSize")}, runtime)
 		case "DescribeAssetList":
@@ -299,22 +306,21 @@ func (r *Reader) validate(op string, q map[string]string) (string, string, error
 		}
 	}
 	source, origin := CFWSource, c.CFWOrigin()
-	hasScope := func(kind string) bool {
-		for _, s := range c.Scopes() {
-			if s.Boundary+"/"+s.Direction == kind {
-				return true
-			}
-		}
-		return false
-	}
-	hasRegion := func(v string) bool { return c.ECSOrigin(v) != "" }
+	hasScope := func(kind string) bool { return c.AllowsBoundary(kind) }
+	hasRegion := func(region string) bool { return c.ECSOrigin(region) != "" }
 	gateway := func() bool {
-		for _, g := range c.Gateways() {
-			if g.ID == q["NatGatewayId"] && (q["RegionNo"] == "" || g.Region == q["RegionNo"]) {
-				return true
+		region := q["RegionNo"]
+		if region == "" {
+			for _, g := range c.Gateways() {
+				if g.ID == q["NatGatewayId"] {
+					region = g.Region
+				}
 			}
 		}
-		return false
+		if region == "" {
+			region = r.gateways[q["NatGatewayId"]]
+		}
+		return c.AllowsGateway(region, q["NatGatewayId"]) && (len(c.Gateways()) > 0 || r.gateways[q["NatGatewayId"]] != "")
 	}
 	switch op {
 	case "GetCallerIdentity":
@@ -333,8 +339,20 @@ func (r *Reader) validate(op string, q map[string]string) (string, string, error
 			return invalid()
 		}
 	case "DescribeNatFirewallList":
-		keys("NatGatewayId", "RegionNo", "PageNo", "PageSize")
-		if !hasScope("nat/out") || !gateway() || !number(q["PageNo"], 1000) {
+		keys("NatGatewayId", "ProxyId", "ProxyName", "RegionNo", "PageNo", "PageSize")
+		region := q["RegionNo"]
+		if region == "" {
+			for _, g := range c.Gateways() {
+				if g.ID == q["NatGatewayId"] {
+					region = g.Region
+				}
+			}
+		}
+		permitted := q["NatGatewayId"] != "" && c.AllowsGateway(region, q["NatGatewayId"])
+		if q["NatGatewayId"] == "" {
+			permitted = len(c.Gateways()) == 0 && hasRegion(region)
+		}
+		if !hasScope("nat/out") || !permitted || !number(q["PageNo"], workload.MaxCounter) || q["ProxyName"] != "" && !nameValue(q["ProxyName"]) || q["ProxyId"] != "" && !idPattern.MatchString(q["ProxyId"]) {
 			return invalid()
 		}
 	case "DescribeAddressBook":
@@ -344,39 +362,73 @@ func (r *Reader) validate(op string, q map[string]string) (string, string, error
 		}
 	case "DescribeAssetList":
 		keys("CurrentPage", "PageSize", "IpVersion", "SearchItem")
-		selected := false
+		region := r.instances[q["SearchItem"]]
 		for _, asset := range c.Assets() {
 			if asset.InstanceID == q["SearchItem"] {
-				selected = true
+				region = asset.Region
 			}
 		}
-		if !selected {
+		if !hasScope("internet/in") && !hasScope("internet/out") || !c.AllowsAsset(region, q["SearchItem"]) {
 			return invalid()
 		}
 		if q["IpVersion"] != "" && q["IpVersion"] != "4" || q["SearchItem"] != "" && !plain(q["SearchItem"], 128) {
 			return invalid()
 		}
 	case "DescribeInstances":
-		keys("RegionId", "InstanceIds", "NextToken", "MaxResults")
-		if !hasRegion(q["RegionId"]) {
+		keys("RegionId", "InstanceIds", "InstanceName", "NextToken", "MaxResults")
+		if !hasRegion(q["RegionId"]) || q["InstanceName"] != "" && !nameValue(q["InstanceName"]) {
 			return invalid()
 		}
-		var ids []string
-		if json.Unmarshal([]byte(q["InstanceIds"]), &ids) != nil || len(ids) < 1 || len(ids) > 50 {
-			return invalid()
-		}
-		seen := map[string]bool{}
-		for _, id := range ids {
-			ok := false
-			for _, a := range c.Assets() {
-				if a.Region == q["RegionId"] && a.InstanceID == id {
-					ok = true
-				}
-			}
-			if !ok || seen[id] {
+		if q["InstanceIds"] != "" {
+			var ids []string
+			if json.Unmarshal([]byte(q["InstanceIds"]), &ids) != nil || len(ids) < 1 || len(ids) > 100 {
 				return invalid()
 			}
-			seen[id] = true
+			seen := map[string]bool{}
+			for _, id := range ids {
+				if !c.AllowsAsset(q["RegionId"], id) || seen[id] {
+					return invalid()
+				}
+				seen[id] = true
+			}
+			if q["InstanceName"] != "" {
+				return invalid()
+			}
+		} else if len(c.Assets()) > 0 {
+			return invalid()
+		}
+		tagKeys := map[int]bool{}
+		tagValues := map[int]bool{}
+		for key, value := range q {
+			if strings.HasPrefix(key, "Tag.") {
+				parts := strings.Split(key, ".")
+				if len(parts) != 3 || !number(parts[1], 20) || !nameValue(value) {
+					return invalid()
+				}
+				index, _ := strconv.Atoi(parts[1])
+				switch parts[2] {
+				case "Key":
+					tagKeys[index] = true
+				case "Value":
+					tagValues[index] = true
+				default:
+					return invalid()
+				}
+				allowed[key] = true
+			}
+		}
+		if q["InstanceIds"] != "" && len(tagKeys) > 0 {
+			return invalid()
+		}
+		for index := range tagValues {
+			if !tagKeys[index] {
+				return invalid()
+			}
+		}
+		for index := 1; index <= len(tagKeys); index++ {
+			if !tagKeys[index] {
+				return invalid()
+			}
 		}
 		source, origin = ECSSource(q["RegionId"]), c.ECSOrigin(q["RegionId"])
 	case "DescribeSecurityGroupAttribute":
@@ -389,23 +441,36 @@ func (r *Reader) validate(op string, q map[string]string) (string, string, error
 		return invalid()
 	}
 	for k, v := range q {
-		if !allowed[k] || !plain(v, 8192) {
+		bound := 8192
+		if k == "InstanceIds" {
+			bound = 16384
+		}
+		if !allowed[k] || !plain(v, bound) {
 			return invalid()
 		}
 	}
 	switch op {
 	case "DescribeControlPolicy", "DescribeNatFirewallControlPolicy", "DescribeAddressBook", "DescribeAssetList":
-		if !number(q["CurrentPage"], 1000) || !number(q["PageSize"], 50) {
+		if !number(q["CurrentPage"], workload.MaxCounter) || !number(q["PageSize"], 50) {
 			return invalid()
 		}
 	case "DescribeNatFirewallList":
 		if !number(q["PageSize"], 50) {
 			return invalid()
 		}
-	case "DescribeInstances", "DescribeSecurityGroupAttribute":
-		if !number(q["MaxResults"], 50) || q["NextToken"] != "" && !plain(q["NextToken"], 4096) {
+	case "DescribeInstances":
+		if !number(q["MaxResults"], 100) || q["NextToken"] != "" && !plain(q["NextToken"], 4096) {
+			return invalid()
+		}
+	case "DescribeSecurityGroupAttribute":
+		if !number(q["MaxResults"], 1000) || q["MaxResults"] != "" && mustNumber(q["MaxResults"]) < 10 || q["NextToken"] != "" && !plain(q["NextToken"], 4096) {
 			return invalid()
 		}
 	}
 	return source, origin, nil
 }
+
+func nameValue(value string) bool {
+	return plain(value, 512) && utf8.ValidString(value) && utf8.RuneCountInString(value) <= 128
+}
+func mustNumber(value string) int { n, _ := strconv.Atoi(value); return n }

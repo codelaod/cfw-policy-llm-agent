@@ -176,6 +176,31 @@ definitions:
       scope:
         $ref: '#/definitions/domain.Scope'
     type: object
+  app.ConversationBusinessRequest:
+    properties:
+      action:
+        type: string
+      candidate_ref:
+        type: string
+      expected_draft_revision:
+        type: integer
+      expected_target_ref:
+        type: string
+      patches:
+        items:
+          $ref: '#/definitions/storage.ConversationBusinessPatch'
+        type: array
+      preview_id:
+        type: string
+      sections:
+        items:
+          type: string
+        type: array
+      unknown_fields:
+        items:
+          type: string
+        type: array
+    type: object
   app.DataPolicy:
     properties:
       allow_stale_fallback:
@@ -191,8 +216,140 @@ definitions:
       snapshot_id:
         type: string
     type: object
+  app.GuidanceAction:
+    properties:
+      target:
+        $ref: '#/definitions/app.GuidanceTarget'
+      type:
+        type: string
+    type: object
+  app.GuidanceCatalog:
+    properties:
+      catalog_version:
+        type: string
+      items:
+        items:
+          $ref: '#/definitions/app.GuidanceItem'
+        type: array
+      state:
+        type: string
+    type: object
+  app.GuidanceConfirmation:
+    properties:
+      conditions:
+        items:
+          type: string
+        type: array
+      required:
+        type: boolean
+    type: object
+  app.GuidanceEffects:
+    properties:
+      allow_cloud_reads:
+        type: boolean
+      allow_model_requests:
+        type: boolean
+    type: object
+  app.GuidanceIntent:
+    properties:
+      action:
+        type: string
+      context_report_id:
+        type: string
+      data_policy:
+        type: string
+      fresh_after:
+        type: string
+      mode:
+        type: string
+      recheck_of_job_id:
+        type: string
+      snapshot_id:
+        type: string
+      text:
+        type: string
+    type: object
+  app.GuidanceItem:
+    properties:
+      action:
+        $ref: '#/definitions/app.GuidanceAction'
+      behavior:
+        type: string
+      catalog_version:
+        type: string
+      confirmation:
+        $ref: '#/definitions/app.GuidanceConfirmation'
+      display_text:
+        type: string
+      effects:
+        $ref: '#/definitions/app.GuidanceEffects'
+      id:
+        type: string
+      intent:
+        $ref: '#/definitions/app.GuidanceIntent'
+      missing_inputs:
+        items:
+          type: string
+        type: array
+      required_refs:
+        items:
+          type: string
+        type: array
+      state:
+        type: string
+    type: object
+  app.GuidanceTarget:
+    properties:
+      conversation_id:
+        type: string
+      id:
+        type: string
+      intent_revision:
+        type: integer
+      type:
+        type: string
+    type: object
+  app.IntentAcceptRequest:
+    properties:
+      expected_intent_revision:
+        type: integer
+    type: object
+  app.IntentChoiceRequest:
+    properties:
+      candidate_ids:
+        items:
+          type: string
+        type: array
+      expected_revision:
+        type: integer
+      intent_id:
+        type: string
+    type: object
+  app.IntentTurnRequest:
+    properties:
+      business:
+        $ref: '#/definitions/app.ConversationBusinessRequest'
+      client_turn_id:
+        type: string
+      context_report_id:
+        type: string
+      data_policy:
+        $ref: '#/definitions/domain.IntentDataPolicy'
+      expected_revision:
+        type: integer
+      finding_id:
+        type: string
+      group:
+        $ref: '#/definitions/storage.ResourceGroupRequest'
+      mode:
+        type: string
+      text:
+        type: string
+    type: object
   app.PlanPreview:
     properties:
+      batch:
+        $ref: '#/definitions/storage.BatchSpec'
       budget_ref:
         type: string
       consumed_job_id:
@@ -225,15 +382,21 @@ definitions:
         type: string
       policy_scope_ref:
         type: string
+      preparation:
+        $ref: '#/definitions/storage.PreparationSpec'
       recheck_of_job_id:
         type: string
       request: {}
+      resource_group_version_id:
+        type: string
       snapshot_id:
         type: string
       warnings:
         items:
           type: string
         type: array
+      workload:
+        $ref: '#/definitions/workload.Resolved'
     type: object
   app.PlanRequest:
     properties:
@@ -285,6 +448,7 @@ definitions:
         enum:
         - assets
         - gateway_policy
+        - identity_only
         type: string
     type: object
   app.RecheckRequest:
@@ -312,6 +476,31 @@ definitions:
         type: string
       scope_ref:
         type: string
+    type: object
+  domain.ActionProposal:
+    properties:
+      effects:
+        $ref: '#/definitions/domain.ProposalEffects'
+      gaps:
+        items:
+          type: string
+        type: array
+      id:
+        type: string
+      intent_revision:
+        type: integer
+      plan_id:
+        type: string
+      requires_discovery:
+        type: boolean
+      status:
+        type: string
+      summary:
+        type: string
+      warnings:
+        items:
+          type: string
+        type: array
     type: object
   domain.AddressReference:
     properties:
@@ -353,12 +542,40 @@ definitions:
         type: boolean
       id:
         type: string
+      metadata_complete:
+        type: boolean
+      name:
+        type: string
+      operating_system:
+        type: string
+      protection:
+        allOf:
+        - $ref: '#/definitions/domain.Protection'
+        description: |-
+          Protection overrides the legacy partition assertion for this internet asset.
+          A missing section retains the semantics of existing fixed/imported inputs.
+      provider_resource_id:
+        type: string
+      region:
+        type: string
+      resource_type:
+        type: string
       scope_ref:
         type: string
+      security_group_collection:
+        type: string
+      security_groups:
+        items:
+          $ref: '#/definitions/domain.SecurityGroupEvidence'
+        type: array
       services:
         items:
           $ref: '#/definitions/domain.Service'
         type: array
+      tags:
+        additionalProperties:
+          type: string
+        type: object
     type: object
   domain.Association:
     properties:
@@ -388,6 +605,25 @@ definitions:
           $ref: '#/definitions/domain.RiskPort'
         type: array
       version:
+        type: string
+    type: object
+  domain.CatalogueCoverage:
+    properties:
+      account_ref:
+        type: string
+      complete:
+        type: boolean
+      limitations:
+        items:
+          type: string
+        type: array
+      observed_at:
+        type: string
+      revision:
+        type: integer
+      selector:
+        $ref: '#/definitions/domain.ResourceQuery'
+      source:
         type: string
     type: object
   domain.Cell:
@@ -420,6 +656,53 @@ definitions:
           type: string
         type: array
       observation_consistency:
+        type: string
+    type: object
+  domain.ConversationIntent:
+    properties:
+      action:
+        type: string
+      allow_multiple:
+        type: boolean
+      batch_requested:
+        type: boolean
+      boundary:
+        type: string
+      candidates:
+        items:
+          $ref: '#/definitions/domain.Resource'
+        type: array
+      catalogue:
+        $ref: '#/definitions/domain.CatalogueCoverage'
+      clarification:
+        type: string
+      context_report_id:
+        type: string
+      conversation_id:
+        type: string
+      data_policy:
+        $ref: '#/definitions/domain.IntentDataPolicy'
+      direction:
+        type: string
+      id:
+        type: string
+      mode:
+        type: string
+      proposal:
+        $ref: '#/definitions/domain.ActionProposal'
+      query:
+        $ref: '#/definitions/domain.ResourceQuery'
+      recheck_of_job_id:
+        type: string
+      resource_group_version_id:
+        type: string
+      revision:
+        type: integer
+      selection:
+        items:
+          $ref: '#/definitions/domain.Resource'
+        type: array
+      status:
         type: string
     type: object
   domain.Coverage:
@@ -456,6 +739,8 @@ definitions:
     type: object
   domain.Exception:
     properties:
+      authorization_source:
+        type: string
       check_id:
         type: string
       confirmed:
@@ -542,6 +827,8 @@ definitions:
         $ref: '#/definitions/domain.Completeness'
       evaluation_at:
         type: string
+      gateway_metadata:
+        $ref: '#/definitions/domain.Resource'
       intent_version:
         type: string
       kernel_version:
@@ -596,6 +883,15 @@ definitions:
       snapshot_version:
         type: string
       source_kind:
+        type: string
+    type: object
+  domain.IntentDataPolicy:
+    properties:
+      fresh_after:
+        type: string
+      mode:
+        type: string
+      snapshot_id:
         type: string
     type: object
   domain.ModelUsage:
@@ -660,6 +956,13 @@ definitions:
           $ref: '#/definitions/domain.PortRange'
         type: array
     type: object
+  domain.ProposalEffects:
+    properties:
+      allow_cloud_reads:
+        type: boolean
+      allow_model_requests:
+        type: boolean
+    type: object
   domain.Protection:
     properties:
       applicable:
@@ -689,6 +992,76 @@ definitions:
         type: string
       subject_ref:
         type: string
+    type: object
+  domain.Resource:
+    properties:
+      account_ref:
+        type: string
+      group:
+        type: string
+      group_confirmed:
+        type: boolean
+      id:
+        type: string
+      identity_context:
+        type: string
+      identity_kind:
+        type: string
+      identity_ref:
+        type: string
+      local_asset_id:
+        type: string
+      name:
+        type: string
+      observed_at:
+        type: string
+      operating_system:
+        type: string
+      provider:
+        type: string
+      region:
+        type: string
+      resource_id:
+        type: string
+      resource_type:
+        type: string
+      source:
+        type: string
+      source_names:
+        additionalProperties:
+          type: string
+        type: object
+      source_ref:
+        type: string
+      tags:
+        additionalProperties:
+          type: string
+        type: object
+    type: object
+  domain.ResourceQuery:
+    properties:
+      group:
+        type: string
+      name:
+        type: string
+      region:
+        type: string
+      regions:
+        items:
+          type: string
+        type: array
+      resource_id:
+        type: string
+      resource_ids:
+        items:
+          type: string
+        type: array
+      resource_type:
+        type: string
+      tags:
+        additionalProperties:
+          type: string
+        type: object
     type: object
   domain.Result:
     properties:
@@ -735,6 +1108,46 @@ definitions:
       provider:
         type: string
       ref:
+        type: string
+    type: object
+  domain.SecurityGroupEvidence:
+    properties:
+      complete:
+        type: boolean
+      id:
+        type: string
+      limitations:
+        items:
+          type: string
+        type: array
+      observed_at:
+        type: string
+      permissions:
+        items:
+          $ref: '#/definitions/domain.SecurityGroupPermission'
+        type: array
+      region:
+        type: string
+    type: object
+  domain.SecurityGroupPermission:
+    properties:
+      action:
+        type: string
+      conditions:
+        additionalProperties:
+          type: string
+        type: object
+      destination:
+        type: string
+      direction:
+        type: string
+      port_range:
+        type: string
+      priority:
+        type: string
+      protocol:
+        type: string
+      source:
         type: string
     type: object
   domain.Selection:
@@ -927,6 +1340,27 @@ definitions:
       status:
         type: string
     type: object
+  httpapi.IntentResponse:
+    properties:
+      business:
+        $ref: '#/definitions/storage.ConversationBusinessResult'
+      conversation:
+        $ref: '#/definitions/storage.Conversation'
+      group:
+        $ref: '#/definitions/storage.ResourceGroupResult'
+      intent:
+        $ref: '#/definitions/domain.ConversationIntent'
+      job:
+        $ref: '#/definitions/storage.Job'
+      message:
+        $ref: '#/definitions/storage.ConversationMessage'
+      proposal:
+        $ref: '#/definitions/domain.ActionProposal'
+      replayed:
+        type: boolean
+      reply:
+        $ref: '#/definitions/storage.ConversationMessage'
+    type: object
   httpapi.JobPage:
     properties:
       items:
@@ -946,6 +1380,8 @@ definitions:
         $ref: '#/definitions/storage.AttemptUsage'
       audit:
         $ref: '#/definitions/storage.AuditRecord'
+      batch:
+        $ref: '#/definitions/storage.BatchRequest'
       cloud_result:
         $ref: '#/definitions/storage.CloudRecord'
       completed_phases:
@@ -954,6 +1390,8 @@ definitions:
         type: array
       is_final:
         type: boolean
+      preparation_discovery:
+        $ref: '#/definitions/storage.AuditDiscoveryRecord'
       recheck:
         $ref: '#/definitions/httpapi.RecheckView'
       snapshot_id:
@@ -1128,12 +1566,16 @@ definitions:
         type: array
       allowed_complete:
         type: boolean
+      allowed_declared:
+        type: boolean
       deny_all:
         type: boolean
       exceptions:
         items:
           $ref: '#/definitions/domain.Exception'
         type: array
+      exceptions_declared:
+        type: boolean
       services:
         items:
           $ref: '#/definitions/storage.ServiceAccessChange'
@@ -1178,6 +1620,31 @@ definitions:
       usage_totals_overflow:
         type: boolean
     type: object
+  storage.AuditDiscoveryRecord:
+    properties:
+      code:
+        type: string
+      complete:
+        type: boolean
+      coverages:
+        items:
+          $ref: '#/definitions/domain.CatalogueCoverage'
+        type: array
+      created_at:
+        type: string
+      id:
+        type: string
+      job_id:
+        type: string
+      resources:
+        items:
+          $ref: '#/definitions/domain.Resource'
+        type: array
+      unverified_resource_refs:
+        items:
+          type: string
+        type: array
+    type: object
   storage.AuditRecord:
     properties:
       created_at:
@@ -1194,6 +1661,178 @@ definitions:
         $ref: '#/definitions/domain.Result'
       snapshot_id:
         type: string
+    type: object
+  storage.BatchPhaseUsage:
+    properties:
+      collection_ms:
+        type: integer
+      finalize_ms:
+        type: integer
+      model_ms:
+        type: integer
+      rules_ms:
+        type: integer
+    type: object
+  storage.BatchRequest:
+    properties:
+      accepted_at:
+        type: string
+      covered:
+        items:
+          $ref: '#/definitions/storage.PreparedResource'
+        type: array
+      effects:
+        $ref: '#/definitions/storage.EffectCeiling'
+      error_code:
+        type: string
+      failed:
+        items:
+          $ref: '#/definitions/storage.PreparedResource'
+        type: array
+      parent_job_id:
+        type: string
+      plan_id:
+        type: string
+      scope:
+        $ref: '#/definitions/domain.Scope'
+      segments:
+        items:
+          $ref: '#/definitions/storage.BatchSegment'
+        type: array
+      source_ref:
+        type: string
+      spec:
+        $ref: '#/definitions/storage.BatchSpec'
+      status:
+        type: string
+      unprocessed:
+        items:
+          $ref: '#/definitions/storage.PreparedResource'
+        type: array
+      usage:
+        $ref: '#/definitions/storage.BatchUsage'
+      workload:
+        $ref: '#/definitions/workload.Resolved'
+    type: object
+  storage.BatchSegment:
+    properties:
+      audit_ref:
+        type: string
+      child_job_id:
+        type: string
+      error_code:
+        type: string
+      execution_ms:
+        type: integer
+      finished_at:
+        type: string
+      input_manifest:
+        $ref: '#/definitions/domain.InputManifest'
+      ordinal:
+        type: integer
+      phase_source:
+        type: string
+      phases:
+        $ref: '#/definitions/storage.BatchPhaseUsage'
+      report_ref:
+        type: string
+      resources:
+        items:
+          $ref: '#/definitions/storage.PreparedResource'
+        type: array
+      snapshot_id:
+        type: string
+      started_at:
+        type: string
+      status:
+        type: string
+    type: object
+  storage.BatchSpec:
+    properties:
+      resources:
+        items:
+          $ref: '#/definitions/storage.PreparedResource'
+        type: array
+      size:
+        type: integer
+    type: object
+  storage.BatchUsage:
+    properties:
+      cloud_attempts:
+        type: integer
+      execution_ms:
+        type: integer
+      model_attempts:
+        type: integer
+      phases:
+        $ref: '#/definitions/storage.BatchPhaseUsage'
+      recorded_model_calls:
+        type: integer
+      recorded_tool_calls:
+        type: integer
+      unknown_reasons:
+        items:
+          type: string
+        type: array
+      usage_unknown:
+        type: boolean
+    type: object
+  storage.BusinessAllowedChange:
+    properties:
+      allowed:
+        items:
+          $ref: '#/definitions/domain.Access'
+        type: array
+      complete:
+        type: boolean
+      deny_all:
+        type: boolean
+      public_access:
+        type: string
+    type: object
+  storage.BusinessCandidateEvidence:
+    properties:
+      document:
+        type: string
+      field:
+        type: string
+    type: object
+  storage.BusinessRoleCandidate:
+    properties:
+      asset_id:
+        type: string
+      conflicts_with_confirmed:
+        type: boolean
+      contradicting_evidence:
+        items:
+          $ref: '#/definitions/storage.BusinessCandidateEvidence'
+        type: array
+      decision:
+        type: string
+      evidence:
+        items:
+          $ref: '#/definitions/storage.BusinessCandidateEvidence'
+        type: array
+      ports:
+        items:
+          $ref: '#/definitions/domain.PortRange'
+        type: array
+      protocol:
+        type: string
+      questions:
+        items:
+          type: string
+        type: array
+      ref:
+        type: string
+      role:
+        type: string
+      service_id:
+        type: string
+      unknowns:
+        items:
+          type: string
+        type: array
     type: object
   storage.CloudContent:
     properties:
@@ -1346,6 +1985,88 @@ definitions:
       updated_at:
         type: string
     type: object
+  storage.ConversationBusinessContext:
+    properties:
+      candidates:
+        items:
+          $ref: '#/definitions/storage.BusinessRoleCandidate'
+        type: array
+      draft:
+        $ref: '#/definitions/storage.ProfileDraft'
+      preview:
+        $ref: '#/definitions/storage.ConfirmationPreview'
+      target:
+        $ref: '#/definitions/storage.ConversationBusinessTarget'
+    type: object
+  storage.ConversationBusinessPatch:
+    properties:
+      allowed:
+        $ref: '#/definitions/storage.BusinessAllowedChange'
+      asset_id:
+        type: string
+      exceptions:
+        items:
+          $ref: '#/definitions/domain.Exception'
+        type: array
+      required:
+        items:
+          $ref: '#/definitions/domain.Access'
+        type: array
+      role:
+        $ref: '#/definitions/storage.RoleChange'
+      service_id:
+        type: string
+    type: object
+  storage.ConversationBusinessResult:
+    properties:
+      candidates:
+        items:
+          $ref: '#/definitions/storage.BusinessRoleCandidate'
+        type: array
+      confirmation:
+        $ref: '#/definitions/storage.ConfirmationResult'
+      draft:
+        $ref: '#/definitions/storage.ProfileDraft'
+      missing_inputs:
+        items:
+          type: string
+        type: array
+      preview:
+        $ref: '#/definitions/storage.ConfirmationPreview'
+      replayed:
+        type: boolean
+      reply:
+        type: string
+      state:
+        type: string
+      target:
+        $ref: '#/definitions/storage.ConversationBusinessTarget'
+      unknown_fields:
+        items:
+          type: string
+        type: array
+    type: object
+  storage.ConversationBusinessTarget:
+    properties:
+      asset_ids:
+        items:
+          type: string
+        type: array
+      conversation_id:
+        type: string
+      intent_id:
+        type: string
+      intent_revision:
+        type: integer
+      job_id:
+        type: string
+      ref:
+        type: string
+      scope:
+        $ref: '#/definitions/domain.Scope'
+      snapshot_id:
+        type: string
+    type: object
   storage.ConversationMessage:
     properties:
       conversation_id:
@@ -1401,6 +2122,25 @@ definitions:
         items:
           type: string
         type: array
+      snapshot_id:
+        type: string
+    type: object
+  storage.DraftCurrentBase:
+    properties:
+      base_revisions:
+        items:
+          $ref: '#/definitions/storage.AssetHeadVersion'
+        type: array
+      changes:
+        items:
+          $ref: '#/definitions/storage.AssetDraftChange'
+        type: array
+      draft_id:
+        type: string
+      draft_revision:
+        type: integer
+      policy_scope_ref:
+        type: string
       snapshot_id:
         type: string
     type: object
@@ -1483,6 +2223,13 @@ definitions:
       source_kind:
         type: string
     type: object
+  storage.IntentAcceptResult:
+    properties:
+      job:
+        $ref: '#/definitions/storage.Job'
+      replayed:
+        type: boolean
+    type: object
   storage.Job:
     properties:
       budget_ref:
@@ -1507,6 +2254,8 @@ definitions:
         - connection_check
         - assistant_turn
         type: string
+      parent_job_id:
+        type: string
       plan_id:
         type: string
       queue_deadline:
@@ -1521,6 +2270,44 @@ definitions:
         type: string
       view_seq:
         type: integer
+      workload:
+        $ref: '#/definitions/workload.Resolved'
+    type: object
+  storage.PreparationSpec:
+    properties:
+      allow_multiple:
+        type: boolean
+      boundary:
+        type: string
+      config_revision:
+        type: string
+      data_policy:
+        type: string
+      direction:
+        type: string
+      fresh_after:
+        type: string
+      query:
+        $ref: '#/definitions/domain.ResourceQuery'
+      result_limit:
+        type: integer
+      selected:
+        items:
+          $ref: '#/definitions/storage.PreparedResource'
+        type: array
+      source_ref:
+        type: string
+    type: object
+  storage.PreparedResource:
+    properties:
+      asset_id:
+        type: string
+      region:
+        type: string
+      resource_id:
+        type: string
+      resource_type:
+        type: string
     type: object
   storage.ProfileDraft:
     properties:
@@ -1551,6 +2338,19 @@ definitions:
       updated_at:
         type: string
     type: object
+  storage.RebaseDraftRequest:
+    properties:
+      changes:
+        items:
+          $ref: '#/definitions/storage.AssetDraftChange'
+        type: array
+      expected_base_revisions:
+        items:
+          $ref: '#/definitions/storage.AssetHeadVersion'
+        type: array
+      expected_draft_revision:
+        type: integer
+    type: object
   storage.ReportView:
     properties:
       audit_id:
@@ -1567,6 +2367,167 @@ definitions:
         items:
           $ref: '#/definitions/storage.ReviewHead'
         type: array
+    type: object
+  storage.ResourceGroupMember:
+    properties:
+      account_ref:
+        type: string
+      identity_context:
+        type: string
+      identity_ref:
+        type: string
+      local_asset_id:
+        type: string
+      name:
+        type: string
+      observed_at:
+        type: string
+      provider:
+        type: string
+      region:
+        type: string
+      resource_id:
+        type: string
+      resource_ref:
+        type: string
+      resource_type:
+        type: string
+      source:
+        type: string
+      source_ref:
+        type: string
+    type: object
+  storage.ResourceGroupPreview:
+    properties:
+      account_ref:
+        type: string
+      authorization_source:
+        type: string
+      base_revision:
+        type: integer
+      conversation_id:
+        type: string
+      created_at:
+        type: string
+      expires_at:
+        type: string
+      group_id:
+        type: string
+      group_name:
+        type: string
+      id:
+        type: string
+      intent_id:
+        type: string
+      intent_revision:
+        type: integer
+      members:
+        items:
+          $ref: '#/definitions/storage.ResourceGroupMember'
+        type: array
+      source_ref:
+        type: string
+    type: object
+  storage.ResourceGroupRequest:
+    properties:
+      action:
+        type: string
+      authorization_source:
+        type: string
+      expected_revision:
+        type: integer
+      group_name:
+        type: string
+      preview_id:
+        type: string
+      resource_refs:
+        items:
+          type: string
+        type: array
+    type: object
+  storage.ResourceGroupResult:
+    properties:
+      missing:
+        items:
+          type: string
+        type: array
+      preview:
+        $ref: '#/definitions/storage.ResourceGroupPreview'
+      replayed:
+        type: boolean
+      state:
+        type: string
+      version:
+        $ref: '#/definitions/storage.ResourceGroupVersion'
+    type: object
+  storage.ResourceGroupSummary:
+    properties:
+      account_ref:
+        type: string
+      confirmed_at:
+        type: string
+      group_id:
+        type: string
+      name:
+        type: string
+      revision:
+        type: integer
+      source_ref:
+        type: string
+      version_id:
+        type: string
+    type: object
+  storage.ResourceGroupVersion:
+    properties:
+      account_ref:
+        type: string
+      authorization_source:
+        type: string
+      catalogue_revision:
+        type: integer
+      conversation_id:
+        type: string
+      created_at:
+        type: string
+      group_id:
+        type: string
+      group_name:
+        type: string
+      id:
+        type: string
+      intent_id:
+        type: string
+      intent_revision:
+        type: integer
+      members:
+        items:
+          $ref: '#/definitions/storage.ResourceGroupMember'
+        type: array
+      preview_id:
+        type: string
+      revision:
+        type: integer
+      source_ref:
+        type: string
+    type: object
+  storage.ResourcePage:
+    properties:
+      confirmed_groups:
+        additionalProperties:
+          items:
+            $ref: '#/definitions/storage.ResourceGroupSummary'
+          type: array
+        type: object
+      coverage:
+        $ref: '#/definitions/domain.CatalogueCoverage'
+      has_more:
+        type: boolean
+      items:
+        items:
+          $ref: '#/definitions/domain.Resource'
+        type: array
+      next_cursor:
+        type: string
     type: object
   storage.ReviewAction:
     properties:
@@ -1613,6 +2574,8 @@ definitions:
     type: object
   storage.RoleChange:
     properties:
+      declared:
+        type: boolean
       ports:
         items:
           $ref: '#/definitions/domain.PortRange'
@@ -1632,6 +2595,8 @@ definitions:
         type: array
       allowed_complete:
         type: boolean
+      allowed_declared:
+        type: boolean
       deny_all:
         type: boolean
       public_access:
@@ -1641,6 +2606,8 @@ definitions:
           $ref: '#/definitions/domain.Access'
         type: array
       required_confirmed:
+        type: boolean
+      required_declared:
         type: boolean
       service_id:
         type: string
@@ -1675,6 +2642,48 @@ definitions:
         type: string
       revision:
         type: integer
+    type: object
+  workload.Limits:
+    properties:
+      assets_per_batch:
+        type: integer
+      cloud_http_attempts:
+        type: integer
+      collection_seconds:
+        type: integer
+      execution_seconds:
+        type: integer
+      finalize_seconds:
+        type: integer
+      max_policies:
+        type: integer
+      max_query_cells:
+        type: integer
+      model_http_attempts:
+        type: integer
+      model_logical_calls:
+        type: integer
+      model_request_seconds:
+        type: integer
+      model_seconds:
+        type: integer
+      queue_seconds:
+        type: integer
+      rules_seconds:
+        type: integer
+      tool_batch:
+        type: integer
+      tool_calls:
+        type: integer
+    type: object
+  workload.Resolved:
+    properties:
+      legacy:
+        type: boolean
+      limits:
+        $ref: '#/definitions/workload.Limits'
+      profile_ref:
+        type: string
     type: object
 info:
   contact: {}
@@ -1870,6 +2879,140 @@ paths:
       summary: Edit title, scope or archive state with revision check
       tags:
       - Conversations
+  /conversations/{id}/business-context:
+    get:
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.ConversationBusinessContext'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Read the current target's shared business draft and evidence candidates
+      tags:
+      - Conversations
+  /conversations/{id}/intent-choices:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Stable request key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Current intent and candidate references
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app.IntentChoiceRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.IntentResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Select current server-issued candidates with revision checking
+      tags:
+      - Conversations
+  /conversations/{id}/intent-turns:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Stable request key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Natural goal; no snapshot required
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app.IntentTurnRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/httpapi.IntentResponse'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Persist a customer goal, clarification and local execution preview
+      tags:
+      - Conversations
+  /conversations/{id}/intents/current:
+    get:
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/domain.ConversationIntent'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Reopen a durable customer goal without calling cloud or model
+      tags:
+      - Conversations
   /conversations/{id}/messages:
     get:
       parameters:
@@ -1945,6 +3088,80 @@ paths:
       security:
       - AppToken: []
       summary: Explicitly send a bounded assistant turn, with no cloud reads
+      tags:
+      - Conversations
+  /conversations/{id}/proposals/{proposal_id}/accept:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Proposal ID
+        in: path
+        name: proposal_id
+        required: true
+        type: string
+      - description: Stable execution key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Expected goal revision
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/app.IntentAcceptRequest'
+      produces:
+      - application/json
+      responses:
+        "202":
+          description: Accepted
+          schema:
+            $ref: '#/definitions/storage.IntentAcceptResult'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Accept the current goal proposal atomically and enqueue one job
+      tags:
+      - Conversations
+  /conversations/{id}/resource-group-preview:
+    get:
+      parameters:
+      - description: Conversation ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.ResourceGroupPreview'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Read the latest unconfirmed local resource membership preview
       tags:
       - Conversations
   /data-sources:
@@ -2374,6 +3591,45 @@ paths:
       summary: Append a review with CAS and idempotency
       tags:
       - Findings
+  /guidance:
+    get:
+      parameters:
+      - description: Durable conversation reference
+        in: query
+        name: conversation_id
+        type: string
+      - description: Selected task reference
+        in: query
+        name: job_id
+        type: string
+      - description: Fixed report reference
+        in: query
+        name: report_id
+        type: string
+      - description: conversation,overview,profile,audit,finding,report
+        in: query
+        name: surface
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/app.GuidanceCatalog'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Read local contextual next steps shared by conversation and views
+      tags:
+      - Conversations
   /health:
     get:
       produces:
@@ -2858,6 +4114,34 @@ paths:
       summary: Atomically confirm only explicitly selected business sections
       tags:
       - Confirmation
+  /profile-drafts/{id}/current-base:
+    get:
+      parameters:
+      - description: Draft ID
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.DraftCurrentBase'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Read the same draft target at current confirmed heads without editing
+      tags:
+      - Confirmation
   /profile-drafts/{id}/preview:
     post:
       parameters:
@@ -2876,6 +4160,47 @@ paths:
       security:
       - AppToken: []
       summary: Preview normalized differences without confirming any section
+      tags:
+      - Confirmation
+  /profile-drafts/{id}/rebase:
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Draft ID
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Stable edit receipt key
+        in: header
+        name: Idempotency-Key
+        required: true
+        type: string
+      - description: Reviewed heads, draft revision and explicitly selected changes
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/storage.RebaseDraftRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.ProfileDraft'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Explicitly rebase the same draft after reviewing selected current heads
       tags:
       - Confirmation
   /profile-drafts/{id}/reject:
@@ -3024,6 +4349,58 @@ paths:
       summary: Download a fixed public report with application access protection
       tags:
       - Reports
+  /resources:
+    get:
+      parameters:
+      - description: Exact resource name
+        in: query
+        name: name
+        type: string
+      - description: Provider or explicit local artifact identifier
+        in: query
+        name: resource_id
+        type: string
+      - description: Resource region
+        in: query
+        name: region
+        type: string
+      - description: Resource kind
+        in: query
+        name: resource_type
+        type: string
+      - description: Configured or local source
+        in: query
+        name: source_ref
+        type: string
+      - description: Account reference
+        in: query
+        name: account_ref
+        type: string
+      - description: Source/filter/revision bound cursor
+        in: query
+        name: cursor
+        type: string
+      - default: 50
+        description: Page size 1..100
+        in: query
+        name: limit
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/storage.ResourcePage'
+        "422":
+          description: Unprocessable Entity
+          schema:
+            $ref: '#/definitions/httpapi.Error'
+      security:
+      - AppToken: []
+      summary: Search source-qualified local resource metadata with stable cursors
+      tags:
+      - Inputs
   /snapshots:
     get:
       parameters:

@@ -10,16 +10,19 @@ import (
 // JobWorkspace is one authoritative read snapshot. The snapshot reference comes
 // from the accepted plan; effective input remains exclusively the sealed row.
 type JobWorkspace struct {
-	Job             Job
-	SnapshotID      string
-	InputSealed     bool
-	Audit           *AuditRecord
-	Recheck         *RecheckRecord
-	AgentResult     *AgentRecord
-	CloudResult     *CloudRecord
-	AttemptUsage    AttemptUsage
-	ReportPublished bool
-	ReportRef       string
+	Batch *BatchRequest
+
+	Job                  Job
+	SnapshotID           string
+	InputSealed          bool
+	Audit                *AuditRecord
+	Recheck              *RecheckRecord
+	AgentResult          *AgentRecord
+	CloudResult          *CloudRecord
+	PreparationDiscovery *AuditDiscoveryRecord
+	AttemptUsage         AttemptUsage
+	ReportPublished      bool
+	ReportRef            string
 }
 
 func (s *Store) ReadJobWorkspace(ctx context.Context, id string) (view JobWorkspace, err error) {
@@ -32,11 +35,23 @@ func (s *Store) ReadJobWorkspace(ctx context.Context, id string) (view JobWorksp
 		if !enum(view.Job.Kind, "audit", "assistant_turn", "collect", "connection_check") {
 			return ErrInputInvalid
 		}
-		plan, e := planRecord(tx, view.Job.PlanID)
+		plan, e := executionPlanForJob(tx, view.Job)
 		if e != nil {
 			return e
 		}
 		view.SnapshotID = plan.SnapshotID
+		if plan.Batch != nil {
+			batch, e := batchRequest(tx, id)
+			if e != nil {
+				return e
+			}
+			view.Batch = &batch
+		}
+
+		view.PreparationDiscovery, e = auditDiscovery(tx, id)
+		if e != nil {
+			return e
+		}
 		view.CloudResult, e = jobCloudResult(tx, id)
 		if e != nil {
 			return e

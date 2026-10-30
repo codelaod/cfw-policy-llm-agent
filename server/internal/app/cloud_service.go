@@ -25,6 +25,10 @@ type CloudReader interface {
 }
 
 type CloudService struct {
+	Grant           storage.ConnectionGrant
+	Freshness       DataFreshnessPolicy
+	DiscoveryConfig aliyuncollector.Config
+	ResolveScope    func(string, string, []domain.Resource) (aliyuncollector.Config, error)
 	Store           *storage.Store
 	SourceRef       string
 	ConfigRevision  string
@@ -83,18 +87,21 @@ func (s *CloudService) Options() CollectionOptions {
 	return out
 }
 
-func (s *CloudService) selected(scopeRef string, selection PlanSelection) (aliyuncollector.Config, domain.Selection, error) {
+func (s *CloudService) selected(scopeRef string, selection PlanSelection, maximum int, identityOnly ...bool) (aliyuncollector.Config, domain.Selection, error) {
 	cfg, ok := s.Scopes[scopeRef]
 	if !ok || cfg.Scope.Ref != scopeRef {
 		return cfg, domain.Selection{}, ErrScopeDenied
 	}
 	selected := domain.Selection{Kind: selection.Kind, AssetIDs: append([]string(nil), selection.AssetIDs...)}
+	if len(identityOnly) > 0 && identityOnly[0] && (selection.Kind == "" || selection.Kind == "identity_only") && len(selection.AssetIDs) == 0 && selection.GatewayRef == "" {
+		return cfg, selected, nil
+	}
 	if selection.Kind == "gateway_policy" {
 		if cfg.Scope.Boundary != "nat" || len(selection.AssetIDs) != 0 || selection.GatewayRef != cfg.Scope.GatewayRef {
 			return cfg, selected, ErrScopeDenied
 		}
 	} else if selection.Kind == "assets" {
-		if len(selection.AssetIDs) == 0 || len(selection.AssetIDs) > 50 || selection.GatewayRef != "" {
+		if len(selection.AssetIDs) == 0 || len(selection.AssetIDs) > maximum || selection.GatewayRef != "" {
 			return cfg, selected, ErrScopeDenied
 		}
 		seen := map[string]bool{}
@@ -116,7 +123,7 @@ func (s *PlanService) previewCloud(ctx context.Context, req PlanRequest) (PlanPr
 	if cloud == nil || !cloud.Ready || cloud.NewReader == nil || req.DataSourceID != cloud.SourceRef {
 		return PlanPreview{}, ErrSourceNotConfigured
 	}
-	if cloud.Store != s.Store || cloud.ConfigRevision != s.ConfigRevision || cloud.MaxHTTPAttempts < 1 || cloud.MaxHTTPAttempts > 100 {
+	if cloud.Store != s.Store || cloud.ConfigRevision != s.ConfigRevision || cloud.MaxHTTPAttempts < 1 {
 		return PlanPreview{}, storage.ErrInputInvalid
 	}
 	if req.Mode != "rules_only" || req.DataPolicy.Mode != "force_refresh" || req.DataPolicy.SnapshotID != "" || req.DataPolicy.FreshAfter != "" || req.DataPolicy.AllowStaleFallback || req.EvaluationAt != "" || req.RecheckOfJobID != "" || req.DisclosurePolicyID != "" || len(req.ProfileVersionIDs) != 0 || len(req.IntentVersionIDs) != 0 || req.BaselineVersionID != audit.ProjectBaseline().Version {
@@ -132,20 +139,28 @@ func (s *PlanService) previewCloud(ctx context.Context, req PlanRequest) (PlanPr
 	if conversation.PolicyScopeRef != req.PolicyScopeRef {
 		return PlanPreview{}, ErrScopeDenied
 	}
-	cfg, selection, err := cloud.selected(req.PolicyScopeRef, req.Selection)
+	resolved, err := s.ResolveWorkload(req.Kind)
 	if err != nil {
 		return PlanPreview{}, err
 	}
-	limit := cloud.MaxHTTPAttempts
+	selectionMaximum := resolved.Limits.AssetsPerBatch
 	if req.Kind == "connection_check" {
-		limit = min(limit, 6)
+		selectionMaximum = len(req.Selection.AssetIDs)
+	}
+	cfg, selection, err := cloud.selected(req.PolicyScopeRef, req.Selection, selectionMaximum, req.Kind == "connection_check")
+	if err != nil {
+		return PlanPreview{}, err
+	}
+	limit := resolved.Limits.CloudHTTPAttempts
+	if limit <= 0 {
+		return PlanPreview{}, ErrSourceNotConfigured
 	}
 	body, err := json.Marshal(req)
 	if err != nil {
 		return PlanPreview{}, storage.ErrInputInvalid
 	}
 	prepared := domain.Input{Scope: cfg.Scope, Selection: selection, Baseline: audit.ProjectBaseline()}
-	p, err := s.Store.SavePlan(ctx, storage.ExecutionPlan{Kind: req.Kind, ConversationID: conversation.ID, DataSourceID: cloud.SourceRef, PolicyScopeRef: cfg.Scope.Ref, Mode: "rules_only", ConversationRevision: conversation.Revision, Request: body, EffectCeiling: storage.EffectCeiling{AllowCloudReads: true, CloudHTTPAttempts: limit}, PreparedInput: prepared, ConfigRevision: s.ConfigRevision, BudgetRef: s.BudgetRef})
+	p, err := s.Store.SavePlan(ctx, storage.ExecutionPlan{Workload: resolved, Kind: req.Kind, ConversationID: conversation.ID, DataSourceID: cloud.SourceRef, PolicyScopeRef: cfg.Scope.Ref, Mode: "rules_only", ConversationRevision: conversation.Revision, Request: body, EffectCeiling: storage.EffectCeiling{AllowCloudReads: true, CloudHTTPAttempts: limit}, PreparedInput: prepared, ConfigRevision: s.ConfigRevision, BudgetRef: s.BudgetRef})
 	warnings := []string{"仅对显式配置的账号与所选对象执行只读请求，云端策略仍由人工修改。", "配置目录尚未核验身份或产品权限；本次任务才执行身份核对。"}
 	if req.Kind == "connection_check" {
 		warnings = append(warnings, "本次仅验证调用身份；产品字段、权限与完整性须由采集任务另行验证。")
@@ -182,7 +197,11 @@ func (s *CloudService) Run(ctx context.Context, job storage.Job) error {
 	if json.Unmarshal(p.Request, &request) != nil || request.Kind != p.Kind || request.PolicyScopeRef != p.PolicyScopeRef || request.DataSourceID != p.DataSourceID {
 		return workflowFailure(ctx, "CLOUD_PLAN_INVALID", false)
 	}
-	cfg, selection, err := s.selected(p.PolicyScopeRef, request.Selection)
+	selectionMaximum := p.Workload.Limits.AssetsPerBatch
+	if p.Kind == "connection_check" {
+		selectionMaximum = len(request.Selection.AssetIDs)
+	}
+	cfg, selection, err := s.selected(p.PolicyScopeRef, request.Selection, selectionMaximum, p.Kind == "connection_check")
 	if err != nil || !reflect.DeepEqual(cfg.Scope, p.PreparedInput.Scope) || !reflect.DeepEqual(selection, p.PreparedInput.Selection) {
 		return workflowFailure(ctx, "CLOUD_PLAN_INVALID", false)
 	}
@@ -202,7 +221,8 @@ func (s *CloudService) Run(ctx context.Context, job storage.Job) error {
 		}
 		return nil
 	}
-	cfg.MaxAttempts = min(cfg.MaxAttempts, p.EffectCeiling.CloudHTTPAttempts-1)
+	cfg.Workload = p.Workload
+	cfg.MaxAttempts = p.EffectCeiling.CloudHTTPAttempts - 1
 	if cfg.MaxAttempts < 1 {
 		return JobFailure{Code: "ATTEMPT_LIMIT"}
 	}
@@ -217,7 +237,11 @@ func (s *CloudService) Run(ctx context.Context, job storage.Job) error {
 		}
 	}
 	if err != nil {
-		return cloudFailure(ctx, err, "COLLECTION_FAILED")
+		return s.preserveCollectionFailure(ctx, job, p, cfg.Scope, collected, err)
+	}
+	ctx, err = audit.WithInputObjectLimits(ctx, p.Workload.Limits.AssetsPerBatch, p.Workload.Limits.MaxPolicies)
+	if err != nil {
+		return workflowFailure(ctx, "EXECUTION_POLICY_INVALID", false)
 	}
 	if err = audit.ValidateContext(ctx, collected.Input); err != nil {
 		return workflowFailure(ctx, "COLLECTION_INPUT_INVALID", false)
@@ -252,7 +276,7 @@ func (s *CloudService) Run(ctx context.Context, job storage.Job) error {
 		return workflowFailure(ctx, "COLLECTION_RAW_LIMIT", false)
 	}
 	if _, err = s.Store.FinalizeCloud(ctx, job.ID, content, &collected.Input); err != nil {
-		return cloudFailure(ctx, err, "CLOUD_RESULT_SAVE_FAILED")
+		return s.collectionPublicationFailure(ctx, job, p, cfg.Scope, collected, "CLOUD_RESULT_SAVE_FAILED")
 	}
 	return nil
 }

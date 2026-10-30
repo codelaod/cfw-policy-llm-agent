@@ -8,8 +8,10 @@ import (
 
 	"cfw-policy-llm-agent/server/internal/agentquery"
 	"cfw-policy-llm-agent/server/internal/agentrun"
+	"cfw-policy-llm-agent/server/internal/audit"
 	"cfw-policy-llm-agent/server/internal/domain"
 	"cfw-policy-llm-agent/server/internal/storage"
+	"cfw-policy-llm-agent/server/internal/workload"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
 	"github.com/eino-contrib/jsonschema"
@@ -33,7 +35,7 @@ type AgentService struct {
 }
 
 func NewAgentService(store *storage.Store, factory AgentModelFactory, revision string, sensitive []string) *AgentService {
-	return &AgentService{Store: store, Factory: factory, ConfigRevision: revision, SensitiveValues: append([]string(nil), sensitive...), ModelTimeout: 30 * time.Second}
+	return &AgentService{Store: store, Factory: factory, ConfigRevision: revision, SensitiveValues: append([]string(nil), sensitive...), ModelTimeout: 0}
 }
 
 type agentQueryAdapter struct {
@@ -142,7 +144,7 @@ func (s *AgentService) Run(ctx context.Context, accepted storage.Job) (storage.A
 	if job.Status != "running" || job.Kind != "audit" && job.Kind != "assistant_turn" {
 		return failure("AGENT_CONTEXT_REJECTED")
 	}
-	plan, err := s.Store.GetPlan(ctx, job.PlanID)
+	plan, err := s.Store.ExecutionPlanForJob(ctx, job.ID)
 	if err != nil {
 		return failure("AGENT_CONTEXT_REJECTED")
 	}
@@ -176,7 +178,17 @@ func (s *AgentService) Run(ctx context.Context, accepted storage.Job) (storage.A
 	if plan.ConfigRevision != s.ConfigRevision {
 		content.ErrorCode = "CONFIGURATION_STALE"
 	} else {
-		queries, stageErr = agentquery.New(input, result)
+		validationCells := []int{}
+		if plan.Workload.Limits.MaxQueryCells > 0 {
+			validationCells = append(validationCells, plan.Workload.Limits.MaxQueryCells)
+		}
+		ctx, _ = audit.WithQueryCellLimit(ctx, plan.Workload.Limits.MaxQueryCells)
+		boundCtx, boundErr := audit.WithInputObjectLimits(ctx, plan.Workload.Limits.AssetsPerBatch, plan.Workload.Limits.MaxPolicies, validationCells...)
+		if boundErr != nil {
+			stageErr = boundErr
+		} else {
+			queries, stageErr = agentquery.NewWithContext(boundCtx, input, result)
+		}
 		if stageErr != nil {
 			content.ErrorCode = "AGENT_CONTEXT_REJECTED"
 		} else {
@@ -195,9 +207,9 @@ func (s *AgentService) Run(ctx context.Context, accepted storage.Job) (storage.A
 					for _, message := range public.History {
 						history = append(history, agentrun.HistoryMessage{Role: message.Role, Text: message.Text})
 					}
-					stageLimit := 120 * time.Second
-					if job.Kind == "assistant_turn" {
-						stageLimit = 90 * time.Second
+					stageLimit, limitErr := workload.Seconds(plan.Workload.Limits.ModelSeconds)
+					if limitErr != nil || stageLimit <= 0 {
+						return failure("MODEL_NOT_CONFIGURED")
 					}
 					stageCtx, stop := context.WithTimeout(ctx, stageLimit)
 					sink := agentrun.SinkFunc(func(eventCtx context.Context, event agentrun.Event) error {
@@ -209,7 +221,7 @@ func (s *AgentService) Run(ctx context.Context, accepted storage.Job) (storage.A
 					})
 					out, e := agentrun.Run(stageCtx, agentrun.Task{Kind: job.Kind, History: history, Queries: adapter, NewModel: func(modelCtx context.Context) (model.BaseChatModel, error) {
 						return s.Factory.NewModel(modelCtx, job.ID)
-					}}, agentrun.Config{SensitiveValues: s.SensitiveValues, MaxModelCalls: plan.EffectCeiling.ModelHTTPAttempts, ModelTimeout: s.ModelTimeout, FinalSchema: agentFinalSchema()}, sink)
+					}}, agentrun.Config{Workload: plan.Workload, SensitiveValues: s.SensitiveValues, ModelTimeout: s.ModelTimeout, FinalSchema: agentFinalSchema()}, sink)
 					content.ModelCalls, content.ToolCalls = out.ModelCalls, out.ToolCalls
 					stageErr = e
 					if stageErr == nil && stageCtx.Err() != nil {

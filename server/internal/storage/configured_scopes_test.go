@@ -88,7 +88,7 @@ func TestE4SchemaUpgradeIsExplicitAndPreservesFrozenInputAndBudget(t *testing.T)
 			}
 			defer s.Close()
 			var current int
-			if err = s.db.Raw("SELECT version FROM business_schema").Scan(&current).Error; err != nil || current != 4 {
+			if err = s.db.Raw("SELECT version FROM business_schema").Scan(&current).Error; err != nil || current != BusinessSchemaVersion {
 				t.Fatal("schema4 unavailable", current, err)
 			}
 			loaded, err := s.GetSnapshot(context.Background(), saved.ID)

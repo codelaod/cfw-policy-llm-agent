@@ -9,8 +9,19 @@ import (
 )
 
 func checkConfiguration(modelPath, cloudPath string, writer io.Writer) error {
+	return checkConfigurationSelected(modelPath, cloudPath, "", writer)
+}
+
+func checkConfigurationSelected(modelPath, cloudPath, envFile string, writer io.Writer) error {
+	if modelPath != "" && envFile != "" {
+		return modelconfig.ErrSourceConflict
+	}
 	if cloudPath == "" {
-		return checkModelConfig(modelPath, writer)
+		cfg, err := modelconfig.LoadSelected(modelPath, envFile)
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(writer).Encode(cfg.Summary())
 	}
 	cloud, err := cloudconfig.Load(cloudPath)
 	if err != nil {
@@ -20,8 +31,8 @@ func checkConfiguration(modelPath, cloudPath string, writer io.Writer) error {
 		Cloud cloudconfig.Summary  `json:"cloud"`
 		Model *modelconfig.Summary `json:"model,omitempty"`
 	}{Cloud: cloud.Summary()}
-	if modelPath != "" {
-		model, err := modelconfig.Load(modelPath)
+	if modelPath != "" || envFile != "" {
+		model, err := modelconfig.LoadSelected(modelPath, envFile)
 		if err != nil {
 			return err
 		}

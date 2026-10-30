@@ -11,8 +11,8 @@ import (
 	"cfw-policy-llm-agent/server/internal/storage"
 )
 
-// Workflow executes accepted, fixed-effect plans. Explicit cloud collection is
-// separate from an audit of an immutable snapshot; model tools never refresh it.
+// Workflow executes accepted, fixed-effect plans. Data preparation runs inside
+// its audit before sealing; later model tools can only read the fixed input.
 type Workflow struct {
 	Store *storage.Store
 	Agent *AgentService
@@ -42,29 +42,54 @@ func (w *Workflow) Run(ctx context.Context, job storage.Job) error {
 		return JobFailure{Code: "EXECUTION_NOT_CONFIGURED"}
 	}
 	plan, err := w.Store.GetPlan(ctx, job.PlanID)
-	if err != nil || plan.Kind != job.Kind || plan.ConversationID != job.ConversationID || plan.EffectCeiling.AllowCloudReads || plan.EffectCeiling.CloudHTTPAttempts != 0 {
+	if err != nil || plan.Kind != job.Kind || plan.ConversationID != job.ConversationID || plan.Preparation == nil && (plan.EffectCeiling.AllowCloudReads || plan.EffectCeiling.CloudHTTPAttempts != 0) {
 		return workflowFailure(ctx, "INPUT_PREPARATION_FAILED", false)
 	}
+	if plan.Batch != nil {
+		return w.runBatch(ctx, job, plan)
+	}
+	limits := plan.Workload.Limits
+	if job.Kind == "audit" {
+		var limitErr error
+		ctx, limitErr = audit.WithExecutionLimits(ctx, audit.ExecutionLimits{MaxAssets: limits.AssetsPerBatch, MaxPolicies: limits.MaxPolicies, MaxQueryCells: limits.MaxQueryCells, Timeout: time.Duration(limits.RulesSeconds) * time.Second})
+		if limitErr != nil {
+			return workflowFailure(ctx, "EXECUTION_POLICY_INVALID", false)
+		}
+	}
+	analysisCtx, stopAnalysis := reserveFinalization(ctx, time.Duration(limits.FinalizeSeconds)*time.Second)
+	defer stopAnalysis()
 	input := plan.PreparedInput
 	input.EvaluationAt = plan.EvaluationAt
 	if input.EvaluationAt == "" {
 		input.EvaluationAt = time.Now().UTC().Format(time.RFC3339Nano)
 	}
-	sealed, err := w.Store.SealInput(ctx, job.ID, input)
-	if err != nil {
-		return workflowFailure(ctx, "INPUT_SEAL_FAILED", false)
+	var sealed domain.Input
+	if plan.Preparation != nil {
+		sealed, err = w.Cloud.PrepareAudit(analysisCtx, job, plan)
+		if err != nil {
+			return err
+		}
+		plan, err = w.Store.ExecutionPlanForJob(ctx, job.ID)
+		if err != nil {
+			return workflowFailure(ctx, "INPUT_BIND_FAILED", false)
+		}
+	} else {
+		sealed, err = w.Store.SealInput(ctx, job.ID, input)
+		if err != nil {
+			return workflowFailure(ctx, "INPUT_SEAL_FAILED", false)
+		}
 	}
 	if job.Kind == "assistant_turn" {
 		if w.Agent == nil {
 			return JobFailure{Code: "MODEL_NOT_CONFIGURED"}
 		}
-		_, err = w.Agent.Run(ctx, job)
+		_, err = w.Agent.Run(analysisCtx, job)
 		return err
 	}
 	if err = w.Store.AppendJobEvent(ctx, job.ID, "stage_changed", map[string]any{"phase": "L2", "stage": "rules_started"}); err != nil {
 		return workflowFailure(ctx, "STAGE_SAVE_FAILED", false)
 	}
-	ruleCtx, stopRules := context.WithTimeout(ctx, 20*time.Second)
+	ruleCtx, stopRules := context.WithTimeout(analysisCtx, time.Duration(limits.RulesSeconds)*time.Second)
 	result, ruleErr := w.rules(ruleCtx, sealed)
 	if ruleErr == nil {
 		ruleErr = ruleCtx.Err()
@@ -97,12 +122,23 @@ func (w *Workflow) Run(ctx context.Context, job storage.Job) error {
 	if err = ctx.Err(); err != nil {
 		return err
 	}
-	execution := report.Execution{Mode: plan.Mode, ModelStage: "not_requested"}
+	execution := report.Execution{Workload: &plan.Workload, Mode: plan.Mode, ModelStage: "not_requested"}
 	partialCode, agentResultID := "", ""
+	if !sealed.Completeness.Declared || !sealed.Completeness.EnumerationComplete || sealed.Completeness.ObservationConsistency == "unverified" || sealed.Completeness.ObservationConsistency == "changed" || len(sealed.Completeness.KnownGaps) != 0 {
+		partialCode = "COLLECTION_INCOMPLETE"
+		for _, code := range sealed.Completeness.KnownGaps {
+			if permanentBatchFailure(code) {
+				partialCode = code
+				break
+			}
+		}
+	}
 	if plan.Mode == "rules_and_agent" {
 		if w.Agent == nil || !plan.EffectCeiling.AllowModelRequests {
 			execution.ModelStage = "not_configured"
-			partialCode = "MODEL_NOT_CONFIGURED"
+			if partialCode == "" {
+				partialCode = "MODEL_NOT_CONFIGURED"
+			}
 			if err = w.Store.AppendJobEvent(ctx, job.ID, "stage_changed", map[string]any{"phase": "L3", "stage": "model_not_configured"}); err != nil {
 				return workflowFailure(ctx, "STAGE_SAVE_FAILED", true)
 			}
@@ -110,16 +146,18 @@ func (w *Workflow) Run(ctx context.Context, job storage.Job) error {
 			if err = w.Store.AppendJobEvent(ctx, job.ID, "stage_changed", map[string]any{"phase": "L3", "stage": "agent_started"}); err != nil {
 				return workflowFailure(ctx, "STAGE_SAVE_FAILED", true)
 			}
-			modelResult, modelErr := w.Agent.Run(ctx, job)
+			modelResult, modelErr := w.Agent.Run(analysisCtx, job)
 			if ctx.Err() != nil {
 				return ctx.Err()
 			}
 			if modelErr != nil {
 				execution.ModelStage = "not_completed"
-				partialCode = "AGENT_EXECUTION_FAILED"
-				var failure JobFailure
-				if errors.As(modelErr, &failure) {
-					partialCode = failure.Code
+				if partialCode == "" {
+					partialCode = "AGENT_EXECUTION_FAILED"
+					var failure JobFailure
+					if errors.As(modelErr, &failure) {
+						partialCode = failure.Code
+					}
 				}
 			} else {
 				execution.ModelStage = "completed"
@@ -127,7 +165,7 @@ func (w *Workflow) Run(ctx context.Context, job storage.Job) error {
 			}
 		}
 	}
-	finalCtx, stopFinal := context.WithTimeout(ctx, 10*time.Second)
+	finalCtx, stopFinal := context.WithTimeout(ctx, finalizationWindow(ctx, time.Duration(limits.FinalizeSeconds)*time.Second))
 	defer stopFinal()
 	service := NewAuditService(w.Store)
 	if plan.RecheckOfJobID != "" {
@@ -161,4 +199,22 @@ func (w *Workflow) Run(ctx context.Context, job storage.Job) error {
 		return JobFailure{Code: partialCode, Partial: true}
 	}
 	return nil
+}
+
+// Reserve only shortens the earlier phase. It never extends a root deadline.
+func reserveFinalization(ctx context.Context, reserve time.Duration) (context.Context, context.CancelFunc) {
+	deadline, ok := ctx.Deadline()
+	if !ok || reserve <= 0 {
+		return context.WithCancel(ctx)
+	}
+	return context.WithDeadline(ctx, deadline.Add(-reserve))
+}
+func finalizationWindow(ctx context.Context, configured time.Duration) time.Duration {
+	if configured > 0 {
+		return configured
+	}
+	if deadline, ok := ctx.Deadline(); ok {
+		return max(time.Until(deadline), time.Nanosecond)
+	}
+	return time.Nanosecond
 }

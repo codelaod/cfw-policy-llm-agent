@@ -72,10 +72,11 @@ func normalizeCandidateExceptions(values []domain.Exception, in domain.Input, as
 		value.SubjectRef = assetID
 		value.ScopeRef = in.Scope.Ref
 		value.Confirmed = false
-		if !assetExceptionCheck(in, *value) || (value.ServiceRef != "" && !serviceIDs[value.ServiceRef]) || len(value.ExpiresAt) > 80 || len(value.Reason) > 4096 || !utf8.ValidString(value.Reason) {
+		if !assetExceptionCheck(in, *value) || (value.ServiceRef != "" && !serviceIDs[value.ServiceRef]) || len(value.ExpiresAt) > 80 || len(value.Reason) > 4096 || !utf8.ValidString(value.Reason) || len(value.AuthorizationSource) > 512 || !utf8.ValidString(value.AuthorizationSource) || strings.ContainsAny(value.AuthorizationSource, "\x00\r\n") {
 			return ErrInputInvalid
 		}
 		value.Reason = strings.TrimSpace(value.Reason)
+		value.AuthorizationSource = strings.TrimSpace(value.AuthorizationSource)
 		identity := exceptionIdentity(*value)
 		if seen[identity] {
 			return ErrInputInvalid
@@ -89,6 +90,7 @@ func exceptionIdentity(value domain.Exception) string {
 	value.Confirmed = false
 	value.ScopeRef = ""
 	value.Reason = strings.TrimSpace(value.Reason)
+	value.AuthorizationSource = strings.TrimSpace(value.AuthorizationSource)
 	if at, err := time.Parse(time.RFC3339Nano, value.ExpiresAt); err == nil {
 		value.ExpiresAt = at.UTC().Format(time.RFC3339Nano)
 	}
@@ -139,6 +141,9 @@ func validateProposedExceptions(ctx context.Context, base, candidate domain.Inpu
 		if change.Access == nil {
 			continue
 		}
+		if change.Access.ExceptionsDeclared != nil && !*change.Access.ExceptionsDeclared {
+			continue
+		}
 		asset := selectedAsset(&candidate, change.AssetID)
 		if asset == nil {
 			return ErrInputInvalid
@@ -148,6 +153,9 @@ func validateProposedExceptions(ctx context.Context, base, candidate domain.Inpu
 				return ctx.Err()
 			}
 			if value.SubjectRef != change.AssetID || value.ScopeRef != candidate.Scope.Ref || !assetExceptionCheck(candidate, value) || strings.TrimSpace(value.Reason) == "" || (value.ServiceRef != "" && selectedService(asset, value.ServiceRef) == nil) {
+				return ErrInputInvalid
+			}
+			if !current[exceptionIdentity(value)] && missingExceptionAuthorizationSource(value.AuthorizationSource) {
 				return ErrInputInvalid
 			}
 			expiry, err := time.Parse(time.RFC3339Nano, value.ExpiresAt)
@@ -162,6 +170,13 @@ func validateProposedExceptions(ctx context.Context, base, candidate domain.Inpu
 		}
 	}
 	return nil
+}
+
+// These exact placeholders explicitly say that no source has been supplied.
+// This validates a declaration's presence; it does not verify a person, ticket
+// system or approval authority, and leaves unchanged historic grants readable.
+func missingExceptionAuthorizationSource(value string) bool {
+	return enum(strings.ToLower(strings.TrimSpace(value)), "", "unknown", "declared_unknown", "未知", "不知道", "不清楚", "未确认", "待确认", "未核实", "待核实", "无", "无来源", "暂无", "none", "n/a", "na", "-", "--", "?", "？")
 }
 
 func intentFromInputAsset(in domain.Input, asset domain.Asset) intentPayload {

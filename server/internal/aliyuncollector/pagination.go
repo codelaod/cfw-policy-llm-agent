@@ -220,7 +220,7 @@ func (r *run) pages(round int, op string, filters map[string]string, array, page
 		}
 		for _, row := range batch {
 			b, _ := json.Marshal(row)
-			identity := hash(b)
+			identity := hash([]byte(semantic(b)))
 			if idKey != "" {
 				identity = text(row, idKey)
 				if !alias(identity) {

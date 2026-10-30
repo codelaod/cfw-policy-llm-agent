@@ -1,6 +1,6 @@
 # 实际业务接口与事件契约
 
-本目录记录已注册的正式离线业务API及隔离的E0人工诊断接口。统一前缀`/api/v1`；数据和任务路由均需`X-App-Token`请求头，应用口令不放URL、业务记录或接口示例。默认离线规则不读云／模型凭据；E3模型只由服务端显式私有JSON配置注入。启动／配置检查／预览零外呼，接受计划或明确发送后才有受预算约束的请求；模型未配置明确反馈，E4已接显式只读采集／身份检查切片，真实账号能力尚未验收，不以人工协议fixture冒充真实云观测。
+本目录记录已注册的正式业务API及隔离的E0人工诊断接口。统一前缀`/api/v1`；数据和任务路由均需`X-App-Token`请求头，应用口令不放URL、业务记录或接口示例。默认离线规则不读云／模型凭据；模型由服务端互斥的显式`--env-file`或`--model-config`注入。启动／配置检查／预览零外呼，接受计划或明确发送后才有受预算约束的请求；模型未配置明确反馈，E4已接显式只读采集／身份检查切片，真实账号能力尚未验收，不以人工协议fixture冒充真实云观测。
 
 ## 生成与留存
 
@@ -10,15 +10,15 @@
 bash scripts/e0.sh api
 ```
 
-固定`swaggo/swag v1.16.6`从[main.go](../../server/cmd/server/main.go)、[基础handler](../../server/internal/httpapi/api.go)、[业务handler](../../server/internal/httpapi/workspace.go)和实际storage／app／domain／agentquery DTO生成[swagger.json](swagger.json)／[swagger.yaml](swagger.yaml)。生成器只读取公开源码／依赖，不读取私有配置、不调用云或模型。产物随源码留存，字段由注释／DTO生成；Gin实际路由与Swagger路径／方法通过集成测试双向核对。E3的41路径／49操作历史结果保持在[E3记录](../validation/evidence/e3-local.md)。E4新增本地collection-options路由及cloud_result DTO，已以API版本0.4.0实际生成并通过双向对账：42条路径、50项操作；当前切片与局限见[E4适配记录](../validation/evidence/e4-adapters-local.md)。没有额外Swagger UI或文档HTTP服务。
+固定`swaggo/swag v1.16.6`从[main.go](../../server/cmd/server/main.go)、[基础handler](../../server/internal/httpapi/api.go)、[业务handler](../../server/internal/httpapi/workspace.go)和实际storage／app／domain／agentquery DTO生成[swagger.json](swagger.json)／[swagger.yaml](swagger.yaml)。生成器只读取公开源码／依赖，不读取私有配置、不调用云或模型。产物随源码留存，字段由注释／DTO生成；Gin实际路由与Swagger路径／方法通过集成测试双向核对。E3的41路径／49操作历史结果保持在[E3记录](../validation/evidence/e3-local.md)。E4新增本地collection-options路由及cloud_result DTO，已以API版本0.4.0实际生成并通过双向对账：42条路径、50项操作；该50操作为E4历史窗口，局限见[E4适配记录](../validation/evidence/e4-adapters-local.md)。2026-10-30当前生成产物仍为API版本0.4.0，已覆盖52条路径／60项操作及可选逐资产protection，JSON／YAML语义一致并通过实际路由双向核对；新增对话目标／选择／接受、资源／引导、业务归属与同稿冲突恢复等入口，限定结果见[现行代码证据](../validation/evidence/conversation-implementation-local.md)。没有额外Swagger UI或文档HTTP服务。
 
 [server/.swaggo](../../server/.swaggo)将`json.RawMessage`替换为`interface{}`，因为这些字段在实际响应中保存原始JSON值，不是base64字节数组。override只修正生成器的类型表达，不转换运行时数据，也不把任意输入视为已验证业务对象；具体字段仍按对应DTO／服务校验。
 
-已注册范围包括本地能力／来源／范围、当前工作区、会话和公开消息、人工样例／快照导入、资产与策略、业务草稿与分部确认、执行计划与任务、冻结发现／证据与审阅、固定报告和复审预览。E3已接正式Eino工具链、持久Agent结果及封存任务输入读取；E4新增显式云连接的本地目录与collect／connection_check计划消费、cloud_result；尚未接入的发现、自动角色Provider或其他路由不放占位规范。
+已注册范围包括本地能力／来源／范围、当前工作区、会话和公开消息、人工样例／快照导入、资产与策略、业务草稿与分部确认、执行计划与任务、冻结发现／证据与审阅、固定报告和复审预览。E3已接正式Eino工具链、持久Agent结果及封存任务输入读取；E4新增显式云连接的本地目录与collect／connection_check计划消费、cloud_result；对话主链已接有限发现／必要采集和串行分批的计划生成；没有独立通用discover请求或自动角色Provider路由，不放占位规范。
 
 ## 关键操作语义
 
-- `POST /execution-plans`只保存固定离线输入与效果预览；`POST /jobs`只接收`plan_id`，用`Idempotency-Key`消费。不能在启动时换范围、模式或预算。列表默认100条，最多100条；偏移量及游标由服务端校验。普通请求正文上限32 KiB，快照导入上限5 MiB。
+- `POST /execution-plans`预览固定离线audit或显式collect／connection_check计划；对话audit的有限选择器准备及串行分批由`POST /conversations/{id}/intent-turns`在服务端生成类型化计划。`POST /jobs`只接收`plan_id`，用`Idempotency-Key`消费。不能在启动时换范围、模式或预算。列表默认100条，最多100条；偏移量及游标由服务端校验。普通请求正文上限32 KiB，快照导入上限5 MiB。
 - 消息发送以`client_message_id`幂等，同意模型使用不等于自动刷新云。已接受请求可先只读回放原消息和任务；当前模型／范围／归档状态变化不会新建请求。异内容同键返回409。
 - 草稿确认必须带预览标识、草稿修订及明确选择部分；roles与access独立保存版本。角色确认不会暗中确认访问或业务例外。
 - `POST /audits/{job_id}/rechecks`只返回新计划，仍须显式`POST /jobs`消费；缺旧对象返回409 `RECHECK_NOT_COMPARABLE`，受控原因`object_missing`。成功比较通过`GET /jobs/{id}/result`的`recheck`读取，无已保存比较时为null；旧报告不变。

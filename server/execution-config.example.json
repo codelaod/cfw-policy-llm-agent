@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "profile_ref": "explicit-workload-example",
+  "profiles": {
+    "audit": {
+      "queue_seconds": 120,
+      "execution_seconds": 240,
+      "collection_seconds": 90,
+      "rules_seconds": 20,
+      "model_seconds": 120,
+      "finalize_seconds": 10,
+      "model_request_seconds": 30,
+      "model_logical_calls": 6,
+      "model_http_attempts": 6,
+      "tool_calls": 12,
+      "tool_batch": 4,
+      "cloud_http_attempts": 100,
+      "assets_per_batch": 50,
+      "max_policies": 1000,
+      "max_query_cells": 50000
+    },
+    "assistant_turn": {
+      "queue_seconds": 60,
+      "execution_seconds": 90,
+      "collection_seconds": 0,
+      "rules_seconds": 0,
+      "model_seconds": 80,
+      "finalize_seconds": 10,
+      "model_request_seconds": 30,
+      "model_logical_calls": 4,
+      "model_http_attempts": 4,
+      "tool_calls": 8,
+      "tool_batch": 4,
+      "cloud_http_attempts": 0,
+      "assets_per_batch": 50,
+      "max_policies": 1000,
+      "max_query_cells": 0
+    },
+    "collect": {
+      "queue_seconds": 120,
+      "execution_seconds": 90,
+      "collection_seconds": 80,
+      "rules_seconds": 0,
+      "model_seconds": 0,
+      "finalize_seconds": 10,
+      "model_request_seconds": 0,
+      "model_logical_calls": 0,
+      "model_http_attempts": 0,
+      "tool_calls": 0,
+      "tool_batch": 0,
+      "cloud_http_attempts": 100,
+      "assets_per_batch": 50,
+      "max_policies": 1000,
+      "max_query_cells": 0
+    },
+    "connection_check": {
+      "queue_seconds": 60,
+      "execution_seconds": 30,
+      "collection_seconds": 20,
+      "rules_seconds": 0,
+      "model_seconds": 0,
+      "finalize_seconds": 10,
+      "model_request_seconds": 0,
+      "model_logical_calls": 0,
+      "model_http_attempts": 0,
+      "tool_calls": 0,
+      "tool_batch": 0,
+      "cloud_http_attempts": 6,
+      "assets_per_batch": 0,
+      "max_policies": 0,
+      "max_query_cells": 0
+    }
+  },
+  "budget": {
+    "ref": "set-explicit-authorization-period",
+    "application_cloud_attempts": 0,
+    "application_model_attempts": 0,
+    "session_cloud_attempts": 0,
+    "session_model_attempts": 0
+  },
+  "model_provider_profile": "minimax"
+}

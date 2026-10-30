@@ -2,6 +2,8 @@
 
 **当前基线：需求v0.6／B2和整体设计v0.6已通过（G1／G2，2026-10-27）。** [E0依赖契约](validation/evidence/e0-local.md)和[E1离线核心／持久闭环](validation/evidence/e1-local.md)已有实际证据；[E2持久服务／五视图](validation/evidence/e2-local.md)已通过限定离线验证；[E3受限Agent](validation/evidence/e3-local.md)已通过限定离线验证；[E4只读适配切片](validation/evidence/e4-adapters-local.md)已通过限定离线适配验证。真实接入、正式评价与完整业务验收仍未完成。
 
+2026-10-30正式代码整改已有限定本机结果，限定结果见[代码阶段证据](validation/evidence/conversation-implementation-local.md)及实施计划§2.3；完整正式客户旅程验收及真实取证仍待执行。此前复核已在现行正文补记配置来源迁移、对话意图／资源解析、自动证据、M0缓存与参数校准缺口。客户流程看[PRD](requirements/product.md)及[唯一场景目录](requirements/customer-journeys.json)，方案取舍看[官方接口工作负载研究](research/collection-workload.md)与[架构](design/architecture.md)，实际代码缺口看[逐项实现台账](development/implementation-gap.md)。本轮原型与方案的实际核对结果见[客户流程记录](validation/evidence/product-workflow-local.md)。后续按[当前整改顺序](development/implementation-plan.md)；历史协议／浏览器证据保持原范围，不等于产品主入口完成。
+
 ## 1. 推荐阅读
 
 1. [项目定位](project/overview.md)与[项目决策](project/decisions.md)：范围、批准状态和已选路线。

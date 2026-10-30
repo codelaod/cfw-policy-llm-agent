@@ -1,78 +1,86 @@
-# 只读采集、固定输入审计与受限Agent服务
+# 正式Go服务
 
-三边界规则、会话／确认／计划／审阅／报告和[五视图Web](../web/README.md)已接通；E3新增正式Eino单任务Runner、九个固定资料工具、有限上下文、持久Agent结果和共享物理HTTP账本。E3限定离线验证已通过，历史结果见[E3记录](../docs/validation/evidence/e3-local.md)；E4已接显式云配置、固定只读SDK适配／采集、共享预算和云产品结果，已通过的限定人工协议验证见[E4适配记录](../docs/validation/evidence/e4-adapters-local.md)，前序见[E1](../docs/validation/evidence/e1-local.md)／[E2](../docs/validation/evidence/e2-local.md)。
+Go／Gin／Eino单进程，纯Go SQLite WAL与普通连接池；Vue／Vite构建可由同服务提供。默认可使用人工／导入资料与确定性规则。当前客户主链整改和独立Review修复已通过限定本机复验；完整24旅程／88分支及真实接入仍待验收，阶段证据见[代码记录](../docs/validation/evidence/conversation-implementation-local.md)，剩余项见[实施计划§2.3](../docs/development/implementation-plan.md)。
 
-默认不配置模型即可运行离线规则；正式服务不读取dotenv、默认profile或独立实验私配。未配置模型时，rules-only可执行；rules-and-agent保留规则结果并明确模型阶段未执行／partial，助手发送返回受控未配置错误。显式启用云／模型后，仅已接受计划或明确发送产生有界调用，启动／配置检查／预览零外呼。E0人工HTTP诊断和[独立协议探针](internal/protocolprobe/README.md)继续隔离。
+## 运行与显式迁移
 
-## 构建与启动
+工具链：`go.mod`要求Go 1.26，本次验证使用Go 1.26.10（Linux／WSL、CGO_ENABLED=0）。
 
-在仓库根目录操作，Go 1.26.x；阶段环境版本见执行记录。依赖及校验值固定在[go.mod](go.mod)／[go.sum](go.sum)，独立Eino实验保持原模块。现有脚本保留`e0.sh`名称，实际已覆盖本模块的当前测试、构建、迁移及接口生成。
+仓库根目录：
 
 ```bash
 bash scripts/e0.sh test
 bash scripts/e0.sh build
 bash scripts/e0.sh migrate
-read -rs -p '输入至少16字符的本机应用口令：' CFW_APP_TOKEN
-export CFW_APP_TOKEN
 bash scripts/e0.sh server
 ```
 
-迁移是明确的独立操作，不在正常启动时AutoMigrate。当前要求`business_schema=4`；旧库须先停止服务并备份，再显式运行`migrate`。迁移保留已有业务／账本／Agent与诊断记录，增加配置范围目录和云产品结果／私有原文。普通打开拒绝旧版或缺必要表／列的非完整schema 4，不在启动时修库。默认库为`data/private/e0.sqlite`，只监听`127.0.0.1:8080`；缺应用口令拒启。该口令只保护本机应用访问，不使用云／模型密钥。
+当前business schema为5。旧库先停止服务并备份，再显式migrate；正常启动不AutoMigrate、不修复缺表／必要列／授权head的非完整库。迁移保留旧业务／attempt／Agent／云结果，新增目录、目标／提议、授权修订与准备绑定等结构。默认私库data/private/e0.sqlite；监听127.0.0.1:8080。设置CFW_APP_TOKEN为至少16字符的本机应用口令，不能拿云／模型密钥代替。
 
-开发时另一个终端按[Web说明](../web/README.md)启动`127.0.0.1:5173`并打开`/overview`。浏览器只在内存保存访问口令，经开发代理调用API。
-
-已有构建也可由同一Go服务提供静态文件：先在`web/`运行`npm run build`，再从`server/`运行`go run -mod=readonly ./cmd/server --web-dir ../web/dist`。这是实际可选参数；业务深链接与静态资源按明确路由提供，未知API不会退回SPA页面。`npm run preview`仍只是静态预览，不代理API。当前仅支持本机开发，公网部署、TLS及生产身份体系不在本轮。
-
-## 显式模型配置与本地检查
-
-空白结构见[model-config.example.json](model-config.example.json)，默认disabled，端点／模型及预算周期均为占位示意。复制到私有忽略目录后按已有模型与授权范围填写，不把模板次数或远期到期值当已获额度，也不替换原MiniMax或提高512等更严限制。
-
-从`server/`运行实际参数；下列路径指操作者自行准备、放在忽略目录的私有JSON，命令读取并在本地校验，只回显脱敏摘要：
+脚本server／migrate透传参数；--env-file／--model-config／--cloud-config／--execution-config／--budget-change／--db／--web-dir的显式相对路径以脚本调用者目录解析，支持等号和空格。直接go run的路径以其工作目录解析。下例从server目录运行：
 
 ```bash
+go run -mod=readonly ./cmd/server --web-dir ../web/dist
+```
+
+先在web运行npm run build。静态业务深链接与未知API分开，npm run preview不代理API。当前为本机开发交付；公网发布、生产TLS／身份体系另按范围安排。
+
+## 模型来源与配置检查
+
+正式模型二选一：
+
+- --env-file：显式读取原项目七字段CFW_MODEL_BASE_URL、CFW_MODEL_API_KEY、CFW_MODEL_NAME、CFW_MODEL_API_STYLE、CFW_MODEL_TIMEOUT_SECONDS、CFW_MODEL_MAX_CALLS、CFW_MODEL_MAX_OUTPUT_TOKENS；进程LookupEnv存在即优先，显式空值也覆盖文件。只作字面解析，不执行shell，不自动搜索.env.local或其他dotenv。
+- --model-config：显式私有JSON，凭据只从其中点名的环境变量读取。与--env-file同时出现拒绝，不静默选一方。
+
+原模型名称与512等更严私限保留；兼容来源不会替换MiniMax模型。JSON字段冲突、重复／大小写碰撞、未知模型字段和结构错误拒绝；缺凭据、disabled、过期、无授权等与结构错误分开。空白示例见[模型JSON](model-config.example.json)和[原环境字段示例](../.env.example)。运行配置检查不回显密钥、私有URL／账号／资源或凭据片段：
+
+```bash
+go run -mod=readonly ./cmd/server --env-file ../.env.local --execution-config ../data/private/execution.json --config-check
 go run -mod=readonly ./cmd/server --model-config ../data/private/model-config.json --config-check
 ```
 
-配置使用`api_style=chat_completions`及显式`provider_profile`（`minimax`或`openai-compatible`）、HTTPS `base_url`、`model`、`api_key_env`、`enabled`、`max_output_tokens`、`timeout_seconds`、`max_http_attempts`和`budget`。只读取`api_key_env`点名的进程变量；disabled不要求读取密钥。budget显式包含`ref`、`expires_at`、应用／会话模型尝试上限；同一周期只允许收紧，换密钥、重启或新建会话不重置已用次数。
+enabled／configured、local ready、持久账本状态、上游兼容已验证与本次任务效果不是同一件事。配置检查不探测上游；已启用但未上游验证时，可以在已接受权限／预算内尝试，不把未验证一律禁用。模型不存在时规则审计仍可用，选择模型补充的审计保留规则与明确partial。
 
-`--config-check`不打开业务库、不启动服务或工作器、不做DNS／HTTP，只输出configured、enabled、协议／provider类型和限额等脱敏摘要，不回显端点、模型名、环境变量名、预算引用或密钥。configured／enabled只说明本地配置状态，不等于认证、上游兼容或付费授权。保留既有MiniMax模型及512等更严格私配，配置与项目上限取严，不在失败时换模型或抬额。
+## 云连接、目录与本次对象
 
-确需运行模型时，操作者先明确数据／权限／预算，再用同一`--model-config`启动服务。初始化与计划预览仍零外呼；审计须接受计划，助手须明确同意后发送。当前测试使用in-memory或loopback人工脚本模型协议，未证明真实MiniMax连续兼容或自主选择质量。
+[云配置示例](cloud-config.example.json)默认disabled。只支持env_ak／env_sts静态Provider，从JSON点名环境取AK或STS三元组；不读取机器profile／实例元数据，不做AssumeRole／自动续期。CFW／ECS／STS生产端点由受控映射固定，账号先按expected_account_id与受支持身份核对。
 
-## 显式云配置与当前采集切片
+连接提供单账号、有限地域与边界的读取上界。allowed_assets／allowed_nat_gateways可选作额外收紧，缺省不要求逐台登记。客户从对话提供名称／ID／类型／地域／有限标签或确认归属，目录负责定位，本次计划负责决定审计对象。身份检查与目录展示不会替代产品权限／完整性证明。
 
-空白结构见[cloud-config.example.json](cloud-config.example.json)，默认disabled，账号／资源／预算均为占位示意。只支持env_ak或env_sts，从同一JSON点名的环境变量取得静态AK或STS三元组；不使用默认profile／dotenv／实例元数据，不实现AssumeRole或ECS角色自动续期。STS可记录已知到期，未知到期不伪称已知或可刷新。生产CFW／ECS／STS端点由受控映射固定，不接受前端或配置任意URL。
+接受有限资料准备计划后，同一个audit任务可先核缓存资格、必要时做有限metadata查询／采集，再一次封存规则与Agent输入。多个同名对象、未穷尽或未知筛选条件时停在澄清；不选首条、不扩账号／地域。ECS批量分页，SG按轮去重并保留关联和原条件。NAT仅CFW管理目录、精确匹配原生／防火墙名称，一个任务绑定一个网关，不宣称VPC全网关或完整转换审计。
 
-从server目录进行纯本地检查；可同时传--model-config，摘要不回显密钥、真实账号／资源或端点：
+首轮非fatal失败在所选真实身份齐备时保存明确partial输入及已得ACL／SG；不足、fatal或取消只保存安全观察和受控原因，无snapshot／成功审计。取消已提交的迟到成功不越过发布准入；敏感反射不写收据。
 
-```bash
-go run -mod=readonly ./cmd/server --cloud-config ../data/private/cloud-config.json --config-check
-```
+独立collect／pinned固定快照入口保留。connection_check可用identity_only且不要求资产，接受后仅身份读取，结果仍IDENTITY_ONLY partial，不读取产品配置，不证明CFW／ECS字段与权限。云写工具不存在，用户人工应用策略。
 
-启动时只注册本地配置范围，GET /api/v1/data-sources/{id}/collection-options也只返回本地允许scope／资产和可用性，identity_verified保持未核验，不触发身份或产品请求。实际执行前须明确授权账号、地域、资产／单NAT网关、API和预算，再预览并接受collect或connection_check计划；身份先以GetCallerIdentity核对expected_account_id和受支持身份／ARN，再允许固定CFW五操作与ECS两操作。
+## 执行保护、时效与持久授权
 
-当前collect只支持明确的assets（最多50个允许ID）或NAT gateway_policy，不支持discover_region、空列表全量发现或跨账号。最多两轮配置族读取，页数／总数／重复／引用与未知条件保留完整性和一致性限制；默认动作保持unknown，不以同VPC证明NAT关联。安全组只作关联后只读上下文，不证明监听、角色或业务授权。collect完成先原子保存新snapshot／sealed输入和cloud_result，用户随后另行预览并接受pinned audit；当前fresh audit通过这两步衔接，不隐式自动审计。
+[execution-config.example.json](execution-config.example.json)为公开结构示例，预算全为0，不产生调用授权。显式--execution-config选择四类完整workload：排队／执行、采集／规则／模型／收尾、单模型请求、逻辑模型次数、物理尝试、工具／批量和对象／计算保护。已有私配取严；显式0不回填。未提供时使用有明确legacy标签的历史兼容值，均非厂商SLA或永久产品上限；真实等待和用量须另校准。
 
-connection_check当前只做身份检查，不读取产品配置，结果为identity_verified=true、product_ready=false、IDENTITY_ONLY局限与partial／CLOUD_LIMITED；它不证明CFW／ECS产品权限、资源可见性、字段或分页完整。两份云／模型配置同时启用须同budget.ref，应用／会话额度及到期取严；云配置显式模型0上限保持0，不因加云适配而启用模型或重置周期。
+可选data_freshness包含version、configuration_max_age_seconds、metadata_max_age_seconds。资格还核来源、配置修订、原窗口、双轮稳定、完整性、引用闭合与所需关联，不是单看TTL。未配置使用标注未校准的兼容政策。复用保持原时点；force_refresh／人工变更时点不偷用旧资料，历史解释零云。
 
-所有云／凭据／模型物理HTTP共用一个Manager与持久预记。原始产品响应按原始bytes计算SHA-256后以base64存私有列，保留精确字节；不把原文、凭据、私有配置修订或过滤器放cloud_result／事件／报告。云结果只投影身份／产品阶段、观察窗口、页数、完整性与受控局限；取消或重启不自动重放。
+云和模型共用一个Manager、application-root持久授权与attempt账本。Ref不能被轮换以重置累计；同Ref追加修订使用base revision CAS、change_id幂等、actor／reason／authorization来源。可明确无到期，或有到期取严；适配器私限不会因共享授权扩大自动放宽。普通启动只建初版或收紧，不自行追加额度／续期。已绑定授权可由env模型继续用，未绑定不凭配置发明额度。
 
-当前E4测试使用真实SDK／HTTP／账本／Collector／数据库连接人工loopback响应，所产live_readonly仅标识受控采集代码路径，不是用户账号真实云观测。实际身份／权限、字段／分页、上游MiniMax连续兼容、真实整改复审与E5正式评价仍未验收；实际结果与局限见E4适配记录。
+本地--budget-change读取显式修订JSON，应用已有账本后退出，与启动／migrate／config-check互斥；它是独立管理员操作，需停止持有数据库锁的服务。未知送达仍计已用，修订不删attempt。启动、config-check、计划预览与Guidance均零外呼；实际请求只在已接受任务内，逐物理尝试（含重试）预记后发送。
 
-## 操作与持久化边界
+## 对话、业务与结果
 
-- 正式API使用`/api/v1/jobs`，E0诊断使用`/api/v1/e0/jobs`；列表和单任务读取／事件／取消按kind隔离。正式启动只消费已保存`plan_id`，不能在启动时覆盖范围或效果上限。
-- 本地导入最大5 MiB，来源由服务器标为`imported`，不能自称live或改变采用基线。五视图读取固定快照、原始规则及其冻结证据，不以最新业务版本覆盖旧结果。
-- 角色和访问分开确认；草稿→差异预览→明确确认／拒绝，共用修订条件和幂等。业务例外绑定资产／服务、具体检查、理由和到期时间；不改原fail或严重程度。
-- 同进程3个任务槽位、最多10个等待任务，同会话1个未结束任务。正式队列有持久期限，排队超时零外呼；取消独立于观察断开。重启保留有效正式queued，运行中任务中断且不自动重放；E0遗留queued继续按诊断语义中断。
-- 复审`POST /api/v1/audits/{job_id}/rechecks`只生成独立预览，接受后仍用`POST /api/v1/jobs`幂等消费。旧对象在新快照缺失时返回409 `RECHECK_NOT_COMPARABLE`／`object_missing`，不缩减范围、不改旧报告。已保存比较由`GET /api/v1/jobs/{id}/result`的`recheck`读取。
-- 任务、消息、规则结果／证据、审阅和固定报告持久化。规则先保存；正常报告、公开结果消息和最终状态在短事务中发布。保存失败不虚报成功，同键重试返回已提交对象。
-- 每任务新建Eino ChatModelAgent／Runner和工具闭包；同批call ID先整体校验，新返回引用到下一轮才晋升可用。九个工具只读封存输入／原规则结果，按范围、来源、时点、字段与字节限制投影；安全组未采集明确返回缺口，不隐式补云调用。
-- ContextBuilder最多带入20条／24 KiB获准历史，固定接受消息位置和原计划范围，排除跨范围、旧工具wire及reasoning，保存裁剪／排除计数。完整协议消息仅存当前执行内存；产品结果保存前重验固定输入、版本和本地证据绑定。
-- 所有模型物理HTTP尝试经共享准入，在短事务预记后才可发出；应用／会话／任务上限取严。失败、未知送达、预记后未发保守计数，不自动退款或补发。逻辑模型／工具次数与物理尝试分开；缺usage保持unknown，显式零与部分报告保留，聚合溢出使reported_tokens为空并标overflow。
-- `GET /api/v1/jobs/{id}/result`包含`snapshot_id`、`agent_result`、`attempt_usage`和`cloud_result`；`GET /api/v1/jobs/{id}/input`返回该任务sealed固定输入。模型阶段与job终态分别记录，模型已完成后任务仍可能取消／中断。受保护任务结果保留完整经校验解释；公开JSON／Markdown的Agent层只用固定模板、公共目标／证据别名和计数，不复制模型自由文案、不覆盖原规则判定。
-- 事件与状态同事务提交，fetch SSE／轮询只读同一事件表。重连只补观察，不创建／取消任务、不恢复旧执行或重置预算；八类事件和受控载荷见[实际接口契约](../docs/api/README.md)。
+无快照可建会话并保存目标；候选／澄清／提议／接受持久，旧目标变化使旧计划失效。固定历史的解释沿原报告时点，模型历史引导先绑定原报告／快照并预填，发送仅生成零云解释计划，再接受才允许模型；人工改后强刷新审计并关联旧报告，不回写旧结论。业务草稿／对话／表单共用，角色、允许、必要访问与例外分别预览确认；可信归属绑定有限成员及版本，可跨页取齐。自然确认绑定已核对的目标版本，原计划消费、用户消息和回执同事务保存；旧请求重放不回退新目标。
 
-存储使用GORM＋libtnb/sqlite／modernc，普通共享池最大8连接、空闲4；每连接WAL、外键、5秒busy timeout，短事务不跨网络。使用驱动的`immediate`普通事务，没有写队列、读写分池或checkpoint调度。
+超过单批时保留完整有限集合，明确预览后由一个父任务串行推进内部批段，共用原总期限、阶段和调用额度，不按批复制授权。每批有独立输入、时点、审计及报告；父结果只列实际覆盖、失败和未处理，不造合并报告。资料导入受5MiB／10000资产等结构保护，与单批执行上限分开，原始来源不变。
 
-Linux／WSL先取得数据目录独占锁，再恢复持久状态；第二进程不得恢复首进程任务。备份先停止进程并关闭库，再复制数据库到独立私有目录，不只拷运行中主文件。私有库、原始资料、备份、未脱敏报告、构建产物和依赖缓存放忽略目录。按Ctrl+C停止；上游模型／真实云、20～30正式评价案例、2 CPU／4 GiB标准性能及真实人工整改复审仍须分别取证，E4可离线适配继续按计划推进。
+同稿业务冲突通过只读current-base核对当前值，明确选择后以revision＋heads双CAS rebase；原稿ID和对话绑定保留，旧preview作废、不确认业务，原提交标识可恢复。新增rebase回执属schema5必要结构，旧库须显式迁移，正常启动不补表。
+
+单进程3个不同会话并行，同会话一个未结束任务，第四个排队。SSE＋轮询只观察持久seq，提交后发送、断线不取消、重连不重放请求或返还额度。服务重启把旧运行标中断，不自动恢复云／模型调用。事务不跨网络等待。
+
+固定九工具只读sealed输入／原规则结果，metadata／SG有来源、时点、别名与缺口；角色和端口不证明监听、可达或业务授权。最多20条／24KiB获准公开历史，排除跨范围和未解析目标池，不保存原始reasoning或孤立旧工具wire。原始规则结果不被模型覆盖，报告JSON／Markdown使用受控公共投影及实际workload，保留unknown usage与失败阶段。
+
+GET /api/v1/jobs/{id}/result分别提供准备观察、CloudRecord、规则／Agent、用量和最终性；sealed输入用受保护input接口查看。共用版本化GET /guidance仅返回本地下一步，短语预填／本地导航不自动执行任务。实际接口实现后用固定Swag生成[Swagger JSON／YAML](../docs/api/README.md)。
+
+## 存储与证据边界
+
+GORM＋libtnb/sqlite／modernc、无CGO；普通共享池最多8连接／空闲4，每连接WAL、外键与5秒busy timeout。Linux／WSL先取得私库目录独占锁，第二进程不得恢复首进程任务。备份先停止进程并关闭库，再复制到独立私有目录；不只拷运行中主文件。不自建写队列、读写分池或checkpoint平台。
+
+固定模型对照及三组执行／独立评分入口见[evaluation](internal/evaluation/README.md)；只消费调用者已接受并claim的普通任务，不新增公开产品接口、不创造grant、不自动运行正式评价。
+
+私配、原始资料、私库、备份和未脱敏报告放忽略路径。当前签名SDK／loopback／人工Eino模型及浏览器证据不是真实账号或真实模型质量；真实身份／权限／字段、MiniMax连续兼容、正式三组评价、2CPU／4GiB性能与至少一次真实人工整改复审仍须各自取证。

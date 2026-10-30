@@ -16,7 +16,7 @@ var ipv6Literal = regexp.MustCompile(`(?i)(?:[0-9a-f]{0,4}:){2,}[0-9a-f:]+`)
 var urlOrCommand = regexp.MustCompile("(?i)(?:https?|file|ftp|ssh)://|www\\.|\\b(?:curl|wget|bash|sh|zsh|fish|powershell|cmd|sudo|python|node|rm|rmdir|del|erase|mkdir|touch|chmod|chown|cp|mv|dd|mkfs|kill|systemctl|kubectl|docker|aliyun|aws|az|gcloud|ssh|scp|nc|ncat|telnet|ping|nmap)\\s+|\\$\\(|`|\\$\\{")
 var sdkMethod = regexp.MustCompile(`\b(?:Describe|describe|Get|get|List|list|Create|create|Add|add|Delete|delete|Remove|remove|Modify|modify|Update|update|Set|set|Put|put|Enable|enable|Disable|disable|Authorize|authorize|Revoke|revoke|Start|start|Stop|stop|Run|run|Invoke|invoke|Assume|assume)[A-Z][A-Za-z0-9_]*\b`)
 
-var cloudIdentity = regexp.MustCompile(`(?i)\b(?:i|sg|eip|vpc|vsw|gw|nat|acl|scope|policy|asset|service|address|evidence|business|association|finding|gateway|reference|snapshot|profile|intent)[-_][a-z0-9][a-z0-9_-]{3,}\b`)
+var cloudIdentity = regexp.MustCompile(`(?i)\b(?:i|sg|eip|vpc|vsw|gw|ngw|nat|eni|acl|scope|policy|asset|service|address|evidence|business|association|finding|gateway|reference|snapshot|profile|intent)[-_][a-z0-9][a-z0-9_-]{3,}\b`)
 
 // Reserved reasoning tags and wire fields cannot become public explanations or
 // replayable history. Ordinary evidence-based analysis remains allowed.
@@ -126,8 +126,15 @@ func (s *Service) ValidateFinal(text string) (Output, error) {
 		if !ok {
 			return Output{}, ErrFinal
 		}
-		sv, ok := s.validAlias(role.ServiceRef, "service", true)
-		if !ok || sv.asset != a.asset || !has([]string{"web", "database", "management", "middleware", "cache", "queue", "background", "unknown"}, role.Role) || !s.refsValid(role.SupportingEvidence, true, a.asset) || !s.refsValid(role.ContradictingEvidence, false, a.asset) || !s.textsValid(role.Unknowns, true) || !s.textsValid(role.Questions, true) {
+		si := -1
+		if role.ServiceRef != "" {
+			sv, exists := s.validAlias(role.ServiceRef, "service", true)
+			if !exists || sv.asset != a.asset {
+				return Output{}, ErrFinal
+			}
+			si = sv.service
+		}
+		if !has([]string{"web", "database", "management", "middleware", "cache", "queue", "background", "unknown"}, role.Role) || !s.roleEvidenceValid(role.SupportingEvidence, true, a.asset, si) || !s.roleEvidenceValid(role.ContradictingEvidence, false, a.asset, si) || !s.textsValid(role.Unknowns, true) || !s.textsValid(role.Questions, true) {
 			return Output{}, ErrFinal
 		}
 	}
@@ -254,7 +261,17 @@ func (s *Service) validateRecommendation(rec Recommendation) bool {
 			return false
 		}
 		if rec.BasisKind == "known_gap" {
-			return s.input.Protection.Applicable && s.input.Protection.Required && s.input.Protection.State == "off"
+			protection := s.input.Protection
+			if ai >= 0 {
+				protection = s.input.ProtectionFor(s.input.Assets[ai].ID)
+			} else if rec.FindingRef != "" {
+				original := s.result.Findings[finding.index]
+				if original.RuleID != "CHK-05" && !(original.RuleID == "NAT-02" && original.Subcheck == "CHK-05") || original.Verdict != "fail" {
+					return false
+				}
+				protection = s.input.ProtectionFor(original.SubjectRef)
+			}
+			return protection.Applicable && protection.Required && protection.State == "off" && protection.EvidenceRef != ""
 		}
 		return rec.BasisKind == "unknown_followup"
 	case "component_consideration":
@@ -359,6 +376,25 @@ func accessMatchesQuery(values []domain.Access, query domain.Query, denyAll bool
 			if !covered {
 				return false
 			}
+		}
+	}
+	return true
+}
+
+// Role candidates require returned evidence located on that asset; a global
+// baseline or unrelated policy cannot establish a service role.
+func (s *Service) roleEvidenceValid(refs []string, required bool, ai, si int) bool {
+	if !s.refsValid(refs, required, ai) {
+		return false
+	}
+	for _, alias := range refs {
+		r := s.refs[alias]
+		if r.asset != ai || si >= 0 && r.service >= 0 && r.service != si {
+			return false
+		}
+		document, path, ok := s.bindingField(alias, r, s.addressPointers())
+		if !ok || document != "input" || !(path == assetPath(ai, -1) || strings.HasPrefix(path, assetPath(ai, -1)+"/")) {
+			return false
 		}
 	}
 	return true

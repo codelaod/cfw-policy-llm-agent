@@ -29,7 +29,8 @@
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
         "docs/validation/evidence/e3-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     },
     {
@@ -57,7 +58,11 @@
       "status": "local_subset_verified_full_acceptance_pending",
       "implementation_verified": false,
       "local_evidence": [
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
+      ],
+      "implementation_gaps": [
+        "2026-10-29: 同audit有界发现/采集、来源目录和结构SG已接；仍需真实账号权限、字段、分页与完整性核对。"
       ]
     },
     {
@@ -73,8 +78,8 @@
           "marker": "### 1.1 B2"
         },
         {
-          "file": "docs/design/architecture.md",
-          "marker": "### 2.2 正式前端"
+          "file": "docs/design/frontend-and-events.md",
+          "marker": "## 10. 对话主链"
         }
       ],
       "planned_checks": [
@@ -87,7 +92,11 @@
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
         "docs/validation/evidence/e3-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
+      ],
+      "implementation_gaps": [
+        "2026-10-29: 规范身份/目录/消歧、可信归属、跨页有限组与独立批段已接；全部正式旅程及真实数据定位仍需验收。"
       ]
     },
     {
@@ -114,7 +123,8 @@
       "status": "local_subset_verified_full_acceptance_pending",
       "implementation_verified": false,
       "local_evidence": [
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     },
     {
@@ -143,7 +153,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     },
     {
@@ -170,7 +181,8 @@
       "status": "local_subset_verified_full_acceptance_pending",
       "implementation_verified": false,
       "local_evidence": [
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     },
     {
@@ -200,7 +212,8 @@
       "local_evidence": [
         "docs/validation/evidence/e2-local.md",
         "docs/validation/evidence/e3-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     },
     {
@@ -217,8 +230,8 @@
           "marker": "## 8. 报告"
         },
         {
-          "file": "docs/design/architecture.md",
-          "marker": "## 7. 数据隐私"
+          "file": "docs/design/credentials-and-permissions.md",
+          "marker": "## 1."
         }
       ],
       "planned_checks": [
@@ -231,7 +244,8 @@
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
         "docs/validation/evidence/e3-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     },
     {
@@ -263,7 +277,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e3-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     },
     {
@@ -290,7 +305,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
-        "docs/validation/evidence/e2-local.md"
+        "docs/validation/evidence/e2-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     },
     {
@@ -325,7 +341,11 @@
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
-        "docs/validation/evidence/e3-local.md"
+        "docs/validation/evidence/e3-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
+      ],
+      "implementation_gaps": [
+        "2026-10-29: metadata/SG固定工具、角色候选、对话/表单共用草稿及分项确认已接；真实模型识别质量和完整业务验收另取证。"
       ]
     },
     {
@@ -353,7 +373,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e3-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     },
     {
@@ -370,14 +391,17 @@
         },
         {
           "file": "docs/design/architecture.md",
-          "marker": "## 1. 设计目标"
+          "marker": "## 1. 产品目标"
         }
       ],
       "planned_checks": [
         "V4-12"
       ],
       "status": "optional_disabled_by_default",
-      "implementation_verified": false
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/conversation-implementation-local.md"
+      ]
     },
     {
       "id": "AC-14",
@@ -388,16 +412,16 @@
       ],
       "design_evidence": [
         {
-          "file": "docs/design/architecture.md",
-          "marker": "### 2.2 正式前端"
+          "file": "docs/design/frontend-and-events.md",
+          "marker": "## 10. 对话主链"
         },
         {
           "file": "docs/design/guidance-and-entrypoints.md",
-          "marker": "## 9. 正式前端"
+          "marker": "## 6. API与正式Web"
         },
         {
           "file": "docs/design/architecture.md",
-          "marker": "### 10.2 NFR-06"
+          "marker": "## 8. 工程依赖"
         },
         {
           "file": "docs/design/frontend-and-events.md",
@@ -416,7 +440,11 @@
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
         "docs/validation/evidence/e3-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
+      ],
+      "implementation_gaps": [
+        "2026-10-29: 无快照正式Go/Vue入口和同audit主链、业务/归属/分批已有限定回归；24旅程/88分支完整正式验收仍未完成。"
       ]
     },
     {
@@ -450,7 +478,8 @@
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
         "docs/validation/evidence/e3-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     },
     {
@@ -477,7 +506,11 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
+      ],
+      "implementation_gaps": [
+        "2026-10-29: 合格复用、force刷新、原窗口与固定报告复审绑定已接；真实时效校准和至少一次人工整改复审尚未执行。"
       ]
     },
     {
@@ -499,7 +532,7 @@
         },
         {
           "file": "docs/design/architecture.md",
-          "marker": "### 10.2 NFR-06"
+          "marker": "## 8. 工程依赖"
         },
         {
           "file": "docs/design/frontend-and-events.md",
@@ -520,7 +553,11 @@
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
         "docs/validation/evidence/e3-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
+      ],
+      "implementation_gaps": [
+        "2026-10-29: 多层硬封已改为显式workload、共享总账本与独立私限，串行分批共享根时间/额度；真实慢链路/标准性能仍未校准。"
       ]
     },
     {
@@ -552,7 +589,11 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e3-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
+      ],
+      "implementation_gaps": [
+        "2026-10-29: env-file承接、来源冲突/空值/disabled/过期/共享授权head及追加修订已有限定验证；真实身份与产品权限未验。"
       ]
     },
     {
@@ -569,7 +610,7 @@
         },
         {
           "file": "docs/design/architecture.md",
-          "marker": "## 10. 实施约束"
+          "marker": "## 7. 并发"
         },
         {
           "file": "docs/design/frontend-and-events.md",
@@ -587,7 +628,8 @@
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
         "docs/validation/evidence/e3-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     },
     {
@@ -600,7 +642,7 @@
       "design_evidence": [
         {
           "file": "docs/design/guidance-and-entrypoints.md",
-          "marker": "## 9. 正式前端"
+          "marker": "## 6. API与正式Web"
         },
         {
           "file": "docs/design/data-and-api.md",
@@ -620,7 +662,11 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e3-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
+      ],
+      "implementation_gaps": [
+        "2026-10-29: 共用本地版本化Guidance、自然入口及五视图导航已接并有浏览器子集；完整旅程及后续可选终端不计已交付。"
       ]
     },
     {
@@ -650,7 +696,13 @@
         "V4-02"
       ],
       "status": "design_defined_full_acceptance_pending",
-      "implementation_verified": false
+      "implementation_verified": false,
+      "local_evidence": [
+        "docs/validation/evidence/conversation-implementation-local.md"
+      ],
+      "implementation_gaps": [
+        "2026-10-29: 固定模型臂、同条件串行执行、私有追加Journal和独立评分已实现并完成独立审查与复验；20–30人工冻结标签及正式三组评价尚未执行。"
+      ]
     },
     {
       "id": "CR-1-F01",
@@ -677,7 +729,8 @@
       "status": "local_subset_verified_full_acceptance_pending",
       "implementation_verified": false,
       "local_evidence": [
-        "docs/validation/evidence/e1-local.md"
+        "docs/validation/evidence/e1-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     },
     {
@@ -706,7 +759,8 @@
       "implementation_verified": false,
       "local_evidence": [
         "docs/validation/evidence/e1-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     },
     {
@@ -731,7 +785,8 @@
       "status": "local_subset_verified_full_acceptance_pending",
       "implementation_verified": false,
       "local_evidence": [
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     },
     {
@@ -763,7 +818,8 @@
         "docs/validation/evidence/e1-local.md",
         "docs/validation/evidence/e2-local.md",
         "docs/validation/evidence/e3-local.md",
-        "docs/validation/evidence/e4-adapters-local.md"
+        "docs/validation/evidence/e4-adapters-local.md",
+        "docs/validation/evidence/conversation-implementation-local.md"
       ]
     }
   ],
@@ -773,14 +829,33 @@
     "date": "2026-10-27"
   },
   "updated_at": "2026-10-28",
-  "implementation_stage": "E4_local_adapters_passed_real_account_acceptance_pending",
+  "implementation_stage": "customer_workflow_code_local_verification_formal_acceptance_pending",
   "runtime_evidence": [
     "docs/validation/evidence/e0-local.md",
     "docs/validation/evidence/e1-local.md",
     "docs/validation/evidence/e2-local.md",
     "docs/validation/evidence/e3-local.md",
-    "docs/validation/evidence/e4-adapters-local.md"
+    "docs/validation/evidence/e4-adapters-local.md",
+    "docs/validation/evidence/conversation-implementation-local.md"
   ],
   "e3_validation_status": "passed_limited_offline",
-  "e4_adapter_validation_status": "passed_limited_offline_adapters"
+  "e4_adapter_validation_status": "passed_limited_offline_adapters",
+  "customer_workflow_remediation": {
+    "date": "2026-10-30",
+    "catalog": "docs/requirements/customer-journeys.json",
+    "journeys": 24,
+    "branches": 88,
+    "evidence": "docs/validation/evidence/conversation-implementation-local.md",
+    "implementation_gap": "docs/development/implementation-gap.md",
+    "scope": "formal_go_vue_local_fixtures_and_browser_subsets_no_real_provider_or_full_product_acceptance",
+    "formal_product_acceptance": false,
+    "independent_overall_review": {
+      "date": "2026-10-30",
+      "confirmed_p2_defects_fixed": 5,
+      "confirmed_p2_requirement_implementation_drift_fixed": 1,
+      "evidence": "docs/validation/evidence/conversation-implementation-local.md",
+      "scope": "local_http_store_reopen_sfc_rendering_and_targeted_regressions_full_88_branch_acceptance_pending",
+      "formal_product_acceptance": false
+    }
+  }
 }

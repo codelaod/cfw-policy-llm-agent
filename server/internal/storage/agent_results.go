@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"cfw-policy-llm-agent/server/internal/agentquery"
+	"cfw-policy-llm-agent/server/internal/audit"
 	"cfw-policy-llm-agent/server/internal/domain"
 	"gorm.io/gorm"
 )
@@ -130,23 +131,22 @@ func validateAgentContent(tx *gorm.DB, job Job, content AgentContent) error {
 	if job.Status != "running" {
 		return ErrJobTerminal
 	}
+	if content.Output != nil {
+		if e := batchPublicationOpen(tx, job); e != nil {
+			return e
+		}
+	}
 	if content.JobID != job.ID || !enum(job.Kind, "audit", "assistant_turn") {
 		return ErrInputInvalid
 	}
-	plan, err := planRecord(tx, job.PlanID)
+	plan, err := executionPlanForJob(tx, job)
 	if err != nil {
 		return err
 	}
 	if plan.ConsumedJobID != job.ID || plan.ConversationID != job.ConversationID || plan.Kind != job.Kind || !plan.EffectCeiling.AllowModelRequests || plan.EffectCeiling.ModelHTTPAttempts < 1 || job.Kind == "audit" && plan.Mode != "rules_and_agent" || job.Kind == "assistant_turn" && plan.Mode != "assistant" {
 		return ErrInputInvalid
 	}
-	modelLimit, toolLimit := 6, 12
-	if job.Kind == "assistant_turn" {
-		modelLimit, toolLimit = 4, 8
-	}
-	if plan.EffectCeiling.ModelHTTPAttempts < modelLimit {
-		modelLimit = plan.EffectCeiling.ModelHTTPAttempts
-	}
+	modelLimit, toolLimit := plan.Workload.Limits.ModelLogicalCalls, plan.Workload.Limits.ToolCalls
 	if content.ModelCalls > modelLimit || content.ToolCalls > toolLimit {
 		return ErrInputInvalid
 	}
@@ -195,12 +195,20 @@ func validateAgentContent(tx *gorm.DB, job Job, content AgentContent) error {
 			result = &run.Result
 		}
 	}
+	validationCells := []int{}
+	if plan.Workload.Limits.MaxQueryCells > 0 {
+		validationCells = append(validationCells, plan.Workload.Limits.MaxQueryCells)
+	}
+	boundCtx, boundErr := audit.WithInputObjectLimits(tx.Statement.Context, plan.Workload.Limits.AssetsPerBatch, plan.Workload.Limits.MaxPolicies, validationCells...)
+	if boundErr != nil {
+		return ErrInputInvalid
+	}
 	if content.Output != nil {
-		if err = agentquery.ValidateBoundOutput(input, result, *content.Output, content.Bindings); err != nil {
+		if err = agentquery.ValidateBoundOutputContext(boundCtx, input, result, *content.Output, content.Bindings); err != nil {
 			return ErrInputInvalid
 		}
 	} else if len(content.Bindings) > 0 {
-		if err = agentquery.ValidateLocalBindings(input, result, content.Bindings); err != nil {
+		if err = agentquery.ValidateLocalBindingsContext(boundCtx, input, result, content.Bindings); err != nil {
 			return ErrInputInvalid
 		}
 	}
@@ -291,7 +299,7 @@ func (s *Store) FinalizeAssistant(ctx context.Context, jobID string, content Age
 		if e != nil {
 			return e
 		}
-		plan, e := planRecord(tx, job.PlanID)
+		plan, e := executionPlanForJob(tx, job)
 		if e != nil {
 			return e
 		}

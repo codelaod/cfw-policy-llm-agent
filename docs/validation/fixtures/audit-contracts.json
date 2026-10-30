@@ -6,7 +6,7 @@
   "source_kind": "synthetic",
   "formal_business_implementation": false,
   "semantics_evaluated": false,
-  "description": "人工设计契约示例；静态校验仅核对结构、引用、范围和预算，不执行审计规则或接口。",
+  "description": "人工设计契约示例；静态校验仅核对结构、引用、范围和预算，不执行审计规则或接口。limits保留历史未校准提案／当前硬值示例，不代表2026-10-29统一WorkloadProfile目标或供应商SLA。",
   "limits": {
     "queue_seconds": 120,
     "execution_seconds": 240,
@@ -710,5 +710,6 @@
     "restart_replays_calls": false,
     "exclusive_lock_before_recovery": true,
     "precount_before_physical_attempt": true
-  }
+  },
+  "limits_status": "historical_uncalibrated_example_not_product_capacity"
 }

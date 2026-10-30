@@ -111,6 +111,19 @@ type Association struct {
 }
 
 type Asset struct {
+	// Protection overrides the legacy partition assertion for this internet asset.
+	// A missing section retains the semantics of existing fixed/imported inputs.
+	Protection              *Protection             `json:"protection,omitempty"`
+	SecurityGroupCollection string                  `json:"security_group_collection,omitempty"`
+	Name                    string                  `json:"name,omitempty"`
+	ProviderResourceID      string                  `json:"provider_resource_id,omitempty"`
+	Region                  string                  `json:"region,omitempty"`
+	ResourceType            string                  `json:"resource_type,omitempty"`
+	Tags                    map[string]string       `json:"tags,omitempty"`
+	OperatingSystem         string                  `json:"operating_system,omitempty"`
+	SecurityGroups          []SecurityGroupEvidence `json:"security_groups,omitempty"`
+	MetadataComplete        bool                    `json:"metadata_complete,omitempty"`
+
 	ID               string      `json:"id"`
 	ScopeRef         string      `json:"scope_ref"`
 	Address          string      `json:"address"`
@@ -129,14 +142,15 @@ type RiskPort struct {
 	Topic    string `json:"topic"`
 }
 type Exception struct {
-	CheckID    string `json:"check_id"`
-	Subcheck   string `json:"subcheck,omitempty"`
-	SubjectRef string `json:"subject_ref"`
-	ServiceRef string `json:"service_ref"`
-	ScopeRef   string `json:"scope_ref"`
-	ExpiresAt  string `json:"expires_at"`
-	Reason     string `json:"reason"`
-	Confirmed  bool   `json:"confirmed"`
+	AuthorizationSource string `json:"authorization_source,omitempty"`
+	CheckID             string `json:"check_id"`
+	Subcheck            string `json:"subcheck,omitempty"`
+	SubjectRef          string `json:"subject_ref"`
+	ServiceRef          string `json:"service_ref"`
+	ScopeRef            string `json:"scope_ref"`
+	ExpiresAt           string `json:"expires_at"`
+	Reason              string `json:"reason"`
+	Confirmed           bool   `json:"confirmed"`
 }
 type Baseline struct {
 	Version       string      `json:"version"`
@@ -146,6 +160,7 @@ type Baseline struct {
 }
 
 type Input struct {
+	GatewayMetadata   *Resource                   `json:"gateway_metadata,omitempty"`
 	SchemaVersion     int                         `json:"schema_version"`
 	SnapshotVersion   string                      `json:"snapshot_version"`
 	ProfileVersion    string                      `json:"profile_version"`
@@ -249,4 +264,18 @@ type Result struct {
 	Findings      []Finding     `json:"findings"`
 	Evidence      []Evidence    `json:"evidence"`
 	Coverage      Coverage      `json:"coverage"`
+}
+
+// ProtectionFor returns the fixed protection assertion for one subject. NAT
+// protection belongs to the gateway partition; legacy inputs use that assertion
+// for all selected assets when they have no individual internet section.
+func (in Input) ProtectionFor(subject string) Protection {
+	if in.Scope.Boundary == "internet" {
+		for _, asset := range in.Assets {
+			if asset.ID == subject && asset.Protection != nil {
+				return *asset.Protection
+			}
+		}
+	}
+	return in.Protection
 }

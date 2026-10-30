@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"io"
 	"net/http"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -194,7 +195,7 @@ func (r *Reader) accept(op string, q map[string]string, raw []byte) error {
 		switch v := value.(type) {
 		case map[string]any:
 			for k, item := range v {
-				if k == "AliUid" || k == "MemberUid" {
+				if k == "AliUid" || k == "MemberUid" || k == "OwnerId" {
 					var account string
 					switch n := item.(type) {
 					case string:
@@ -234,7 +235,7 @@ func (r *Reader) accept(op string, q map[string]string, raw []byte) error {
 	}
 
 	if op == "DescribeAssetList" {
-		region := ""
+		region := r.instances[q["SearchItem"]]
 		for _, asset := range r.factory.config.Connection.Assets() {
 			if asset.InstanceID == q["SearchItem"] {
 				region = asset.Region
@@ -269,30 +270,71 @@ func (r *Reader) accept(op string, q map[string]string, raw []byte) error {
 		container, _ := obj["Instances"].(map[string]any)
 		instances, _ := container["Instance"].([]any)
 		newGroups := map[string]bool{}
+		newInstances := map[string]string{}
+		seen := map[string]bool{}
 		for _, item := range instances {
 			instance, ok := item.(map[string]any)
 			if !ok {
 				return Failure("CLOUD_RESPONSE_INVALID")
 			}
 			id, ok := instance["InstanceId"].(string)
-			if !ok || !allowed[id] {
+			if !ok || !r.factory.config.Connection.AllowsAsset(q["RegionId"], id) || len(requested) > 0 && !allowed[id] || seen[id] {
 				return Failure("CLOUD_ASSET_SCOPE_MISMATCH")
 			}
-			if region, ok := instance["RegionId"].(string); ok && region != q["RegionId"] {
+			seen[id] = true
+			if region, ok := instance["RegionId"].(string); !ok || region != q["RegionId"] {
 				return Failure("CLOUD_ASSET_SCOPE_MISMATCH")
 			}
+			if !instancePredicateMatches(instance, q) {
+				continue
+			}
+			newInstances[id] = q["RegionId"]
 			groups, _ := instance["SecurityGroupIds"].(map[string]any)
 			ids, _ := groups["SecurityGroupId"].([]any)
 			for _, item := range ids {
-				id, ok := item.(string)
-				if !ok || !idPattern.MatchString(id) {
+				group, ok := item.(string)
+				if !ok || !idPattern.MatchString(group) {
 					return Failure("CLOUD_RESPONSE_INVALID")
 				}
-				newGroups[q["RegionId"]+"/"+id] = true
+				newGroups[q["RegionId"]+"/"+group] = true
 			}
+		}
+		for id, region := range newInstances {
+			r.instances[id] = region
 		}
 		for group := range newGroups {
 			r.groups[group] = true
+		}
+	}
+	if op == "DescribeNatFirewallList" {
+		values, present := obj["NatFirewallList"]
+		if present {
+			rows, ok := values.([]any)
+			if !ok {
+				return Failure("CLOUD_RESPONSE_INVALID")
+			}
+			learned := map[string]string{}
+			for _, item := range rows {
+				row, ok := item.(map[string]any)
+				if !ok {
+					return Failure("CLOUD_RESPONSE_INVALID")
+				}
+				id, _ := row["NatGatewayId"].(string)
+				region, _ := row["RegionId"].(string)
+				if !r.factory.config.Connection.AllowsGateway(region, id) || q["RegionNo"] != "" && region != q["RegionNo"] {
+					return Failure("CLOUD_GATEWAY_MISMATCH")
+				}
+				if q["ProxyName"] != "" {
+					name, _ := row["ProxyName"].(string)
+					if name != q["ProxyName"] {
+						continue
+					}
+				}
+				learned[id] = region
+			}
+			for id, region := range learned {
+				r.gateways[id] = region
+			}
 		}
 	}
 	if op == "DescribeSecurityGroupAttribute" {
@@ -330,4 +372,43 @@ func validIdentityARN(kind, account, arn string) bool {
 		return len(parts) == 3 && (parts[0] == "assumed-role" || parts[0] == "role") && validPart(parts[1]) && validPart(parts[2])
 	}
 	return false
+}
+
+func instancePredicateMatches(row map[string]any, q map[string]string) bool {
+	if pattern := q["InstanceName"]; pattern != "" {
+		name, _ := row["InstanceName"].(string)
+		parts := strings.Split(pattern, "*")
+		for i := range parts {
+			parts[i] = regexp.QuoteMeta(parts[i])
+		}
+		if !regexp.MustCompile("^" + strings.Join(parts, ".*") + "$").MatchString(name) {
+			return false
+		}
+	}
+	tags := map[string]string{}
+	container, _ := row["Tags"].(map[string]any)
+	values, _ := container["Tag"].([]any)
+	for _, item := range values {
+		tag, ok := item.(map[string]any)
+		if !ok {
+			return false
+		}
+		key, _ := tag["TagKey"].(string)
+		value, _ := tag["TagValue"].(string)
+		if old, ok := tags[key]; ok && old != value {
+			return false
+		}
+		tags[key] = value
+	}
+	for index := 1; index <= 20; index++ {
+		key := q["Tag."+strconv.Itoa(index)+".Key"]
+		if key == "" {
+			continue
+		}
+		value, present := tags[key]
+		if !present || q["Tag."+strconv.Itoa(index)+".Value"] != "" && value != q["Tag."+strconv.Itoa(index)+".Value"] {
+			return false
+		}
+	}
+	return true
 }

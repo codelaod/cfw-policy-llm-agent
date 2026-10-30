@@ -3,6 +3,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 import App from './App.vue'
 import Workbench from './Workbench.vue'
 import WorkspaceShell from './WorkspaceShell.vue'
+import ConversationWorkspace from './ConversationWorkspace.vue'
 import OverviewPage from './pages/OverviewPage.vue'
 import InventoryPage from './pages/InventoryPage.vue'
 import AuditsPage from './pages/AuditsPage.vue'
@@ -14,8 +15,9 @@ import './workspace.css'
 const router = createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', redirect: '/overview' },
+    { path: '/', redirect: '/conversations' },
     { path: '/', component: WorkspaceShell, children: [
+      { path: 'conversations', name: 'conversations', component: ConversationWorkspace },
       { path: 'overview', name: 'overview', component: OverviewPage },
       { path: 'inventory/:id?', name: 'inventory', component: InventoryPage },
       { path: 'audits/:id?', name: 'audits', component: AuditsPage },
@@ -23,7 +25,7 @@ const router = createRouter({
       { path: 'reports/:id?', name: 'reports', component: ReportsPage },
     ] },
     { path: '/e0', name: 'e0', component: Workbench },
-    { path: '/:pathMatch(.*)*', redirect: '/overview' },
+    { path: '/:pathMatch(.*)*', redirect: '/conversations' },
   ],
 })
 

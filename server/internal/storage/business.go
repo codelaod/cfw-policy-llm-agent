@@ -161,6 +161,9 @@ func saveSnapshot(tx *gorm.DB, in domain.Input) (record SnapshotRecord, err erro
 	err = tx.Exec("INSERT INTO snapshots(id,scope_ref,source_kind,created_at,body) VALUES(?,?,?,?,?)", id, record.ScopeRef, record.SourceKind, record.CreatedAt, record.Body).Error
 	if err == nil {
 		err = json.Unmarshal(body, &record.Input)
+		if err == nil {
+			err = indexSnapshotResources(tx, record)
+		}
 	}
 	return
 }

@@ -62,7 +62,7 @@ export function readPointer(document: unknown, pointer: string): PointerValue {
   return { found: true, value }
 }
 export function needsResultRefresh(event: JobEvent): boolean {
-  return ['findings_available', 'report_available', 'message_available', 'tool_started', 'tool_finished', 'job_terminal'].includes(event.type) || event.type === 'stage_changed' && ['agent_result_saved', 'cloud_result_saved'].includes(String(event.payload.stage))
+  return ['findings_available', 'report_available', 'message_available', 'tool_started', 'tool_finished', 'job_terminal'].includes(event.type) || event.type === 'stage_changed' && ['agent_result_saved', 'cloud_result_saved', 'discovery_saved', 'input_sealed', 'batch_segment_started', 'batch_segment_finished', 'batch_request_stopped'].includes(String(event.payload.stage))
 }
 
 /** A protected fixed-input read belongs to one job and one persisted result. */

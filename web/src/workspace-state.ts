@@ -3,7 +3,7 @@ import { ApiError } from './api.ts'
 
 /** These errors prove the attempted write was rejected before acceptance. */
 export function isDefiniteRejection(cause: unknown) {
-  return cause instanceof ApiError && ['INVALID_REQUEST', 'VERSION_CONFLICT', 'PLAN_STALE', 'PLAN_CONSUMED', 'CONVERSATION_ARCHIVED', 'CONVERSATION_BUSY', 'MODEL_NOT_CONFIGURED', 'SOURCE_NOT_CONFIGURED', 'SCOPE_DENIED', 'QUEUE_FULL'].includes(cause.code)
+  return cause instanceof ApiError && ['INVALID_REQUEST', 'VERSION_CONFLICT', 'PLAN_STALE', 'PLAN_CONSUMED', 'CONVERSATION_ARCHIVED', 'CONVERSATION_BUSY', 'MODEL_NOT_CONFIGURED', 'SOURCE_NOT_CONFIGURED', 'SCOPE_DENIED', 'QUEUE_FULL', 'INTENT_STALE', 'PROPOSAL_STALE', 'CANDIDATE_STALE', 'CREDENTIAL_IN_PAYLOAD'].includes(cause.code)
 }
 
 /** JSON DTOs can contain Vue proxies while an editor is open. */

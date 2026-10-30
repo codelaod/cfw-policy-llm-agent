@@ -10,7 +10,7 @@ func insertJobConversationMessage(tx *gorm.DB, jobID string, input MessageInput)
 	if err != nil {
 		return message, false, err
 	}
-	plan, err := planRecord(tx, job.PlanID)
+	plan, err := executionPlanForJob(tx, job)
 	if err != nil {
 		return message, false, err
 	}
@@ -29,7 +29,7 @@ func validateJobMessageContext(tx *gorm.DB, conversationID string, input Message
 	if job.Kind == "e0_probe" || job.ConversationID != conversationID || input.JobID != jobID || job.PlanID == "" {
 		return ErrInputInvalid
 	}
-	plan, err := planRecord(tx, job.PlanID)
+	plan, err := executionPlanForJob(tx, job)
 	if err != nil {
 		return err
 	}
@@ -44,16 +44,27 @@ func validateJobMessageContext(tx *gorm.DB, conversationID string, input Message
 	if row.RowsAffected != 1 || turn.ConversationID != conversationID || turn.PlanID != plan.ID {
 		return ErrInputInvalid
 	}
+	authority, e := batchAuthority(tx, job)
+	if e != nil {
+		return e
+	}
 	var accepted ConversationMessage
 	row = tx.Raw("SELECT * FROM conversation_messages WHERE id=?", turn.MessageID).Scan(&accepted)
 	if row.Error != nil {
 		return row.Error
 	}
-	if row.RowsAffected != 1 || accepted.ConversationID != conversationID || accepted.JobID != jobID || accepted.PolicyScopeRef != plan.PolicyScopeRef {
+	original, originalErr := planRecord(tx, authority.PlanID)
+	if originalErr != nil {
+		return originalErr
+	}
+	if row.RowsAffected != 1 || accepted.ConversationID != conversationID || accepted.JobID != authority.ID || accepted.PolicyScopeRef != original.PolicyScopeRef {
 		return ErrInputInvalid
 	}
 	switch {
 	case input.Role == "assistant" && input.Origin == "model":
+		if e := batchPublicationOpen(tx, job); e != nil {
+			return e
+		}
 		if !plan.EffectCeiling.AllowModelRequests || !enum(plan.Mode, "assistant", "rules_and_agent") {
 			return ErrInputInvalid
 		}

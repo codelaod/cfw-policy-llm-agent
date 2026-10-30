@@ -1,0 +1,886 @@
+{
+  "schema_version": 1,
+  "scope": "Finite human-authored prototype branch mapping; simulated is not production acceptance or an assertion that every natural utterance is understood.",
+  "branches": [
+    {
+      "id": "J01-CLOUD",
+      "journey": "J01",
+      "status": "simulated",
+      "entry": "输入目标；演示情境选择未配置云连接/未启用模型；使用人工资料继续；导入人工资料按钮",
+      "observable": "保留草稿和历史；说明具体受影响的读取，身份核对不能等同所有产品权限通过。",
+      "state_regression": "J01",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J01-CLOUD"
+    },
+    {
+      "id": "J01-MODEL",
+      "journey": "J01",
+      "status": "simulated",
+      "entry": "输入目标；演示情境选择未配置云连接/未启用模型；使用人工资料继续；导入人工资料按钮",
+      "observable": "规则检查和人工业务确认可用；配置、启用和执行授权分别判断，不能擅自调用模型。",
+      "state_regression": "J01",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J01-MODEL"
+    },
+    {
+      "id": "J01-MODEL_UNVERIFIED",
+      "journey": "J01",
+      "status": "simulated",
+      "entry": "输入目标；演示情境选择未配置云连接/未启用模型；使用人工资料继续；导入人工资料按钮",
+      "observable": "可在已授权范围和受控额度内尝试；尚未验证只说明保证级别，不要求普通用户先完成验收。失败保留规则结果并说明限制。",
+      "state_regression": "J01",
+      "limitation": "仅模拟明确选择模型补充后可尝试及失败保规则，没有真实上游兼容状态。",
+      "branch_regression": "prototype-branches.cjs#J01-MODEL_UNVERIFIED"
+    },
+    {
+      "id": "J01-NO_DATA",
+      "journey": "J01",
+      "status": "simulated",
+      "entry": "输入目标；演示情境选择未配置云连接/未启用模型；使用人工资料继续；导入人工资料按钮",
+      "observable": "可继续表达、修改和澄清目标；没有证据时不生成安全结论。",
+      "state_regression": "J01",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J01-NO_DATA"
+    },
+    {
+      "id": "J01-IMPORT",
+      "journey": "J01",
+      "status": "simulated",
+      "entry": "输入目标；演示情境选择未配置云连接/未启用模型；使用人工资料继续；导入人工资料按钮",
+      "observable": "核对输入格式与支持版本后显示对象、范围、时点、来源声明和完整性；来源保持导入条件，不升级为真实云观测。",
+      "state_regression": "J01",
+      "limitation": "只验证人工目录导入结构；固定规则样例不求值导入策略。",
+      "branch_regression": "prototype-branches.cjs#J01-IMPORT"
+    },
+    {
+      "id": "J01-IMPORT_INVALID",
+      "journey": "J01",
+      "status": "simulated",
+      "entry": "输入目标；演示情境选择未配置云连接/未启用模型；使用人工资料继续；导入人工资料按钮",
+      "observable": "明确拒绝本次导入并指出可修正类别，不生成快照或安全结论；原目标、已保存资料和非敏感编辑可继续。",
+      "state_regression": "J01",
+      "limitation": "验证JSON格式、版本、资源必要字段、大小及已识别敏感值；不是完整正式snapshot schema。",
+      "branch_regression": "prototype-branches.cjs#J01-IMPORT_INVALID"
+    },
+    {
+      "id": "J01-IMPORT_PARTIAL",
+      "journey": "J01",
+      "status": "simulated",
+      "entry": "输入目标；演示情境选择未配置云连接/未启用模型；使用人工资料继续；导入人工资料按钮",
+      "observable": "展示实际缺口与受影响检查；可用局部事实保留，不把不完整输入当全局通过，也不补造字段。",
+      "state_regression": "J01",
+      "limitation": "不完整人工导入使后续任务partial，未实现每个数据族的任意组合。",
+      "branch_regression": "prototype-branches.cjs#J01-IMPORT_PARTIAL"
+    },
+    {
+      "id": "J02-NAME",
+      "journey": "J02",
+      "status": "simulated",
+      "entry": "输入检查杭州web-prod，改查北京i-demo-057 ECS；同名时选择候选",
+      "observable": "展示唯一对象及来源后进入执行预览。",
+      "state_regression": "J02",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J02-NAME"
+    },
+    {
+      "id": "J02-ID",
+      "journey": "J02",
+      "status": "simulated",
+      "entry": "输入检查杭州web-prod，改查北京i-demo-057 ECS；同名时选择候选",
+      "observable": "可按ID解析或提出有限读取，不要求管理员逐台追加配置。",
+      "state_regression": "J02",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J02-ID"
+    },
+    {
+      "id": "J02-TYPE",
+      "journey": "J02",
+      "status": "simulated",
+      "entry": "输入“检查杭州 edge-shared”，按ECS/NAT网关选择；也可导入同名不同类型人工对象。",
+      "observable": "保留类型差异，要求选择或修订，不用首条候选。",
+      "state_regression": "J02",
+      "limitation": "类型候选实际区分；只使用人工目录。",
+      "branch_regression": "prototype-branches.cjs#J02-TYPE"
+    },
+    {
+      "id": "J03-KNOWN",
+      "journey": "J03",
+      "status": "simulated",
+      "entry": "输入审计客户甲的机器/支付业务群；检查杭州所有ECS；排除i-demo-003",
+      "observable": "可用作当前账号内的业务过滤；不切换云账号、不建立多租户权限。",
+      "state_regression": "J03",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J03-KNOWN"
+    },
+    {
+      "id": "J03-PAGING",
+      "journey": "J03",
+      "status": "simulated",
+      "entry": "输入审计客户甲的机器/支付业务群；检查杭州所有ECS；排除i-demo-003",
+      "observable": "说明完整计数或尚未穷尽；提供分页、分批或收窄，不截前N台冒充全部，也不承诺超出当前只读来源支持的无限全账号标签检索。",
+      "state_regression": "J03",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J03-PAGING"
+    },
+    {
+      "id": "J03-GROUP_CHANGE",
+      "journey": "J03",
+      "status": "simulated",
+      "entry": "输入支付业务群；排除i-demo-003；加入i-demo-023，再核对集合差异。",
+      "observable": "展示集合差异并重新预览；不得沿用原集合确认。",
+      "state_regression": "J03",
+      "limitation": "增删后旧计划失效，原组确认不直接扩展到新集合。",
+      "branch_regression": "prototype-branches.cjs#J03-GROUP_CHANGE"
+    },
+    {
+      "id": "J04-PRONOUN",
+      "journey": "J04",
+      "status": "simulated",
+      "entry": "输入检查web-prod；补地域或选ID；检查客户乙杭州web-prod；忽略刚才杭州改查北京",
+      "observable": "只复用同会话中可明确定位且仍有效的引用；多个可能引用时询问。",
+      "state_regression": "J04",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J04-PRONOUN"
+    },
+    {
+      "id": "J04-UNKNOWN_CUSTOMER",
+      "journey": "J04",
+      "status": "simulated",
+      "entry": "输入检查web-prod；补地域或选ID；检查客户乙杭州web-prod；忽略刚才杭州改查北京",
+      "observable": "询问明确对象或可验证归属，不凭普通标签猜测，也不要求新建租户。",
+      "state_regression": "J04",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J04-UNKNOWN_CUSTOMER"
+    },
+    {
+      "id": "J04-CHANGE",
+      "journey": "J04",
+      "status": "simulated",
+      "entry": "输入检查web-prod；补地域或选ID；检查客户乙杭州web-prod；忽略刚才杭州改查北京",
+      "observable": "旧预览不再可执行；已执行任务仍保留原范围。",
+      "state_regression": "J04",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J04-CHANGE"
+    },
+    {
+      "id": "J05-UNKNOWN",
+      "journey": "J05",
+      "status": "simulated",
+      "entry": "演示情境选择目录尚未准备/陈旧/未穷尽/完整空集/权限；输入目标；确认有限发现",
+      "observable": "明确尚不知道，不显示0台已证实。",
+      "state_regression": "J05",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J05-UNKNOWN"
+    },
+    {
+      "id": "J05-STALE",
+      "journey": "J05",
+      "status": "simulated",
+      "entry": "演示情境选择目录尚未准备/陈旧/未穷尽/完整空集/权限；输入目标；确认有限发现",
+      "observable": "旧时点可用于参考，不能证明当前不存在。",
+      "state_regression": "J05",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J05-STALE"
+    },
+    {
+      "id": "J05-EMPTY",
+      "journey": "J05",
+      "status": "simulated",
+      "entry": "演示情境选择目录尚未准备/陈旧/未穷尽/完整空集/权限；输入目标；确认有限发现",
+      "observable": "可说明该范围本次未找到对象；不生成无风险审计报告。",
+      "state_regression": "J05",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J05-EMPTY"
+    },
+    {
+      "id": "J05-DENIED",
+      "journey": "J05",
+      "status": "simulated",
+      "entry": "演示情境选择目录尚未准备/陈旧/未穷尽/完整空集/权限；输入目标；确认有限发现",
+      "observable": "说明受影响来源，不当作空目录或全部产品权限失败。",
+      "state_regression": "J05",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J05-DENIED"
+    },
+    {
+      "id": "J05-INCOMPLETE",
+      "journey": "J05",
+      "status": "simulated",
+      "entry": "演示情境选择目录尚未准备/陈旧/未穷尽/完整空集/权限；输入目标；确认有限发现",
+      "observable": "保留已见对象和未穷尽标记；不得称完整结果。",
+      "state_regression": "J05",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J05-INCOMPLETE"
+    },
+    {
+      "id": "J06-REUSE",
+      "journey": "J06",
+      "status": "simulated",
+      "entry": "正常计划查看资料策略；解释昨天报告；现在核查这台；改好了重新采集；刷新失败情境",
+      "observable": "复用不新增云查询，仍显示原采集时间；复用是M0必需路径。",
+      "state_regression": "J06",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J06-REUSE"
+    },
+    {
+      "id": "J06-REFRESH",
+      "journey": "J06",
+      "status": "simulated",
+      "entry": "正常计划查看资料策略；解释昨天报告；现在核查这台；改好了重新采集；刷新失败情境",
+      "observable": "仅在已接受范围与效果内刷新；不够则重新预览。",
+      "state_regression": "J06",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J06-REFRESH"
+    },
+    {
+      "id": "J06-REFRESH_FAIL",
+      "journey": "J06",
+      "status": "simulated",
+      "entry": "正常计划查看资料策略；解释昨天报告；现在核查这台；改好了重新采集；刷新失败情境",
+      "observable": "展示失败和旧资料可供历史参考的限制，不悄悄用旧资料宣称当前已修复。",
+      "state_regression": "J06",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J06-REFRESH_FAIL"
+    },
+    {
+      "id": "J07-ACCEPT",
+      "journey": "J07",
+      "status": "simulated",
+      "entry": "补充业务资料→角色用途；询问主要做什么；接受/修改/拒绝候选；冲突情境",
+      "observable": "仅保存所列角色、服务及适用对象；不顺带确认访问来源。",
+      "state_regression": "J07",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J07-ACCEPT"
+    },
+    {
+      "id": "J07-MODIFY",
+      "journey": "J07",
+      "status": "simulated",
+      "entry": "角色用途表单编辑services，每行服务名|端口；预览并确认；分别为服务确认访问。",
+      "observable": "按服务展示新草稿和差异，再确认。",
+      "state_regression": "J07",
+      "limitation": "服务绑定和多服务条目是人工结构化确认，不证明监听。",
+      "branch_regression": "prototype-branches.cjs#J07-MODIFY"
+    },
+    {
+      "id": "J07-REJECT",
+      "journey": "J07",
+      "status": "simulated",
+      "entry": "补充业务资料→角色用途；询问主要做什么；接受/修改/拒绝候选；冲突情境",
+      "observable": "保留原始证据、拒绝记录和未知角色；不再当成已识别服务。",
+      "state_regression": "J07",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J07-REJECT"
+    },
+    {
+      "id": "J07-UNKNOWN",
+      "journey": "J07",
+      "status": "simulated",
+      "entry": "补充业务资料→角色用途；询问主要做什么；接受/修改/拒绝候选；冲突情境",
+      "observable": "说明歧义；允许未知，不强制归类、不暂停全部审计。",
+      "state_regression": "J07",
+      "limitation": "legacy-app缺线索、共享组限制可见；未枚举任意多网卡关系。",
+      "branch_regression": "prototype-branches.cjs#J07-UNKNOWN"
+    },
+    {
+      "id": "J07-CONFLICT",
+      "journey": "J07",
+      "status": "simulated",
+      "entry": "补充业务资料→角色用途；询问主要做什么；接受/修改/拒绝候选；冲突情境",
+      "observable": "并列新旧内容要求复核；不静默覆盖已确认版本。",
+      "state_regression": "J07",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J07-CONFLICT"
+    },
+    {
+      "id": "J08-ROLE_ONLY",
+      "journey": "J08",
+      "status": "simulated",
+      "entry": "补充业务资料→角色/允许访问/必要访问/业务例外，独立预览确认；留空或过期例外拒绝",
+      "observable": "访问授权仍未声明，不能从Web或数据库自动补来源。",
+      "state_regression": "J08",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J08-ROLE_ONLY"
+    },
+    {
+      "id": "J08-EMPTY_UNKNOWN",
+      "journey": "J08",
+      "status": "simulated",
+      "entry": "补充业务资料→角色/允许访问/必要访问/业务例外，独立预览确认；留空或过期例外拒绝",
+      "observable": "保持未知，不能解释为拒绝所有。",
+      "state_regression": "J08",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J08-EMPTY_UNKNOWN"
+    },
+    {
+      "id": "J08-NECESSARY",
+      "journey": "J08",
+      "status": "simulated",
+      "entry": "必要访问表单选择服务、目标、端口与必要性；确认后使用required-impact情境。",
+      "observable": "说明具体影响和配套条件；不直接推荐破坏必要访问。",
+      "state_regression": "J08",
+      "limitation": "仅有真实本页已确认前提时显示人工业务推导；否则待确认。",
+      "branch_regression": "prototype-branches.cjs#J08-NECESSARY"
+    },
+    {
+      "id": "J08-EXCEPTION",
+      "journey": "J08",
+      "status": "simulated",
+      "entry": "补充业务资料→角色/允许访问/必要访问/业务例外，独立预览确认；留空或过期例外拒绝",
+      "observable": "不按有效例外压制判据；保留待补状态。",
+      "state_regression": "J08",
+      "limitation": "独立字段、缺项和到期校验；授权来源真实性及正式例外规则应用未实现。",
+      "branch_regression": "prototype-branches.cjs#J08-EXCEPTION"
+    },
+    {
+      "id": "J09-BASELINE",
+      "journey": "J09",
+      "status": "simulated",
+      "entry": "输入不知道管理白名单先查基线；确认计划；同时看规则事实与待确认",
+      "observable": "可产生有证据的基线发现，不因缺白名单抹掉。",
+      "state_regression": "J09",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J09-BASELINE"
+    },
+    {
+      "id": "J09-BUSINESS",
+      "journey": "J09",
+      "status": "simulated",
+      "entry": "输入不知道管理白名单先查基线；确认计划；同时看规则事实与待确认",
+      "observable": "该项待确认，不当作通过或违规。",
+      "state_regression": "J09",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J09-BUSINESS"
+    },
+    {
+      "id": "J09-DATA",
+      "journey": "J09",
+      "status": "simulated",
+      "entry": "输入不知道管理白名单先查基线；确认计划；同时看规则事实与待确认",
+      "observable": "只降级受影响判断，已证实无关事实仍保留。",
+      "state_regression": "J09",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J09-DATA"
+    },
+    {
+      "id": "J10-PRECEDENCE",
+      "journey": "J10",
+      "status": "simulated",
+      "entry": "选择高优先级拒绝/条目禁用/防护未知/关闭/未纳入/切换中情境；检查杭州web-prod入向",
+      "observable": "区分配置存在事实和实际配置逻辑允许范围；不忽略顺序与状态。",
+      "state_regression": "J10",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J10-PRECEDENCE"
+    },
+    {
+      "id": "J10-DEFAULT",
+      "journey": "J10",
+      "status": "simulated",
+      "entry": "选择高优先级拒绝/条目禁用/防护未知/关闭/未纳入/切换中情境；检查杭州web-prod入向",
+      "observable": "不能把没有allow或缩小一条allow当作其他来源已拒绝。",
+      "state_regression": "J10",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J10-DEFAULT"
+    },
+    {
+      "id": "J10-COVERAGE",
+      "journey": "J10",
+      "status": "simulated",
+      "entry": "演示情境依次选择防护未知、明确关闭、未纳入、切换中，确认审计后查看coverage发现。",
+      "observable": "分别展示；单层关闭不能概括为完全无防护。",
+      "state_regression": "J10",
+      "limitation": "分别展示所选组件/对象状态，不推断全部防护。",
+      "branch_regression": "prototype-branches.cjs#J10-COVERAGE"
+    },
+    {
+      "id": "J11-UNKNOWN",
+      "journey": "J11",
+      "status": "simulated",
+      "entry": "检查杭州web-prod出向；补充本边界允许目标；应用条件不支持情境",
+      "observable": "保留配置事实与待确认；不自动判业务违规。",
+      "state_regression": "J11",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J11-UNKNOWN"
+    },
+    {
+      "id": "J11-COMPLETE",
+      "journey": "J11",
+      "status": "simulated",
+      "entry": "检查杭州web-prod出向；补充本边界允许目标；应用条件不支持情境",
+      "observable": "可比较超范围或必要访问被拒绝，明确本层配置结论。",
+      "state_regression": "J11",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J11-COMPLETE"
+    },
+    {
+      "id": "J11-UNSUPPORTED",
+      "journey": "J11",
+      "status": "simulated",
+      "entry": "检查杭州web-prod出向；补充本边界允许目标；应用条件不支持情境",
+      "observable": "保留原条件并标具体不支持，不简化成IP后硬算。",
+      "state_regression": "J11",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J11-UNSUPPORTED"
+    },
+    {
+      "id": "J12-SAME_ID",
+      "journey": "J12",
+      "status": "simulated",
+      "entry": "检查杭州ngw-hz-01 NAT网关；NAT关联不足情境；复审边界改变",
+      "observable": "按边界与实际规则集区分，不混排优先级或合并发现。",
+      "state_regression": "J12",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J12-SAME_ID"
+    },
+    {
+      "id": "J12-ASSOCIATION",
+      "journey": "J12",
+      "status": "simulated",
+      "entry": "检查杭州ngw-hz-01 NAT网关；NAT关联不足情境；复审边界改变",
+      "observable": "NAT策略集可审阅，相关资产业务比较信息不足；同VPC、相同公网IP或用户选中网关均不证明实际路径，目录未返回也不证明账号不存在NAT。",
+      "state_regression": "J12",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J12-ASSOCIATION"
+    },
+    {
+      "id": "J12-CROSS_SCOPE",
+      "journey": "J12",
+      "status": "simulated",
+      "entry": "检查杭州ngw-hz-01 NAT网关；NAT关联不足情境；复审边界改变",
+      "observable": "给出不可比较原因，保留两份独立报告。",
+      "state_regression": "J12",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J12-CROSS_SCOPE"
+    },
+    {
+      "id": "J13-MODEL_HYPOTHESIS",
+      "journey": "J13",
+      "status": "simulated",
+      "entry": "查看结果→证据/条件/影响；模型疑点缺证据/应用条件不支持/防护未知/关闭/未纳入/切换中情境",
+      "observable": "单列为候选或待核实，不能覆盖规则事实。",
+      "state_regression": "J13",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J13-MODEL_HYPOTHESIS"
+    },
+    {
+      "id": "J13-UNSUPPORTED",
+      "journey": "J13",
+      "status": "simulated",
+      "entry": "查看结果→证据/条件/影响；模型疑点缺证据/应用条件不支持/防护未知/关闭/未纳入/切换中情境",
+      "observable": "标具体检查受影响，不丢掉全部其他可验证结果。",
+      "state_regression": "J13",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J13-UNSUPPORTED"
+    },
+    {
+      "id": "J13-COMPONENT",
+      "journey": "J13",
+      "status": "simulated",
+      "entry": "选择条件性组件建议情境，审计后查看component发现的条件与影响。",
+      "observable": "区分已知缺口、适用性评估和未知状态；未读取不说未部署，不要求采购。",
+      "state_regression": "J13",
+      "limitation": "明确HTTP适用性和组件状态未知，不自动采购或开通。",
+      "branch_regression": "prototype-branches.cjs#J13-COMPONENT"
+    },
+    {
+      "id": "J14-SLOW",
+      "journey": "J14",
+      "status": "simulated",
+      "entry": "采集较慢/漏页/预算耗尽情境；确认计划；查看状态或取消",
+      "observable": "显示正在等待的数据和可取消操作，不误报失败或自动扩大范围。",
+      "state_regression": "J14",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J14-SLOW"
+    },
+    {
+      "id": "J14-PARTIAL",
+      "journey": "J14",
+      "status": "simulated",
+      "entry": "采集较慢/漏页/预算耗尽情境；确认计划；查看状态或取消",
+      "observable": "保存已得结果和受影响检查；不显示全局通过。",
+      "state_regression": "J14",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J14-PARTIAL"
+    },
+    {
+      "id": "J14-BUDGET",
+      "journey": "J14",
+      "status": "simulated",
+      "entry": "采集较慢/漏页/预算耗尽情境；确认计划；查看状态或取消",
+      "observable": "停止新增请求，保留已得证据和部分结果；不得通过重连恢复额度。",
+      "state_regression": "J14",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J14-BUDGET"
+    },
+    {
+      "id": "J15-SLOW",
+      "journey": "J15",
+      "status": "simulated",
+      "entry": "模型较慢/模型不可用/模型补查越界情境；规则先见；对象页执行记录的公开补查说明",
+      "observable": "保持规则可见、提供状态与取消；不给固定成功倒计时。",
+      "state_regression": "J15",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J15-SLOW"
+    },
+    {
+      "id": "J15-FAIL",
+      "journey": "J15",
+      "status": "simulated",
+      "entry": "模型较慢/模型不可用/模型补查越界情境；规则先见；对象页执行记录的公开补查说明",
+      "observable": "任务部分完成，规则层保留；无效输出不作为成功建议。",
+      "state_regression": "J15",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J15-FAIL"
+    },
+    {
+      "id": "J15-DEPENDENT",
+      "journey": "J15",
+      "status": "simulated",
+      "entry": "规则与模型补充模式执行后看对象页人工补查记录及tool_result事件。",
+      "observable": "显示公开的工具目的与证据关联；不暴露完整内部思考。",
+      "state_regression": "J15",
+      "limitation": "两个固定人工事件以reference与depends_on关联；不是实际工具或模型选择。",
+      "branch_regression": "prototype-branches.cjs#J15-DEPENDENT"
+    },
+    {
+      "id": "J15-NO_FACT",
+      "journey": "J15",
+      "status": "simulated",
+      "entry": "模型较慢/模型不可用/模型补查越界情境；规则先见；对象页执行记录的公开补查说明",
+      "observable": "拒绝该补查与无证据确定结论，已有规则不变。",
+      "state_regression": "J15",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J15-NO_FACT"
+    },
+    {
+      "id": "J16-ACK_UNKNOWN",
+      "journey": "J16",
+      "status": "simulated",
+      "entry": "受理答复丢失情境；恢复观察；重复确认/查询状态/取消任务/重试",
+      "observable": "先恢复查询原提交状态，必要重试沿用同一提交标识，不以新标识自动重复执行。",
+      "state_regression": "J16",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J16-ACK_UNKNOWN"
+    },
+    {
+      "id": "J16-DUPLICATE",
+      "journey": "J16",
+      "status": "simulated",
+      "entry": "受理答复丢失情境；恢复观察；重复确认/查询状态/取消任务/重试",
+      "observable": "显示同一任务，不重复建任务和消费。",
+      "state_regression": "J16",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J16-DUPLICATE"
+    },
+    {
+      "id": "J16-QUEUED_CANCEL",
+      "journey": "J16",
+      "status": "simulated",
+      "entry": "受理答复丢失情境；恢复观察；重复确认/查询状态/取消任务/重试",
+      "observable": "不进入云或模型执行；明确已取消。",
+      "state_regression": "J16",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J16-QUEUED_CANCEL"
+    },
+    {
+      "id": "J16-LATE_RESULT",
+      "journey": "J16",
+      "status": "simulated",
+      "entry": "受理答复丢失情境；恢复观察；重复确认/查询状态/取消任务/重试",
+      "observable": "不覆盖终态；保留实际已得证据与说明。",
+      "state_regression": "J16",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J16-LATE_RESULT"
+    },
+    {
+      "id": "J17-DISCONNECT",
+      "journey": "J17",
+      "status": "simulated",
+      "entry": "确认计划后断开观察；恢复观察或轮询；服务中断情境；历史→打开这份报告",
+      "observable": "任务继续，断线不是取消；重连不重置额度和执行。",
+      "state_regression": "J17",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J17-DISCONNECT"
+    },
+    {
+      "id": "J17-RESTART",
+      "journey": "J17",
+      "status": "partial",
+      "entry": "确认计划后断开观察；恢复观察或轮询；服务中断情境；历史→打开这份报告",
+      "observable": "显示中断及已得结果，不自动重放云或模型调用。",
+      "state_regression": "J17",
+      "limitation": "可见人工中断与重开历史示例均在内存；不是磁盘恢复。",
+      "branch_regression": "prototype-branches.cjs#J17-RESTART"
+    },
+    {
+      "id": "J17-REFRESH",
+      "journey": "J17",
+      "status": "partial",
+      "entry": "确认计划后断开观察；恢复观察或轮询；服务中断情境；历史→打开这份报告",
+      "observable": "已保存记录可恢复；未保存草稿明确提示，不能伪称已持久保存。",
+      "state_regression": "J17",
+      "limitation": "可见重开人工历史示例；真实浏览器刷新仍清空，正式持久恢复未实现。",
+      "branch_regression": "prototype-branches.cjs#J17-REFRESH"
+    },
+    {
+      "id": "J17-HISTORICAL",
+      "journey": "J17",
+      "status": "simulated",
+      "entry": "确认计划后断开观察；恢复观察或轮询；服务中断情境；历史→打开这份报告",
+      "observable": "明确历史时点与限制；问现在才进入新的资料策略。",
+      "state_regression": "J17",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J17-HISTORICAL"
+    },
+    {
+      "id": "J18-FAILED",
+      "journey": "J18",
+      "status": "simulated",
+      "entry": "保存失败/版本冲突/审阅失败情境；编辑业务资料并预览；改变对象后旧预览失效",
+      "observable": "不显示确认完成；保留草稿、原提交状态和重试入口。",
+      "state_regression": "J18",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J18-FAILED"
+    },
+    {
+      "id": "J18-CONFLICT",
+      "journey": "J18",
+      "status": "simulated",
+      "entry": "保存失败/版本冲突/审阅失败情境；编辑业务资料并预览；改变对象后旧预览失效",
+      "observable": "旧预览不可继续提交，差异核对后重新预览。",
+      "state_regression": "J18",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J18-CONFLICT"
+    },
+    {
+      "id": "J18-SWITCH_OBJECT",
+      "journey": "J18",
+      "status": "simulated",
+      "entry": "保存失败/版本冲突/审阅失败情境；编辑业务资料并预览；改变对象后旧预览失效",
+      "observable": "不得把旧对象预览用于新对象；草稿按原对象保留或明确放弃。",
+      "state_regression": "J18",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J18-SWITCH_OBJECT"
+    },
+    {
+      "id": "J18-REVIEW",
+      "journey": "J18",
+      "status": "simulated",
+      "entry": "保存失败/版本冲突/审阅失败情境；编辑业务资料并预览；改变对象后旧预览失效",
+      "observable": "原发现不变，不提示已采纳或已保存。",
+      "state_regression": "J18",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J18-REVIEW"
+    },
+    {
+      "id": "J19-IMMUTABLE",
+      "journey": "J19",
+      "status": "simulated",
+      "entry": "结果→加入本地待办/暂缓理由；报告→Markdown/JSON；历史打开旧报告",
+      "observable": "旧报告和原始发现不改写，提示可用新资料新建审计。",
+      "state_regression": "J19",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J19-IMMUTABLE"
+    },
+    {
+      "id": "J19-REVIEW_ONLY",
+      "journey": "J19",
+      "status": "simulated",
+      "entry": "结果→加入本地待办/暂缓理由；报告→Markdown/JSON；历史打开旧报告",
+      "observable": "只改本地审阅记录，不宣称已云上整改或修复。",
+      "state_regression": "J19",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J19-REVIEW_ONLY"
+    },
+    {
+      "id": "J19-PARTIAL",
+      "journey": "J19",
+      "status": "simulated",
+      "entry": "结果→加入本地待办/暂缓理由；报告→Markdown/JSON；历史打开旧报告",
+      "observable": "报告清楚列出失败、未执行、待确认和不支持项，不输出全部安全。",
+      "state_regression": "J19",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J19-PARTIAL"
+    },
+    {
+      "id": "J19-EXPORT",
+      "journey": "J19",
+      "status": "simulated",
+      "entry": "结果→加入本地待办/暂缓理由；报告→Markdown/JSON；历史打开旧报告",
+      "observable": "无密钥、私有端点及不应公开的真实标识；保留来源与脱敏说明。",
+      "state_regression": "J19",
+      "limitation": "导出人工报告的Markdown/JSON，敏感入口拦截；无正式真实标识脱敏映射。",
+      "branch_regression": "prototype-branches.cjs#J19-EXPORT"
+    },
+    {
+      "id": "J20-IMPROVED",
+      "journey": "J20",
+      "status": "simulated",
+      "entry": "完成首次审计；人工改后/正常/新增问题/边界改变情境；准备复审→确认计划",
+      "observable": "显示已消失或改善及前后证据；结论仍限于本层配置。",
+      "state_regression": "J20",
+      "limitation": "前后证据与改善标签为人工固定配对，不是规则计算。",
+      "branch_regression": "prototype-branches.cjs#J20-IMPROVED"
+    },
+    {
+      "id": "J20-REMAINS",
+      "journey": "J20",
+      "status": "simulated",
+      "entry": "完成首次审计；人工改后/正常/新增问题/边界改变情境；准备复审→确认计划",
+      "observable": "显示仍存在及原因，不能只因单条allow缩小判修复。",
+      "state_regression": "J20",
+      "limitation": "前后证据与仍存在标签为人工固定配对，不是规则计算。",
+      "branch_regression": "prototype-branches.cjs#J20-REMAINS"
+    },
+    {
+      "id": "J20-NEW",
+      "journey": "J20",
+      "status": "simulated",
+      "entry": "完成首次审计；人工改后/正常/新增问题/边界改变情境；准备复审→确认计划",
+      "observable": "显示新增，不能只报好转。",
+      "state_regression": "J20",
+      "limitation": "新增ACL与原输入对比为人工固定配对，不是规则计算。",
+      "branch_regression": "prototype-branches.cjs#J20-NEW"
+    },
+    {
+      "id": "J20-INCOMPARABLE",
+      "journey": "J20",
+      "status": "simulated",
+      "entry": "完成首次审计；人工改后/正常/新增问题/边界改变情境；准备复审→确认计划",
+      "observable": "明确不可比较的对象与原因，不当风险消失。",
+      "state_regression": "J20",
+      "limitation": "模拟对象/边界/完整性可比约束；未覆盖任意判据版本迁移。",
+      "branch_regression": "prototype-branches.cjs#J20-INCOMPARABLE"
+    },
+    {
+      "id": "J21-ISOLATION",
+      "journey": "J21",
+      "status": "simulated",
+      "entry": "慢模型情境在4个会话确认不同任务；前三运行第四排队；同会话重复确认；20资产群",
+      "observable": "各自候选、确认、证据和取消目标不串会话。",
+      "state_regression": "J21",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J21-ISOLATION"
+    },
+    {
+      "id": "J21-QUEUE",
+      "journey": "J21",
+      "status": "simulated",
+      "entry": "慢模型情境在4个会话确认不同任务；前三运行第四排队；同会话重复确认；20资产群",
+      "observable": "第四个明确排队；有空位后自动推进且仍受原时效和预算约束。",
+      "state_regression": "J21",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J21-QUEUE"
+    },
+    {
+      "id": "J21-ONE_ACTIVE",
+      "journey": "J21",
+      "status": "simulated",
+      "entry": "慢模型情境在4个会话确认不同任务；前三运行第四排队；同会话重复确认；20资产群",
+      "observable": "阻止第二个活动任务并提供原任务入口。",
+      "state_regression": "J21",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J21-ONE_ACTIVE"
+    },
+    {
+      "id": "J21-NOT_ASSET_LIMIT",
+      "journey": "J21",
+      "status": "simulated",
+      "entry": "慢模型情境在4个会话确认不同任务；前三运行第四排队；同会话重复确认；20资产群",
+      "observable": "3会话是并发要求，不限制资产只有3台。",
+      "state_regression": "J21",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J21-NOT_ASSET_LIMIT"
+    },
+    {
+      "id": "J22-OUT_OF_SCOPE",
+      "journey": "J22",
+      "status": "simulated",
+      "entry": "输入直接删除云端策略/检查上海web-prod；正常改查北京",
+      "observable": "说明越界位置；不能由自由文字临时授权或读取其他身份。",
+      "state_regression": "J22",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J22-OUT_OF_SCOPE"
+    },
+    {
+      "id": "J22-WRITE",
+      "journey": "J22",
+      "status": "simulated",
+      "entry": "输入直接删除云端策略/检查上海web-prod；正常改查北京",
+      "observable": "本产品不执行；人工建议保留条件、影响及复审步骤。",
+      "state_regression": "J22",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J22-WRITE"
+    },
+    {
+      "id": "J22-NORMAL_EDIT",
+      "journey": "J22",
+      "status": "simulated",
+      "entry": "输入直接删除云端策略/检查上海web-prod；正常改查北京",
+      "observable": "按正常目标或草稿修订处理，不仅按修改词拒绝。",
+      "state_regression": "J22",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J22-NORMAL_EDIT"
+    },
+    {
+      "id": "J23-IRRELEVANT",
+      "journey": "J23",
+      "status": "simulated",
+      "entry": "输入无关话题；资源描述指令伪装情境；忽略刚才杭州改查北京",
+      "observable": "不生成伪审计结论；给清楚可用的审计短语。",
+      "state_regression": "J23",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J23-IRRELEVANT"
+    },
+    {
+      "id": "J23-INJECTION",
+      "journey": "J23",
+      "status": "simulated",
+      "entry": "输入无关话题；资源描述指令伪装情境；忽略刚才杭州改查北京",
+      "observable": "不改变指令、身份、范围或工具；必要时标受影响证据，继续可验证部分。",
+      "state_regression": "J23",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J23-INJECTION"
+    },
+    {
+      "id": "J23-USER_CHANGE",
+      "journey": "J23",
+      "status": "simulated",
+      "entry": "输入无关话题；资源描述指令伪装情境；忽略刚才杭州改查北京",
+      "observable": "按语义和任务引用处理，不能用关键词一刀切。",
+      "state_regression": "J23",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J23-USER_CHANGE"
+    },
+    {
+      "id": "J24-KNOWN_SECRET",
+      "journey": "J24",
+      "status": "simulated",
+      "entry": "输入可识别人工sk-*测试值（不使用真实凭据）；业务表单/审阅/导入同样拦截；移除后继续",
+      "observable": "不得回显原值或片段，也不把配置存在等同执行授权。",
+      "state_regression": "J24",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J24-KNOWN_SECRET"
+    },
+    {
+      "id": "J24-UNRECOGNIZED",
+      "journey": "J24",
+      "status": "simulated",
+      "entry": "输入可识别人工sk-*测试值（不使用真实凭据）；业务表单/审阅/导入同样拦截；移除后继续",
+      "observable": "不宣称能识别全部秘密；产品入口提醒不要贴凭据，公开前按需要脱敏。",
+      "state_regression": "J24",
+      "limitation": "仅提示不能识别任意秘密，不宣称未知私密文本自动拦截。",
+      "branch_regression": "prototype-branches.cjs#J24-UNRECOGNIZED"
+    },
+    {
+      "id": "J24-CONTINUE",
+      "journey": "J24",
+      "status": "simulated",
+      "entry": "输入可识别人工sk-*测试值（不使用真实凭据）；业务表单/审阅/导入同样拦截；移除后继续",
+      "observable": "保留非敏感意图，不把误操作当恶意用户。",
+      "state_regression": "J24",
+      "limitation": "Representative finite artificial branch only; no real cloud/model/rule/persistence.",
+      "branch_regression": "prototype-branches.cjs#J24-CONTINUE"
+    }
+  ]
+}

@@ -1,7 +1,14 @@
 import { ApiClient, ApiError, ProtocolError, decodeJob } from './api.ts'
+import { decodeConversationIntent, decodeConversationMessage, decodeIntentResponse } from './conversation-view.ts'
+import type { ConversationIntent, IntentChoiceRequest, IntentTurnRequest, ProposalAcceptance } from './workspace-types.ts'
 import { abortScope } from './abort.ts'
 import { decodeCloudRecord, decodeCollectionOptions } from './cloud-view.ts'
-import type { AgentRecord, Asset, AssetChange, AssetView, Capabilities, ConfirmationPreview, ConfirmationResult, Conversation, CurrentWorkspace, DataSource, ExecutionPlan, FindingRecord, Job, JobResult, MessageAcceptance, MessagePage, MessageRequest, Page, PlanRequest, ProfileDraft, ReportRecord, ReviewAction, ReviewRequest, Snapshot } from './workspace-types.ts'
+import { decodePreparationDiscovery } from './preparation-view.ts'
+import { decodeBatchRequest } from './batch-view.ts'
+import { decodeGroupPreview, decodeGroupResult } from './group-view.ts'
+import { decodeBusinessContext, decodeBusinessResult } from './business-view.ts'
+import { decodeGuidanceCatalog, type GuidanceQuery } from './guidance.ts'
+import type { AgentRecord, Asset, AssetChange, AssetView, Capabilities, ConfirmationPreview, ConfirmationResult, Conversation, CurrentWorkspace, DataSource, DraftRebaseRequest, ExecutionPlan, FindingRecord, Job, JobResult, MessageAcceptance, MessagePage, MessageRequest, Page, PlanRequest, ProfileDraft, ProfileDraftCurrentBase, ReportRecord, ReviewAction, ReviewRequest, Snapshot } from './workspace-types.ts'
 
 const object = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
 const hasID = <T>(value: unknown): T => { if (!object(value) || typeof value.id !== 'string' || !value.id) throw new ProtocolError('记录缺少有效标识。'); return value as T }
@@ -19,8 +26,7 @@ function finding(value: unknown): FindingRecord {
   record.finding.assumptions ??= []; record.finding.limitations ??= []; record.finding.differences ??= []; record.finding.evidence_refs ??= []; record.evidence ??= []
   return record
 }
-function draft(value: unknown): ProfileDraft {
-  const record = hasID<ProfileDraft>(value)
+function draftParts<T extends Pick<ProfileDraft,'changes'|'base_revisions'>>(record: T): T {
   record.changes ??= []; record.base_revisions ??= []
   for (const change of record.changes) {
     change.roles ??= []
@@ -28,6 +34,15 @@ function draft(value: unknown): ProfileDraft {
     if (change.access) { change.access.allowed ??= []; change.access.services ??= []; change.access.exceptions ??= []; for (const service of change.access.services) { service.allowed ??= []; service.required ??= [] } }
   }
   return record
+}
+function draft(value: unknown): ProfileDraft { return draftParts(hasID<ProfileDraft>(value)) }
+function draftBase(value: unknown, id: string): ProfileDraftCurrentBase {
+  if (!object(value) || value.draft_id !== id || !Number.isSafeInteger(value.draft_revision) || Number(value.draft_revision) < 1 || typeof value.snapshot_id !== 'string' || !value.snapshot_id || typeof value.policy_scope_ref !== 'string' || !value.policy_scope_ref || !Array.isArray(value.changes) || !value.changes.length || !Array.isArray(value.base_revisions) || value.changes.length !== value.base_revisions.length || ['body','request_digest','raw_artifacts'].some(field=>field in value)) throw new ProtocolError('当前业务基版本未绑定原草稿与固定对象。')
+  const assets = new Set<string>()
+  for (const change of value.changes) { if (!object(change) || typeof change.asset_id !== 'string' || !change.asset_id.trim() || change.asset_id.length > 128 || assets.has(change.asset_id)) throw new ProtocolError('当前业务基版本的对象集合无效。'); assets.add(change.asset_id) }
+  const heads = new Set<string>()
+  for (const head of value.base_revisions) { if (!object(head) || typeof head.asset_id !== 'string' || !assets.has(head.asset_id) || heads.has(head.asset_id) || !Number.isSafeInteger(head.revision) || Number(head.revision) < 0 || typeof head.profile_version_id !== 'string' || typeof head.intent_version_id !== 'string') throw new ProtocolError('当前业务基版本的修订引用无效。'); heads.add(head.asset_id) }
+  return draftParts(value as unknown as ProfileDraftCurrentBase)
 }
 function snapshot(value: unknown, expectedSource?: string): Snapshot {
   const saved = hasID<Snapshot>(value)
@@ -56,7 +71,7 @@ function agentRecord(value: unknown, jobID: string): AgentRecord {
     if (!object(output) || record.content.error_code || typeof output.explanation !== 'string') throw new ProtocolError('模型结果缺少可核实的解释。')
     output.roles ??= []; output.recommendations ??= []; output.questions = stringList(output.questions)
     if (!Array.isArray(output.roles) || !Array.isArray(output.recommendations)) throw new ProtocolError('模型结构结果校验失败。')
-    for (const role of output.roles) { if (!object(role) || typeof role.asset_ref !== 'string' || typeof role.service_ref !== 'string' || typeof role.role !== 'string') throw new ProtocolError('角色候选结构无效。'); role.supporting_evidence = stringList(role.supporting_evidence); role.contradicting_evidence = stringList(role.contradicting_evidence); role.unknowns = stringList(role.unknowns); role.questions = stringList(role.questions) }
+    for (const role of output.roles) { if (!object(role) || typeof role.asset_ref !== 'string' || role.service_ref !== undefined && typeof role.service_ref !== 'string' || typeof role.role !== 'string') throw new ProtocolError('角色候选结构无效。'); role.supporting_evidence = stringList(role.supporting_evidence); role.contradicting_evidence = stringList(role.contradicting_evidence); role.unknowns = stringList(role.unknowns); role.questions = stringList(role.questions) }
     for (const item of output.recommendations) { if (!object(item) || typeof item.kind !== 'string' || typeof item.target_ref !== 'string' || typeof item.impact !== 'string' || typeof item.manual_next_step !== 'string') throw new ProtocolError('条件建议结构无效。'); item.conditions = stringList(item.conditions); item.evidence_refs = stringList(item.evidence_refs) }
   }
   return record
@@ -79,13 +94,20 @@ export class WorkspaceClient {
     if (key) headers['Idempotency-Key'] = key
     return this.json<T>(path, { method: 'POST', headers, body: JSON.stringify(body) })
   }
+  async guidance(query: GuidanceQuery) {
+    const params = new URLSearchParams({ surface: query.surface })
+    if (query.conversationID) params.set('conversation_id', query.conversationID)
+    if (query.jobID) params.set('job_id', query.jobID)
+    if (query.reportID) params.set('report_id', query.reportID)
+    return decodeGuidanceCatalog(await this.json(`/guidance?${params}`), query)
+  }
   health() { return this.json('/health') }
   capabilities() { return this.json<Capabilities>('/capabilities') }
   async snapshots(offset = 0) { const result = page<Snapshot>(await this.json(`/snapshots?offset=${offset}&limit=100`)); result.items = result.items.map(item => snapshot(item)); return result }
   async snapshot(id: string) { return snapshot(await this.json(`/snapshots/${encodeURIComponent(id)}`)) }
   async example(name: string) { return snapshot(await this.post(`/snapshots/examples/${encodeURIComponent(name)}`, {}), 'synthetic') }
   async importSnapshot(input: unknown) { return snapshot(await this.post('/snapshots/import', input), 'imported') }
-  async assets(id: string) { const result = page<AssetView>(await this.json(`/snapshots/${encodeURIComponent(id)}/assets?offset=0&limit=100`)); result.items = result.items.map(item => ({ ...item, asset: asset(item.asset), declared_asset: asset(item.declared_asset), local_confirmed_sections: item.local_confirmed_sections ?? [] })); return result }
+  async assets(id: string, offset = 0) { const result = page<AssetView>(await this.json(`/snapshots/${encodeURIComponent(id)}/assets?offset=${offset}&limit=100`)); result.items = result.items.map(item => ({ ...item, asset: asset(item.asset), declared_asset: asset(item.declared_asset), local_confirmed_sections: item.local_confirmed_sections ?? [] })); return result }
   scopes() { return this.json<{ items: unknown[] }>('/policy-scopes') }
   async sources() {
     const result = await this.json<{ items: DataSource[] }>('/data-sources')
@@ -97,15 +119,43 @@ export class WorkspaceClient {
   setCurrentConversation(id: string, revision: number) { return this.json<CurrentWorkspace>('/workspaces/current', { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ conversation_id: id, expected_revision: revision }) }) }
   async conversations(offset = 0) { return page<Conversation>(await this.json(`/conversations?offset=${offset}&limit=100`)) }
   async conversation(id: string) { return hasID<Conversation>(await this.json(`/conversations/${encodeURIComponent(id)}`)) }
-  async createConversation(title: string, scope: string) { return hasID<Conversation>(await this.post('/conversations', { title, policy_scope_ref: scope })) }
+  async createConversation(title: string, scope = '', key?: string) { return hasID<Conversation>(await this.post('/conversations', { title, policy_scope_ref: scope }, key)) }
   async patchConversation(id: string, body: { expected_revision: number; title?: string; policy_scope_ref?: string; archived?: boolean }) { return hasID<Conversation>(await this.json(`/conversations/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })) }
-  messages(id: string, after = 0) { return this.json<MessagePage>(`/conversations/${encodeURIComponent(id)}/messages?after_seq=${after}&limit=100`) }
+  async messages(id: string, after = 0): Promise<MessagePage> {
+    const value: unknown = await this.json(`/conversations/${encodeURIComponent(id)}/messages?after_seq=${after}&limit=100`)
+    if (!object(value) || value.items !== null && !Array.isArray(value.items) || !Number.isSafeInteger(value.next_seq) || Number(value.next_seq) < after || !Number.isSafeInteger(value.last_seq) || Number(value.last_seq) < Number(value.next_seq) || typeof value.has_more !== 'boolean') throw new ProtocolError('持久会话消息页无效。')
+    const items = (value.items ?? []) as unknown[]
+    let seq = after
+    const messages = items.map(item => { const message = decodeConversationMessage(item, id); if (!message || message.seq !== ++seq) throw new ProtocolError('持久会话消息不连续。'); return message })
+    if (value.next_seq !== seq) throw new ProtocolError('消息页游标与正文不一致。')
+    return { items: messages, next_seq: seq, has_more: value.has_more, last_seq: Number(value.last_seq) }
+  }
   async sendMessage(id: string, body: MessageRequest, key?: string): Promise<MessageAcceptance> {
     const value: unknown = await this.post(`/conversations/${encodeURIComponent(id)}/messages`, body, key)
     if (!object(value) || !object(value.message) || !object(value.job) || typeof value.replayed !== 'boolean') throw new ProtocolError('未能核实消息与任务已保存。')
     const message = value.message, job = decodeJob(value.job)
     if (typeof message.id !== 'string' || !message.id || message.conversation_id !== id || job.conversation_id !== id || message.job_id !== job.id || message.role !== 'user' || message.public_text !== body.text || message.policy_scope_ref !== body.policy_scope_ref || !Number.isSafeInteger(message.seq) || Number(message.seq) < 1 || typeof message.created_at !== 'string' || !Number.isFinite(Date.parse(message.created_at))) throw new ProtocolError('未能核实原会话消息已保存。')
     return { job, message: message as MessageAcceptance['message'], replayed: value.replayed }
+  }
+  async currentIntent(id: string): Promise<ConversationIntent | null> {
+    return decodeConversationIntent(await this.json(`/conversations/${encodeURIComponent(id)}/intents/current`), id)
+  }
+  async intentTurn(id: string, body: IntentTurnRequest, key: string) {
+    const value = await this.post(`/conversations/${encodeURIComponent(id)}/intent-turns`, body, key)
+    const response = decodeIntentResponse(value, id)
+    return { ...response, business: object(value) ? decodeBusinessResult(value.business, id) : null, group: object(value) ? decodeGroupResult(value.group,id) : null }
+  }
+  async resourceGroupPreview(id: string) { return decodeGroupPreview(await this.json(`/conversations/${encodeURIComponent(id)}/resource-group-preview`),id) }
+  async businessContext(id: string) { return decodeBusinessContext(await this.json(`/conversations/${encodeURIComponent(id)}/business-context`), id) }
+  async chooseIntent(id: string, body: IntentChoiceRequest, key: string) {
+    return decodeIntentResponse(await this.post(`/conversations/${encodeURIComponent(id)}/intent-choices`, body, key), id)
+  }
+  async acceptProposal(id: string, proposalID: string, intentRevision: number, key: string): Promise<ProposalAcceptance> {
+    const value: unknown = await this.post(`/conversations/${encodeURIComponent(id)}/proposals/${encodeURIComponent(proposalID)}/accept`, { expected_intent_revision: intentRevision }, key)
+    if (!object(value)) throw new ProtocolError('未能核实计划已受理。')
+    const job = decodeJob(value.job)
+    if (job.conversation_id !== id) throw new ProtocolError('受理任务与当前会话不一致。')
+    return { job }
   }
   async previewPlan(body: PlanRequest) { return hasID<ExecutionPlan>(await this.post('/execution-plans', body)) }
   async startJob(planID: string, key: string): Promise<Job> { return decodeJob(await this.post('/jobs', { plan_id: planID }, key)) }
@@ -119,6 +169,8 @@ export class WorkspaceClient {
     if (value.recheck) { value.recheck.comparison.reasons ??= []; value.recheck.comparison.issues ??= [] }
     if (value.agent_result) value.agent_result = agentRecord(value.agent_result, id)
     if (value.cloud_result) value.cloud_result = decodeCloudRecord(value.cloud_result, id)
+    if (value.preparation_discovery) value.preparation_discovery = decodePreparationDiscovery(value.preparation_discovery, id)
+    if (value.batch) { value.batch = decodeBatchRequest(value.batch,id); if (value.audit || value.recheck || value.agent_result) throw new ProtocolError('分批主任务不能用单段结果代表整个集合。'); if (value.is_final && ['accepted','running'].includes(value.batch.status)) throw new ProtocolError('分批主任务的终态与分段记录不一致，请重新核对。') }
     return value
   }
   async jobInput(id: string): Promise<unknown> {
@@ -148,6 +200,12 @@ export class WorkspaceClient {
   recheck(jobID: string, snapshotID: string, conversationID: string) { return this.post<ExecutionPlan>(`/audits/${encodeURIComponent(jobID)}/rechecks`, { snapshot_id: snapshotID, conversation_id: conversationID, reuse_evaluation_at: true }) }
   async createDraft(snapshotID: string, assets: string[]) { return draft(await this.post('/profile-drafts', { snapshot_id: snapshotID, asset_ids: assets })) }
   async draft(id: string) { return draft(await this.json(`/profile-drafts/${encodeURIComponent(id)}`)) }
+  async draftCurrentBase(id: string) { return draftBase(await this.json(`/profile-drafts/${encodeURIComponent(id)}/current-base`),id) }
+  async rebaseDraft(id: string, request: DraftRebaseRequest, key: string) {
+    const saved = draft(await this.post(`/profile-drafts/${encodeURIComponent(id)}/rebase`,request,key)), expected = new Map(request.expected_base_revisions.map(head=>[head.asset_id,head]))
+    if (saved.id !== id || saved.revision !== request.expected_draft_revision + 1 || saved.status !== 'draft' || saved.preview_id || saved.confirmation_id || saved.base_revisions.length !== expected.size || new Set(saved.base_revisions.map(head=>head.asset_id)).size !== expected.size || saved.base_revisions.some(head=>{const original=expected.get(head.asset_id);return !original || original.revision!==head.revision || original.profile_version_id!==head.profile_version_id || original.intent_version_id!==head.intent_version_id})) throw new ProtocolError('未能核实已按所核对的业务版本保存原草稿。')
+    return saved
+  }
   async updateDraft(id: string, revision: number, changes: AssetChange[]) { return draft(await this.json(`/profile-drafts/${encodeURIComponent(id)}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ expected_draft_revision: revision, changes }) })) }
   async previewDraft(id: string) { const value = await this.post<ConfirmationPreview>(`/profile-drafts/${encodeURIComponent(id)}/preview`, {}); if (!value.preview_id) throw new ProtocolError('确认预览缺少有效标识。'); value.diff ??= []; value.confirmable_sections ??= []; value.validation_errors ??= []; return value }
   async confirmDraft(id: string, previewID: string, revision: number, sections: string[], key: string) {
