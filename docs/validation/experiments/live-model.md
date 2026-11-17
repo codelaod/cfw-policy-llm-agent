@@ -70,27 +70,15 @@
 5. **未接入云平台。** 没有核实阿里云版本、只读权限、分页、资产关联或实际访问路径，也没有云上写操作。
 6. 精确服务配置未公开，不能仅凭公开摘要完整复现对同一服务版本的效果；这些材料是工程接入证据，不是跨模型效果排名。
 
-## 6. 运行方式
+## 6. 当前运行入口
 
-离线检查：
-
-```bash
-bash scripts/eino-offline.sh prepare
-bash scripts/eino-offline.sh test
-bash scripts/eino-offline.sh test -race
-bash scripts/eino-offline.sh vet
-bash scripts/eino-offline.sh run
-bash scripts/eino-offline.sh config-check
-```
-
-`config-check` 仍然不发送请求。真实调用须已获用户授权，单次只选择一个人工场景：
+本记录保留2026-10-22的实际调用与预算结果。2026-11-17统一配置后，实验旧live／config-check入口和私配解析已删除；实验只保留人工离线与loopback协议回归，命令见[实验说明](../../../experiments/eino-offline/README.md)。当前配置检查使用正式服务：
 
 ```bash
-bash scripts/eino-offline.sh live -provider minimax -allow-paid-requests -scenario whitelist
-bash scripts/eino-offline.sh live -provider minimax -allow-paid-requests -scenario missing-whitelist
+bash scripts/e0.sh server --env-file .env.local --config-check
 ```
 
-**上限按每次命令独立计算，多次执行会重新获得配置中的单次上限，不是全账户预算。**上面两条命令不是要求现在再运行；本轮的 4 次预算已经使用完毕。需要做一组测试时，应明确分配整组预算，不能只看每次命令。
+检查不会访问真实服务。历史4次模型预算已用完，不作为后续授权；真实云／模型只在新的明确任务范围与预算内执行。
 
 ## 7. 后续验收缺口，不是当前自动执行任务
 

@@ -6,7 +6,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"io"
-	"os"
 	"reflect"
 	"regexp"
 	"strings"
@@ -52,25 +51,9 @@ type Summary struct {
 
 var alias = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
 
-func Load(path string) (Config, error) {
-	if strings.TrimSpace(path) == "" {
-		return Config{}, ErrInvalid
-	}
-	info, err := os.Stat(path)
-	if err != nil || !info.Mode().IsRegular() {
-		return Config{}, ErrInvalid
-	}
-	f, err := os.Open(path)
-	if err != nil {
-		return Config{}, ErrInvalid
-	}
-	defer f.Close()
-	info, err = f.Stat()
-	if err != nil || !info.Mode().IsRegular() {
-		return Config{}, ErrInvalid
-	}
-	body, err := io.ReadAll(io.LimitReader(f, (64<<10)+1))
-	if err != nil || len(body) > 64<<10 || !uniqueJSON(body) {
+// ParseSettings validates the same typed execution contract for every source.
+func ParseSettings(body []byte) (Config, error) {
+	if len(body) > 64<<10 || !uniqueJSON(body) {
 		return Config{}, ErrInvalid
 	}
 	var raw struct {

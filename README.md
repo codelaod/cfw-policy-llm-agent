@@ -6,7 +6,9 @@
 
 **2026-10-30产品主链代码整改及独立整体Review修复已形成限定本机结果。** 已接正式无快照对话、资源目录／消歧、同一审计任务资料准备与晚封存、合格复用、结构化元数据／SG、共享执行政策及本地引导；业务草稿／表单分项确认、可信归属、完整有限集串行分批与固定模型评价执行器已有正式代码及限定回归；完整旅程和真实验收仍待完成。限定结果见[代码阶段证据](docs/validation/evidence/conversation-implementation-local.md)，剩余项见[实施计划§2.3](docs/development/implementation-plan.md)与[差异台账](docs/development/implementation-gap.md)。[PRD](docs/requirements/product.md)和[24旅程／88分支目录](docs/requirements/customer-journeys.json)仍是目标；历史原型／局部测试不扩大为完整验收。
 
-2026-11-17拉取`7c91181`后继续核查并修复业务声明的跨服务混合、否定误读、端口范围截断和完整性误判。多服务按分号／换行分别绑定，歧义保留原草稿并澄清；真实HTTP回归验证新确认进入下一次实际规则、旧输入不改写及原请求回执重放。当前Go696项、Web193项、vet及前后端构建通过，范围见同一[代码阶段证据](docs/validation/evidence/conversation-implementation-local.md#本地进度复核与业务声明修复2026-11-17)。主要M0功能已有正式实现，完整88分支、真实接入／整改／评价与标准性能仍待验收。
+2026-11-17拉取`7c91181`后继续核查并修复业务声明的跨服务混合、否定误读、端口范围截断和完整性误判。多服务按分号／换行分别绑定，歧义保留原草稿并澄清；真实HTTP回归验证新确认进入下一次实际规则、旧输入不改写及原请求回执重放。业务声明窗口Go696项、Web193项、vet及前后端构建通过，范围见同一[代码阶段证据](docs/validation/evidence/conversation-implementation-local.md#本地进度复核与业务声明修复2026-11-17)。主要M0功能已有正式实现，完整88分支、真实接入／整改／评价与标准性能仍待验收。
+
+同日完成全部外部配置统一及旧入口清理：一份`.env.local`或同名环境变量，Go699项、launcher8项、实验离线回归、vet及后端构建通过；具体范围见[配置窗口](docs/validation/evidence/conversation-implementation-local.md#全部外部配置统一与清理2026-11-17)。
 
 ## 文档入口
 
@@ -36,7 +38,7 @@
 - [正式后端](server/README.md)／[五视图Web工作区](web/README.md)：显式只读采集／身份检查、固定快照、会话／确认／计划、三任务槽位、有界Agent、持久事件／用量和报告复审；E0诊断页独立保留。
 - [E1离线业务链](docs/validation/evidence/e1-local.md)：实际规则→保存发现／证据→审阅→公开JSON／Markdown→复审比较；三份[公开人工输入](testdata/public/README.md)。
 - [实际API规范](docs/api/README.md)：固定Swag生成Swagger JSON／YAML，覆盖当前已注册业务接口与E0隔离诊断接口，另附八类事件schema。
-- [Go＋Eino独立实验](experiments/eino-offline/README.md)：模拟模式、受限真实模型适配、私有配置规则及实际验证边界。
+- [Go＋Eino独立实验](experiments/eino-offline/README.md)：模拟模式和人工loopback协议回归；真实模型配置与调用统一走正式业务服务。
 - [离线交互原型](docs/prototypes/audit-workflow/README.md)：原生HTML／CSS／JS、人工数据、内存事件模拟，不是正式组件工程。
 
 仓库根目录可运行的文档／原型检查：
@@ -59,6 +61,6 @@ npm test
 npm run build
 ```
 
-本机启动、business schema 5显式迁移和应用口令见[后端说明](server/README.md)。默认可运行离线规则。模型使用互斥的显式`--env-file`或`--model-config`，云连接使用`--cloud-config`，执行政策使用`--execution-config`；不自动搜索dotenv或机器profile。启动、配置检查和预览零外呼。云／模型共用持久授权与物理账本，显式0和更严私限保留；同一audit可在接受后准备资料，独立collect／pinned历史入口仍保留。云凭据仅env_ak／env_sts静态Provider，身份核验不等产品权限通过。MiniMax模型名与512等私配不被替换；真实调用、整改与正式评价仍按原授权及验收边界执行。
+本机启动、business schema 5显式迁移和应用口令见[后端说明](server/README.md)。所有外部设置统一为显式`--env-file`或同名进程环境，填写[一份模板](.env.example)即可；原分散JSON入口已删除。应用、模型、阿里云、共享预算、数据时效与四类执行保护共用优先级／校验／脱敏检查；进程存在值（含空）优先，云凭据整组选择。启动、检查、预览零外呼，云／模型共用持久账本，0与更严限制保留；真实调用、整改和正式评价按原权限／预算执行。
 
 许可证：[Apache License 2.0](LICENSE)。

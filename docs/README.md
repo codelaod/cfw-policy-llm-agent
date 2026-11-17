@@ -6,6 +6,8 @@
 
 2026-11-17拉取最新main后继续修复业务声明语义，Go696项、Web193项、vet与前后端构建通过。主要M0已有代码，完整旅程和真实验收仍按现行台账推进；新增人工HTTP流程与实际边界见[同一代码证据的新窗口](validation/evidence/conversation-implementation-local.md#本地进度复核与业务声明修复2026-11-17)。
 
+2026-11-17随后按用户要求将全部外部设置收敛为一份显式dotenv／同名进程环境，删除旧分散JSON与实验私配入口；本轮Go699项、launcher8项、实验离线测试、vet及后端构建通过，具体范围见[统一配置与清理](validation/evidence/conversation-implementation-local.md#全部外部配置统一与清理2026-11-17)。
+
 ## 1. 推荐阅读
 
 1. [项目定位](project/overview.md)与[项目决策](project/decisions.md)：范围、批准状态和已选路线。

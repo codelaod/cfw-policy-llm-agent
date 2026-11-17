@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -29,11 +28,7 @@ func batchSDKFixture(t *testing.T, attemptLimit ...int) (*IntentService, *CloudS
 	t.Setenv("BATCH_PUBLIC_AK", "synthetic-batch-access-key")
 	t.Setenv("BATCH_PUBLIC_SECRET", "synthetic-batch-access-secret")
 	raw := `{"enabled":true,"connection_ref":"public-batch-cloud","credential_mode":"env_ak","access_key_id_env":"BATCH_PUBLIC_AK","access_key_secret_env":"BATCH_PUBLIC_SECRET","expected_account_id":"1234567890123456","control_plane_region":"cn-hangzhou","allowed_boundaries":["internet/in"],"allowed_regions":["cn-hangzhou"],"allowed_assets":[],"allowed_nat_gateways":[],"timeout_seconds":10,"max_http_attempts":100,"budget":{"ref":"public-batch-period","application_cloud_attempts":1000,"session_cloud_attempts":500,"application_model_attempts":0,"session_model_attempts":0}}`
-	p := filepath.Join(t.TempDir(), "public-cloud.json")
-	if e := os.WriteFile(p, []byte(raw), 0600); e != nil {
-		t.Fatal(e)
-	}
-	cfg, e := cloudconfig.Load(p)
+	cfg, e := cloudconfig.ParseSettings([]byte(raw), os.LookupEnv)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -51,11 +46,7 @@ func batchSDKFixture(t *testing.T, attemptLimit ...int) (*IntentService, *CloudS
 			profiles[kind] = limits
 		}
 		encoded, _ := json.Marshal(map[string]any{"schema_version": 1, "profile_ref": "public-batch-total-cap", "profiles": profiles})
-		policyPath := filepath.Join(t.TempDir(), "public-execution.json")
-		if e = os.WriteFile(policyPath, encoded, 0600); e != nil {
-			t.Fatal(e)
-		}
-		execution, e = workload.Load(policyPath)
+		execution, e = workload.ParseSettings(encoded)
 		if e != nil {
 			t.Fatal(e)
 		}

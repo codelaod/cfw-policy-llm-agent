@@ -182,7 +182,7 @@ E4已接固定SDK的WithContext／CallApiWithCtx、共享物理HTTP准入和静�
 
 ## 10. E4历史切片、当前适配与尚未验收范围
 
-当前cloudconfig只读取显式--cloud-config JSON及其点名环境变量，连接声明单账号、有限地域／边界和固定只读操作上界；资产／网关allowlist仅额外收紧。来源限定resource_catalog与configured_scope_catalog分离，新ID经原地域／类型范围校验后可发现，不再要求逐台预列。生产端点固定，aliyunapi仅开放CFW五操作、ECS两操作和GetCallerIdentity；先核expected account及受支持身份／ARN再允许产品读取，关联安全组必须先从所选ECS返回。当前静态env_ak／env_sts无自动续期、AssumeRole或ECS角色Provider。
+当前云配置通过统一`--env-file`／同名进程环境解析后交给cloudconfig校验；同一份模板声明单账号、有限地域／边界和固定只读操作，资产／网关allowlist仅额外收紧。来源限定resource_catalog与configured_scope_catalog分离，新ID仍须原地域／类型校验；生产端点固定，仅CFW五操作、ECS两操作和GetCallerIdentity，身份先行、安全组从ECS关联。静态env_ak／env_sts无自动续期、AssumeRole或ECS角色Provider。
 
 aliyuncollector对固定选择最多读两轮配置族，区分页号／字符串总数与NextToken；保留重复／缺字段／未知条件／引用冲突、采集窗口和语义指纹。静态地址簿双表示冲突或畸形保持未知，不选其中一种证明完整。默认动作始终unknown；同VPC、私网地址或NAT元数据不生成evidenced关联，未获业务确认不推角色、监听或允许集合。安全组读取提供范围内结构化上下文与私有原文；Agent可通过已返回的组引用取受控规则，不等完整安全组审计或实际可达证明。
 

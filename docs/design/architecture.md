@@ -27,7 +27,7 @@
 | 历史 | 业务Store保存可见消息、确认、任务／证据／报告，Eino执行状态独立 | 不持久reasoning，不重放旧wire或孤立tool消息；重启不恢复外部调用 |
 | 接口文档 | 固定Swag从实际Go注释／DTO生成JSON／YAML，SSE另有schema | [实际规范](../api/README.md)只记已注册API，不先伪造目标接口产物 |
 
-配置现支持互斥的显式模型JSON／`--env-file`，独立云JSON与`--execution-config`；来源、空值优先、持久授权追加和静态Provider边界统一见[凭据与配置](credentials-and-permissions.md)。启动、检查、本地目录、引导和计划预览零外呼；凭据存在不产生新的执行额度。直接在main推进，不自动提交／推送。
+全部外部配置统一为一份显式`--env-file`或同名进程环境；旧模型／云／执行JSON入口已删除。来源、空值优先、云凭据整组选择、持久授权修订与静态Provider边界见[凭据与配置](credentials-and-permissions.md)。启动、检查、本地目录、引导和预览零外呼；直接在main推进，提交／推送另获授权。
 
 ## 3. 业务呈现与内部编排分开
 

@@ -15,7 +15,7 @@ func BindExecutionSettings(model modelconfig.Config, cloud cloudconfig.Config, e
 		return model, cloud, nil
 	}
 	if profile := execution.ModelProviderProfile(); profile != "" && model.Summary().Configured {
-		if model.Summary().SourceKind != "env_file" && model.ProviderProfile() != profile {
+		if model.ProviderProfile() != profile {
 			return model, cloud, storage.ErrConflict
 		}
 		var e error

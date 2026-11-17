@@ -1,4 +1,4 @@
-// Package cloudconfig reads only an explicitly selected local connection file.
+// Package cloudconfig validates resolved read-only connection settings.
 // Construction and summaries never obtain credentials remotely or perform DNS.
 package cloudconfig
 
@@ -9,8 +9,6 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"io"
-	"os"
 	"regexp"
 	"sort"
 	"strings"
@@ -20,7 +18,6 @@ import (
 )
 
 var ErrInvalid = errors.New("CLOUD_CONFIG_INVALID")
-var ErrCredential = errors.New("CLOUD_CREDENTIAL_UNAVAILABLE")
 
 type Budget struct {
 	Ref                      string `json:"ref"`
@@ -97,83 +94,11 @@ var regionName = regexp.MustCompile(`^[a-z]{2}-[a-z][a-z0-9]{0,20}(-[a-z0-9]{1,2
 var accountID = regexp.MustCompile(`^[1-9][0-9]{5,31}$`)
 var resourceID = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
 
-func uniqueJSON(data []byte) bool {
-	d := json.NewDecoder(bytes.NewReader(data))
-	var visit func(int) bool
-	visit = func(depth int) bool {
-		if depth > 20 {
-			return false
-		}
-		t, e := d.Token()
-		if e != nil {
-			return false
-		}
-		delim, ok := t.(json.Delim)
-		if !ok {
-			return true
-		}
-		if delim == '{' {
-			seen := []string{}
-			for d.More() {
-				k, e := d.Token()
-				s, ok := k.(string)
-				if e != nil || !ok {
-					return false
-				}
-				// encoding/json matches struct fields with Unicode case folding.
-				for _, previous := range seen {
-					if strings.EqualFold(previous, s) {
-						return false
-					}
-				}
-				seen = append(seen, s)
-				if !visit(depth + 1) {
-					return false
-				}
-			}
-		} else if delim == '[' {
-			for d.More() {
-				if !visit(depth + 1) {
-					return false
-				}
-			}
-		} else {
-			return false
-		}
-		_, e = d.Token()
-		return e == nil
-	}
-	if !visit(0) {
-		return false
-	}
-	_, e := d.Token()
-	return e == io.EOF
-}
-
-type envLookup func(string) (string, bool)
-
-func Load(path string) (Config, error) { return load(path, os.LookupEnv) }
-
-func load(path string, lookup envLookup) (Config, error) {
+// ParseSettings validates already resolved settings without reading files,
+// changing the process environment, or performing network work.
+func ParseSettings(body []byte, lookup func(string) (string, bool)) (Config, error) {
 	var result Config
-	if strings.TrimSpace(path) == "" {
-		return result, ErrInvalid
-	}
-	st, e := os.Stat(path)
-	if e != nil || !st.Mode().IsRegular() {
-		return result, ErrInvalid
-	}
-	f, e := os.Open(path)
-	if e != nil {
-		return result, ErrInvalid
-	}
-	defer f.Close()
-	st, e = f.Stat()
-	if e != nil || !st.Mode().IsRegular() {
-		return result, ErrInvalid
-	}
-	body, e := io.ReadAll(io.LimitReader(f, (64<<10)+1))
-	if e != nil || len(body) > 64<<10 || !uniqueJSON(body) {
+	if len(body) > 64<<10 || !workload.ValidJSONDocument(body) {
 		return result, ErrInvalid
 	}
 	var raw map[string]json.RawMessage
@@ -199,7 +124,7 @@ func load(path string, lookup envLookup) (Config, error) {
 	if d.Decode(&in) != nil {
 		return result, ErrInvalid
 	}
-	if !alias.MatchString(in.ConnectionRef) || in.ConnectionRef == "local-offline" || !envName.MatchString(in.AccessKeyIDEnv) || !envName.MatchString(in.AccessKeySecretEnv) || in.AccessKeyIDEnv == in.AccessKeySecretEnv || !accountID.MatchString(in.ExpectedAccountID) || in.TimeoutSeconds < 1 || int64(in.TimeoutSeconds) > workload.MaxSeconds || in.MaxHTTPAttempts < 0 || in.MaxHTTPAttempts > workload.MaxCounter {
+	if !alias.MatchString(in.ConnectionRef) || in.ConnectionRef == "local-offline" || !envName.MatchString(in.AccessKeyIDEnv) || !envName.MatchString(in.AccessKeySecretEnv) || in.AccessKeyIDEnv == in.AccessKeySecretEnv || ((in.Enabled || in.ExpectedAccountID != "") && !accountID.MatchString(in.ExpectedAccountID)) || in.TimeoutSeconds < 1 || int64(in.TimeoutSeconds) > workload.MaxSeconds || in.MaxHTTPAttempts < 0 || in.MaxHTTPAttempts > workload.MaxCounter {
 		return result, ErrInvalid
 	}
 	if in.ControlPlaneRegion != "cn-hangzhou" && in.ControlPlaneRegion != "ap-southeast-1" && in.ControlPlaneRegion != "ap-southeast-3" {
@@ -281,6 +206,9 @@ func load(path string, lookup envLookup) (Config, error) {
 	})
 	sort.Slice(in.AllowedNATGateways, func(i, j int) bool { return in.AllowedNATGateways[i].ID < in.AllowedNATGateways[j].ID })
 	canonical, _ := json.Marshal(in)
+	if in.ExpectedAccountID == "" {
+		return Config{settings: in}, nil
+	}
 	result = Config{modelBudgetDeclared: result.modelBudgetDeclared, settings: in, ak: ak, secret: secret, token: token, revision: "cloud-config_" + digest(string(canonical)), credentialState: credentialState}
 	return result, nil
 }

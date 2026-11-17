@@ -3,7 +3,6 @@ package cloudconfig
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -11,14 +10,8 @@ import (
 func validFile() string {
 	return `{"enabled":true,"connection_ref":"explicit-aliyun","credential_mode":"env_ak","access_key_id_env":"CFW_E4_TEST_AK","access_key_secret_env":"CFW_E4_TEST_SECRET","expected_account_id":"1234567890123456","control_plane_region":"cn-hangzhou","allowed_boundaries":["internet/in","internet/out","nat/out"],"allowed_regions":["cn-hangzhou"],"allowed_assets":[{"region":"cn-hangzhou","instance_id":"i-synthetic"}],"allowed_nat_gateways":[{"region":"cn-hangzhou","id":"ngw-synthetic"}],"timeout_seconds":10,"max_http_attempts":30,"budget":{"ref":"same-explicit-period","expires_at":"2099-01-01T00:00:00Z","application_cloud_attempts":100,"session_cloud_attempts":50,"application_model_attempts":20,"session_model_attempts":6}}`
 }
-func writeFile(t *testing.T, body string) string {
-	t.Helper()
-	p := filepath.Join(t.TempDir(), "cloud.json")
-	if err := os.WriteFile(p, []byte(body), 0600); err != nil {
-		t.Fatal(err)
-	}
-	return p
-}
+func parseFixture(body []byte) (Config, error) { return ParseSettings(body, os.LookupEnv) }
+
 func keys(t *testing.T) {
 	t.Helper()
 	t.Setenv("CFW_E4_TEST_AK", "synthetic-access-key")
@@ -26,7 +19,7 @@ func keys(t *testing.T) {
 }
 func TestExplicitConfigAndSafeStableScopes(t *testing.T) {
 	keys(t)
-	c, err := Load(writeFile(t, validFile()))
+	c, err := parseFixture([]byte(validFile()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,11 +51,11 @@ func TestNoAmbientCredentialFallbackAndDisabledDoesNotReadCredentials(t *testing
 	t.Setenv("ALIBABA_CLOUD_ACCESS_KEY_SECRET", "ambient-secret")
 	t.Setenv("CFW_E4_TEST_AK", "")
 	t.Setenv("CFW_E4_TEST_SECRET", "")
-	blocked, e := Load(writeFile(t, validFile()))
+	blocked, e := parseFixture([]byte(validFile()))
 	if e != nil || blocked.Ready() || !blocked.RequestedEnabled() || blocked.Summary().CredentialState != "missing" {
 		t.Fatal("missing explicit credentials must block this adapter without ambient fallback", e)
 	}
-	c, e := Load(writeFile(t, strings.Replace(validFile(), `"enabled":true`, `"enabled":false`, 1)))
+	c, e := parseFixture([]byte(strings.Replace(validFile(), `"enabled":true`, `"enabled":false`, 1)))
 	if e != nil || c.Enabled() || !c.Summary().Configured {
 		t.Fatal("disabled config should validate locally", e)
 	}
@@ -70,43 +63,40 @@ func TestNoAmbientCredentialFallbackAndDisabledDoesNotReadCredentials(t *testing
 func TestRejectExpandedScopeCredentialModesAndDuplicateJSON(t *testing.T) {
 	keys(t)
 	for _, change := range [][2]string{{`"env_ak"`, `"default"`}, {`"env_ak"`, `"assume_role"`}, {`"cn-hangzhou","instance_id"`, `"cn-beijing","instance_id"`}, {`"nat/out"`, `"nat/in"`}, {`"session_cloud_attempts":50`, `"session_cloud_attempts":101`}, {`"control_plane_region":"cn-hangzhou"`, `"control_plane_region":"attacker.invalid"`}, {`"enabled":true`, `"enabled":true,"enabled":false`}, {`"credential_mode":"env_ak"`, `"credential_mode":"env_ak","security_token_env":"TOKEN"`}} {
-		if _, e := Load(writeFile(t, strings.Replace(validFile(), change[0], change[1], 1))); e == nil {
+		if _, e := parseFixture([]byte(strings.Replace(validFile(), change[0], change[1], 1))); e == nil {
 			t.Fatalf("invalid config accepted: %s", change[1])
 		}
 	}
 }
 func TestCredentialRotationDoesNotRenewBudgetOrChangeRevision(t *testing.T) {
 	keys(t)
-	p := writeFile(t, validFile())
-	a, e := Load(p)
+	p := []byte(validFile())
+	a, e := parseFixture(p)
 	if e != nil {
 		t.Fatal(e)
 	}
 	t.Setenv("CFW_E4_TEST_SECRET", "rotated-synthetic-secret")
-	b, e := Load(p)
+	b, e := parseFixture(p)
 	if e != nil || a.Revision() != b.Revision() || a.Budget().Ref != b.Budget().Ref {
 		t.Fatal("credential rotation reset authorization", e)
 	}
 }
 
-func TestStaticSTSIsExplicitAndSampleRemainsDisabled(t *testing.T) {
+func TestStaticSTSIsExplicit(t *testing.T) {
 	keys(t)
 	t.Setenv("CFW_E4_TEST_TOKEN", "synthetic-sts-token")
 	sts := strings.Replace(validFile(), `"credential_mode":"env_ak"`, `"credential_mode":"env_sts","security_token_env":"CFW_E4_TEST_TOKEN"`, 1)
-	c, err := Load(writeFile(t, sts))
+	c, err := parseFixture([]byte(sts))
 	if err != nil || c.SecurityToken() != "synthetic-sts-token" || c.Summary().Refreshable || c.Summary().CredentialExpiryKnown {
 		t.Fatal("static STS misrepresented", err)
 	}
-	c, err = Load("../../cloud-config.example.json")
-	if err != nil || c.Enabled() {
-		t.Fatal("example must validate without enabling credentials or effects", err)
-	}
+
 }
 
 func TestReservedConnectionAliasAndCrossRegionDuplicateInstanceAreRefused(t *testing.T) {
 	keys(t)
 	for _, body := range []string{strings.Replace(validFile(), `"connection_ref":"explicit-aliyun"`, `"connection_ref":"local-offline"`, 1), strings.Replace(strings.Replace(validFile(), `"allowed_regions":["cn-hangzhou"]`, `"allowed_regions":["cn-hangzhou","cn-beijing"]`, 1), `"allowed_assets":[{"region":"cn-hangzhou","instance_id":"i-synthetic"}]`, `"allowed_assets":[{"region":"cn-hangzhou","instance_id":"i-synthetic"},{"region":"cn-beijing","instance_id":"i-synthetic"}]`, 1)} {
-		if _, err := Load(writeFile(t, body)); err == nil {
+		if _, err := parseFixture([]byte(body)); err == nil {
 			t.Fatal("reserved alias or ambiguous instance region accepted")
 		}
 	}
@@ -121,7 +111,7 @@ func TestRejectCaseCollidingJSONFields(t *testing.T) {
 		{"escaped_case_collision", `"enabled":true`, `"enabled":false,"ENAB\u004ced":true`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := Load(writeFile(t, strings.Replace(validFile(), tc.old, tc.replacement, 1))); err != ErrInvalid {
+			if _, err := parseFixture([]byte(strings.Replace(validFile(), tc.old, tc.replacement, 1))); err != ErrInvalid {
 				t.Fatalf("case-colliding JSON fields must be rejected: %v", err)
 			}
 		})

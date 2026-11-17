@@ -19,6 +19,37 @@ import (
 	"github.com/cloudwego/eino/schema"
 )
 
+// Historical protocol fixture settings; no external configuration entrypoint.
+type modelConfig struct {
+	baseURL         string
+	apiKey          string
+	modelName       string
+	apiStyle        string
+	timeoutSeconds  int
+	maxCalls        int
+	maxOutputTokens int
+}
+
+type modelConfigSummary struct {
+	BaseURLConfigured bool   `json:"base_url_configured"`
+	APIKeyConfigured  bool   `json:"api_key_configured"`
+	ModelConfigured   bool   `json:"model_configured"`
+	APIStyle          string `json:"api_style"`
+	TimeoutSeconds    int    `json:"timeout_seconds"`
+	MaxModelCalls     int    `json:"max_model_calls"`
+	MaxOutputTokens   int    `json:"max_output_tokens"`
+}
+
+func (c modelConfig) summary() modelConfigSummary {
+	return modelConfigSummary{c.baseURL != "", c.apiKey != "", c.modelName != "",
+		c.apiStyle, c.timeoutSeconds, c.maxCalls, c.maxOutputTokens}
+}
+
+// Even accidental formatting/JSON logging must not reveal credentials or endpoint details.
+func (c modelConfig) MarshalJSON() ([]byte, error) { return json.Marshal(c.summary()) }
+func (c modelConfig) String() string               { b, _ := c.MarshalJSON(); return string(b) }
+func (c modelConfig) GoString() string             { return c.String() }
+
 const maxProviderBody = 256 * 1024
 
 type liveError struct{ code string }

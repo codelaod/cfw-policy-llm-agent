@@ -96,13 +96,8 @@ func startE4Fixture(t *testing.T, privateDir string, failure ...string) *e4Fixtu
 	t.Cleanup(provider.Close)
 	t.Setenv("CFW_E4_BROWSER_AK", "synthetic-browser-access-key")
 	t.Setenv("CFW_E4_BROWSER_SECRET", "synthetic-browser-access-secret")
-	configPath := filepath.Join(privateDir, "e4-config-"+rand.Text()+".json")
 	config := `{"enabled":true,"connection_ref":"configured-aliyun-fixture","credential_mode":"env_ak","access_key_id_env":"CFW_E4_BROWSER_AK","access_key_secret_env":"CFW_E4_BROWSER_SECRET","expected_account_id":"1234567890123456","control_plane_region":"cn-hangzhou","allowed_boundaries":["internet/in","internet/out","nat/out"],"allowed_regions":["cn-hangzhou"],"allowed_assets":[{"region":"cn-hangzhou","instance_id":"i-synthetic-browser"}],"allowed_nat_gateways":[{"region":"cn-hangzhou","id":"ngw-synthetic-browser"}],"timeout_seconds":10,"max_http_attempts":30,"budget":{"ref":"local-cloud-fixture-period","expires_at":"2099-01-01T00:00:00Z","application_cloud_attempts":100,"session_cloud_attempts":60,"application_model_attempts":0,"session_model_attempts":0}}`
-	if err = os.WriteFile(configPath, []byte(config), 0600); err != nil {
-		t.Fatal("fixture configuration unavailable")
-	}
-	t.Cleanup(func() { os.Remove(configPath) })
-	cfg, err := cloudconfig.Load(configPath)
+	cfg, err := cloudconfig.ParseSettings([]byte(config), os.LookupEnv)
 	if err != nil {
 		t.Fatal(err)
 	}

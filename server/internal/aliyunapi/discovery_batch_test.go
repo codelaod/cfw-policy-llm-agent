@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -36,11 +35,7 @@ func discoveryPolicyFixture(t *testing.T, h http.Handler, regions []string, gate
 		t.Fatal(e)
 	}
 	raw = string(encoded)
-	p := filepath.Join(t.TempDir(), "public.json")
-	if e := os.WriteFile(p, []byte(raw), 0600); e != nil {
-		t.Fatal(e)
-	}
-	cfg, e := cloudconfig.Load(p)
+	cfg, e := cloudconfig.ParseSettings([]byte(raw), os.LookupEnv)
 	if e != nil {
 		t.Fatal(e)
 	}

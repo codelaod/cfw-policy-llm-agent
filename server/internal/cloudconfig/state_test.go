@@ -7,29 +7,29 @@ import (
 
 func TestDisabledExpiredCloudConfigDoesNotReadCredentials(t *testing.T) {
 	body := strings.Replace(strings.Replace(validFile(), `"enabled":true`, `"enabled":false`, 1), "2099-01-01", "2020-01-01", 1)
-	c, err := load(writeFile(t, body), func(string) (string, bool) { t.Fatal("disabled config read credentials"); return "", false })
+	c, err := ParseSettings([]byte(body), func(string) (string, bool) { t.Fatal("disabled config read credentials"); return "", false })
 	if err != nil || c.RequestedEnabled() || c.Ready() || !c.Summary().StructureValid || c.Summary().LedgerState != "not_checked" {
 		t.Fatalf("disabled expired settings were malformed: %v", err)
 	}
 }
 func TestEnabledCloudMissingCredentialAndExpiredPolicyAreBlocked(t *testing.T) {
-	c, err := load(writeFile(t, validFile()), func(string) (string, bool) { return "", false })
+	c, err := ParseSettings([]byte(validFile()), func(string) (string, bool) { return "", false })
 	if err != nil || !c.RequestedEnabled() || c.Ready() || c.Summary().CredentialState != "missing" {
 		t.Fatalf("missing selected credential not blocked: %v", err)
 	}
-	c, err = load(writeFile(t, strings.Replace(validFile(), "2099-01-01", "2020-01-01", 1)), func(string) (string, bool) { return "synthetic", true })
+	c, err = ParseSettings([]byte(strings.Replace(validFile(), "2099-01-01", "2020-01-01", 1)), func(string) (string, bool) { return "synthetic", true })
 	if err != nil || c.Ready() || c.Summary().AuthorizationState != "expired" {
 		t.Fatalf("expired authorization became structural error or executable: %v", err)
 	}
 	body := strings.Replace(validFile(), `"credential_mode":"env_ak"`, `"credential_mode":"env_sts","security_token_env":"CFW_FAKE_STS","credential_expires_at":"2020-01-01T00:00:00Z"`, 1)
-	c, err = load(writeFile(t, body), func(string) (string, bool) { return "synthetic", true })
+	c, err = ParseSettings([]byte(body), func(string) (string, bool) { return "synthetic", true })
 	if err != nil || c.Ready() || c.Summary().CredentialState != "expired" || c.Summary().Refreshable {
 		t.Fatalf("static credential expiry not independent: %v %+v", err, c.Summary())
 	}
 }
 func TestOptionalObjectAllowlistStillChecksRegionTypeAndBoundary(t *testing.T) {
 	body := strings.Replace(strings.Replace(validFile(), `"allowed_assets":[{"region":"cn-hangzhou","instance_id":"i-synthetic"}]`, `"allowed_assets":[]`, 1), `"allowed_nat_gateways":[{"region":"cn-hangzhou","id":"ngw-synthetic"}]`, `"allowed_nat_gateways":[]`, 1)
-	c, err := load(writeFile(t, body), func(string) (string, bool) { return "synthetic", true })
+	c, err := ParseSettings([]byte(body), func(string) (string, bool) { return "synthetic", true })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestOptionalObjectAllowlistStillChecksRegionTypeAndBoundary(t *testing.T) {
 	if len(c.Scopes()) != 2 {
 		t.Fatal("empty NAT list implicitly enumerated a gateway")
 	}
-	restricted, err := load(writeFile(t, validFile()), func(string) (string, bool) { return "synthetic", true })
+	restricted, err := ParseSettings([]byte(validFile()), func(string) (string, bool) { return "synthetic", true })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -60,7 +60,7 @@ func TestOptionalObjectAllowlistStillChecksRegionTypeAndBoundary(t *testing.T) {
 
 func TestExplicitCloudZeroAndPolicyBindingDoNotCreateAllowance(t *testing.T) {
 	body := strings.Replace(strings.Replace(validFile(), `"application_cloud_attempts":100`, `"application_cloud_attempts":0`, 1), `"session_cloud_attempts":50`, `"session_cloud_attempts":0`, 1)
-	c, err := load(writeFile(t, body), func(string) (string, bool) { return "synthetic", true })
+	c, err := ParseSettings([]byte(body), func(string) (string, bool) { return "synthetic", true })
 	if err != nil || c.Ready() || c.Budget().ApplicationCloudAttempts != 0 || c.Summary().AuthorizationState != "blocked" {
 		t.Fatal("zero cloud allowance became executable", err)
 	}
@@ -80,7 +80,7 @@ func TestCloudCredentialControlsAreBlockedAsOneRecord(t *testing.T) {
 			continue
 		}
 		secret := "synthetic" + string(rune(code)) + "key"
-		c, err := load(writeFile(t, validFile()), func(key string) (string, bool) {
+		c, err := ParseSettings([]byte(validFile()), func(key string) (string, bool) {
 			if key == "CFW_E4_TEST_SECRET" {
 				return secret, true
 			}
@@ -94,7 +94,7 @@ func TestCloudCredentialControlsAreBlockedAsOneRecord(t *testing.T) {
 
 func TestExplicitCloudLimitsAreNotHiddenBehindLegacyProfileCaps(t *testing.T) {
 	body := strings.Replace(strings.Replace(validFile(), `"timeout_seconds":10`, `"timeout_seconds":120`, 1), `"max_http_attempts":30`, `"max_http_attempts":1000`, 1)
-	c, err := load(writeFile(t, body), func(string) (string, bool) { return "synthetic", true })
+	c, err := ParseSettings([]byte(body), func(string) (string, bool) { return "synthetic", true })
 	if err != nil || c.Timeout().Seconds() != 120 || c.MaxHTTPAttempts() != 1000 {
 		t.Fatal("explicit cloud limit rejected by hidden legacy cap", err)
 	}

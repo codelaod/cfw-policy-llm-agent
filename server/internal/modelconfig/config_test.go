@@ -3,7 +3,6 @@ package modelconfig
 import (
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -12,18 +11,11 @@ func validConfig() string {
 	return `{"api_style":"chat_completions","provider_profile":"openai-compatible","base_url":"https://model.example.invalid/v1","model":"explicit-user-model","api_key_env":"CFW_E3_TEST_MODEL_KEY","max_output_tokens":512,"timeout_seconds":10,"max_http_attempts":3,"enabled":true,"budget":{"ref":"explicit-local-authorization","expires_at":"2099-01-01T00:00:00Z","application_model_attempts":20,"session_model_attempts":7}}`
 }
 
-func saveConfig(t *testing.T, body string) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), "private-model.json")
-	if err := os.WriteFile(path, []byte(body), 0600); err != nil {
-		t.Fatal(err)
-	}
-	return path
-}
+func parseFixture(body []byte) (Config, error) { return ParseSettings(body, os.LookupEnv) }
 
 func TestE3ExplicitConfigPreservesSettingsAndExposesOnlySafeSummary(t *testing.T) {
 	t.Setenv("CFW_E3_TEST_MODEL_KEY", "synthetic-config-secret")
-	cfg, err := Load(saveConfig(t, validConfig()))
+	cfg, err := parseFixture([]byte(validConfig()))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -47,10 +39,10 @@ func TestE3NoConfigOrMissingExplicitKeyNeverUsesAmbientProfiles(t *testing.T) {
 	t.Setenv("OPENAI_API_KEY", "ambient-key-must-not-be-used")
 	t.Setenv("MINIMAX_API_KEY", "ambient-key-must-not-be-used")
 	t.Setenv("CFW_E3_TEST_MODEL_KEY", "")
-	if _, err := Load(""); err == nil {
+	if _, err := parseFixture(nil); err == nil {
 		t.Fatal("missing explicit path was accepted")
 	}
-	cfg, err := Load(saveConfig(t, validConfig()))
+	cfg, err := parseFixture([]byte(validConfig()))
 	if err != nil || cfg.Ready() || cfg.APIKey() != "" || cfg.Summary().CredentialState != "missing" {
 		t.Fatal("missing explicit key must remain blocked without ambient fallback")
 	}
@@ -68,7 +60,7 @@ func TestE3ConfigRejectsExpandedProtocolsEffectsAndBudgets(t *testing.T) {
 		{`https://model.example.invalid/v1`, `https://model.example.invalid/v1?`},
 	} {
 		t.Run(change.new, func(t *testing.T) {
-			_, err := Load(saveConfig(t, strings.Replace(validConfig(), change.old, change.new, 1)))
+			_, err := parseFixture([]byte(strings.Replace(validConfig(), change.old, change.new, 1)))
 			if err == nil {
 				t.Fatal("configuration expanded its declared authorization")
 			}
@@ -80,21 +72,21 @@ func TestE3ConfigRejectsExpandedProtocolsEffectsAndBudgets(t *testing.T) {
 }
 
 func TestE3KeyRotationKeepsAuthorizationCycleAndConfigurationBinding(t *testing.T) {
-	path := saveConfig(t, validConfig())
+	path := []byte(validConfig())
 	t.Setenv("CFW_E3_TEST_MODEL_KEY", "synthetic-first-key")
-	first, err := Load(path)
+	first, err := parseFixture(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("CFW_E3_TEST_MODEL_KEY", "synthetic-second-key")
-	second, err := Load(path)
+	second, err := parseFixture(path)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if first.Budget().Ref != second.Budget().Ref || first.Revision() != second.Revision() {
 		t.Fatal("rotating a key changed authorization cycle or configuration identity")
 	}
-	third, err := Load(saveConfig(t, strings.Replace(validConfig(), "explicit-user-model", "other-explicit-model", 1)))
+	third, err := parseFixture([]byte(strings.Replace(validConfig(), "explicit-user-model", "other-explicit-model", 1)))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +97,7 @@ func TestE3KeyRotationKeepsAuthorizationCycleAndConfigurationBinding(t *testing.
 
 func TestE3ConfigCheckReportsBlockedCredentialWithoutChangingIt(t *testing.T) {
 	t.Setenv("CFW_E3_TEST_MODEL_KEY", " synthetic-config-secret ")
-	cfg, err := Load(saveConfig(t, validConfig()))
+	cfg, err := parseFixture([]byte(validConfig()))
 	if err != nil || cfg.Ready() || cfg.APIKey() != "" || cfg.Summary().CredentialState != "invalid" {
 		t.Fatal("invalid credential must be blocked without trimming or fallback")
 	}
@@ -121,9 +113,49 @@ func TestRejectDuplicateAndCaseCollidingJSONFields(t *testing.T) {
 		{"escaped_duplicate_key", `"enabled":true`, `"enabled":false,"enab\u006ced":true`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			if _, err := Load(saveConfig(t, strings.Replace(validConfig(), tc.old, tc.replacement, 1))); err != ErrInvalid {
+			if _, err := parseFixture([]byte(strings.Replace(validConfig(), tc.old, tc.replacement, 1))); err != ErrInvalid {
 				t.Fatalf("ambiguous JSON fields must be rejected: %v", err)
 			}
 		})
+	}
+}
+
+func TestModelStatusKeepsDisabledExpiredAndUnsupportedSeparate(t *testing.T) {
+	for _, tc := range []struct {
+		name, body, state string
+		read              bool
+	}{
+		{"disabled", strings.Replace(validConfig(), `"enabled":true`, `"enabled":false`, 1), "disabled", false},
+		{"expired", strings.Replace(validConfig(), "2099-01-01", "2020-01-01", 1), "authorization_expired", true},
+		{"protocol", strings.Replace(validConfig(), "chat_completions", "responses", 1), "protocol_unsupported", true},
+		{"missing", validConfig(), "credential_missing", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, err := ParseSettings([]byte(tc.body), func(string) (string, bool) {
+				if !tc.read {
+					t.Fatal("disabled adapter read credential")
+				}
+				if tc.name == "missing" {
+					return "", false
+				}
+				return "synthetic-key", true
+			})
+			if err != nil || c.Ready() || c.Summary().BlockedReason != tc.state {
+				t.Fatal("local states collapsed", err)
+			}
+		})
+	}
+}
+
+func TestModelCredentialControlsAreBlockedAndNeverRetained(t *testing.T) {
+	for code := 0; code <= 127; code++ {
+		if code >= 32 && code != 127 {
+			continue
+		}
+		secret := "synthetic" + string(rune(code)) + "key"
+		c, err := ParseSettings([]byte(validConfig()), func(string) (string, bool) { return secret, true })
+		if err != nil || c.Ready() || c.APIKey() != "" || c.Summary().CredentialState != "invalid" {
+			t.Fatal("credential controls not blocked")
+		}
 	}
 }

@@ -2,66 +2,58 @@
 
 Go／Gin／Eino单进程，纯Go SQLite WAL与普通连接池；Vue／Vite构建可由同服务提供。默认可使用人工／导入资料与确定性规则。当前客户主链整改和独立Review修复已通过限定本机复验；完整24旅程／88分支及真实接入仍待验收，阶段证据见[代码记录](../docs/validation/evidence/conversation-implementation-local.md)，剩余项见[实施计划§2.3](../docs/development/implementation-plan.md)。
 
-## 运行与显式迁移
+## 统一配置与运行
 
-工具链：`go.mod`要求Go 1.26，本次验证使用Go 1.26.10（Linux／WSL、CGO_ENABLED=0）。
+所有外部设置只走一份[配置模板](../.env.example)：应用口令／数据库／静态目录、模型、阿里云连接、共享预算、数据时效及四类任务执行保护。使用同名进程环境变量时无需配置文件；使用文件时由`--env-file`显式选择，不自动查找dotenv、机器profile或实验私配。旧模型／云／执行JSON入口及对应模板已删除。
 
-仓库根目录：
-
-```bash
-bash scripts/e0.sh test
-bash scripts/e0.sh build
-bash scripts/e0.sh migrate
-bash scripts/e0.sh server
-```
-
-当前business schema为5。旧库先停止服务并备份，再显式migrate；正常启动不AutoMigrate、不修复缺表／必要列／授权head的非完整库。迁移保留旧业务／attempt／Agent／云结果，新增目录、目标／提议、授权修订与准备绑定等结构。默认私库data/private/e0.sqlite；监听127.0.0.1:8080。设置CFW_APP_TOKEN为至少16字符的本机应用口令，不能拿云／模型密钥代替。
-
-脚本server／migrate透传参数；--env-file／--model-config／--cloud-config／--execution-config／--budget-change／--db／--web-dir的显式相对路径以脚本调用者目录解析，支持等号和空格。直接go run的路径以其工作目录解析。下例从server目录运行：
+从仓库根目录准备本地文件：
 
 ```bash
-go run -mod=readonly ./cmd/server --web-dir ../web/dist
+cp -n .env.example .env.local
+chmod 600 .env.local
+bash scripts/e0.sh server --env-file .env.local --config-check
+bash scripts/e0.sh migrate --env-file .env.local
+bash scripts/e0.sh server --env-file .env.local
 ```
 
-先在web运行npm run build。静态业务深链接与未知API分开，npm run preview不代理API。当前为本机开发交付；公网发布、生产TLS／身份体系另按范围安排。
+已有`.env.local`直接编辑即可。先在web目录构建`npm run build`，或把`CFW_WEB_DIR`留空并使用Vite开发代理。监听固定为127.0.0.1:8080；浏览器输入应用口令，模型和云凭据只留服务端。当前是本机开发交付；公网发布、生产TLS／身份体系另按范围安排。
 
-## 模型来源与配置检查
+| 配置组 | 填写位置／形式 |
+| --- | --- |
+| 应用 | `CFW_APP_TOKEN`至少16字符；`CFW_DB_PATH`为私库路径；`CFW_WEB_DIR`为空或构建目录 |
+| 模型 | `CFW_MODEL_ENABLED`、`BASE_URL`、`API_KEY`、`NAME`、`API_STYLE`、`PROVIDER_PROFILE`、`TIMEOUT_SECONDS`、`MAX_HTTP_ATTEMPTS`、`MAX_OUTPUT_TOKENS`（后八项均加`CFW_MODEL_`前缀） |
+| 阿里云 | `CFW_CLOUD_*`选择账号、地域、边界、静态凭据模式和限制；`CFW_ALIYUN_*`填写密钥整组。地域／边界／可选对象使用模板中的JSON数组 |
+| 共享预算 | `CFW_BUDGET_REF`、可选到期、应用／会话云和模型累计物理尝试；没有ref且次数全0表示未配置，明确0禁止请求 |
+| 数据时效 | `CFW_FRESHNESS_*`版本及配置／元数据最大复用时长，0不复用；还检查来源、完整性及引用等资格 |
+| 执行保护 | `CFW_WORKLOAD_PROFILE_REF`；`CFW_WORKLOAD_<AUDIT/ASSISTANT_TURN/COLLECT/CONNECTION_CHECK>_<字段>`，完整字段及默认值均在同一模板 |
 
-正式模型二选一：
+只有`--env-file`是配置来源参数。`--migrate`、`--config-check`和`--budget-change`是互斥操作；`--budget-change`仍使用一份明确的管理员变更JSON追加持久授权修订，它是操作请求，不是第二套启动配置。脚本也可运行`test`、`build`、`api`。
 
-- --env-file：显式读取原项目七字段CFW_MODEL_BASE_URL、CFW_MODEL_API_KEY、CFW_MODEL_NAME、CFW_MODEL_API_STYLE、CFW_MODEL_TIMEOUT_SECONDS、CFW_MODEL_MAX_CALLS、CFW_MODEL_MAX_OUTPUT_TOKENS；进程LookupEnv存在即优先，显式空值也覆盖文件。只作字面解析，不执行shell，不自动搜索.env.local或其他dotenv。
-- --model-config：显式私有JSON，凭据只从其中点名的环境变量读取。与--env-file同时出现拒绝，不静默选一方。
+### 来源、优先级与检查
 
-原模型名称与512等更严私限保留；兼容来源不会替换MiniMax模型。JSON字段冲突、重复／大小写碰撞、未知模型字段和结构错误拒绝；缺凭据、disabled、过期、无授权等与结构错误分开。空白示例见[模型JSON](model-config.example.json)和[原环境字段示例](../.env.example)。运行配置检查不回显密钥、私有URL／账号／资源或凭据片段：
+**进程中明确存在的值（包括空值） > 所选文件 > 程序默认值。** 数字和布尔值显式空会报错，0不会回填默认。云AK／secret／STS token是一个原子记录：进程中任一凭据变量存在，就整组从进程取值，缺项阻断该适配器，不能从文件补成混合身份。只读取项目明确字段，不回退到其他云／模型账号变量。
 
-```bash
-go run -mod=readonly ./cmd/server --env-file ../.env.local --execution-config ../data/private/execution.json --config-check
-go run -mod=readonly ./cmd/server --model-config ../data/private/model-config.json --config-check
-```
+文件最大64KiB且必须是普通文件；支持BOM、CRLF、export、单／双引号和注释，按字面解析，不执行shell／变量展开。未知字段、大小写错误、重复键、引号错误、非法类型和控制字符拒绝；选定文件不存在也不回退。`.env.local`不进Git、不应source。配置对象的JSON／字符串格式化和`--config-check`均只输出脱敏摘要，不含密钥、地址、模型名、账号、路径或资源。
 
-enabled／configured、local ready、持久账本状态、上游兼容已验证与本次任务效果不是同一件事。配置检查不探测上游；已启用但未上游验证时，可以在已接受权限／预算内尝试，不把未验证一律禁用。模型不存在时规则审计仍可用，选择模型补充的审计保留规则与明确partial。
+文件内相对路径以该文件目录解析。直接运行Go或二进制时，进程相对路径以运行目录解析，默认私库为`../data/private/e0.sqlite`（从server目录运行）；`e0.sh`先将显式文件参数及进程的DB／Web相对路径按脚本调用者目录转绝对路径，再切入server。等号、空格路径和空值均保留。
 
-## 云连接、目录与本次对象
+启动、配置检查及计划预览零DNS／HTTP；配置检查不开数据库、不启动工作器。摘要区分本地结构、凭据、授权、账本未检查和上游未验证；填写／enabled／ready不代表身份与真实协议已验证，也不触发调用。模型和云均可禁用并逐项填写，离线规则和历史可用。启用后缺密钥保持blocked；缺URL／模型名／期望账号属配置错误。provider profile只有openai-compatible／minimax；实际可执行非流式chat_completions，已知responses登记为不支持，不静默降级。
 
-[云配置示例](cloud-config.example.json)默认disabled。只支持env_ak／env_sts静态Provider，从JSON点名环境取AK或STS三元组；不读取机器profile／实例元数据，不做AssumeRole／自动续期。CFW／ECS／STS生产端点由受控映射固定，账号先按expected_account_id与受支持身份核对。
+当前business schema为5。旧库先停止服务并备份，再显式migrate；正常启动不AutoMigrate、不修复非完整库。纯Go／CGO_ENABLED=0，Go版本要求见go.mod；本次本机验证工具链见阶段证据。
 
-连接提供单账号、有限地域与边界的读取上界。allowed_assets／allowed_nat_gateways可选作额外收紧，缺省不要求逐台登记。客户从对话提供名称／ID／类型／地域／有限标签或确认归属，目录负责定位，本次计划负责决定审计对象。身份检查与目录展示不会替代产品权限／完整性证明。
+### 云连接、目录与本次对象
 
-接受有限资料准备计划后，同一个audit任务可先核缓存资格、必要时做有限metadata查询／采集，再一次封存规则与Agent输入。多个同名对象、未穷尽或未知筛选条件时停在澄清；不选首条、不扩账号／地域。ECS批量分页，SG按轮去重并保留关联和原条件。NAT仅CFW管理目录、精确匹配原生／防火墙名称，一个任务绑定一个网关，不宣称VPC全网关或完整转换审计。
+云仅支持静态env_ak／env_sts：AK模式填ID和Secret，STS模式还需Token，可填已知到期；没有自动续期／AssumeRole／实例元数据或默认profile。**云URL不用填**，由`CFW_CLOUD_CONTROL_PLANE_REGION`与允许地域映射CFW／ECS／STS受控端点。身份读取先核期望账号与受支持身份；connection_check仍只有IDENTITY_ONLY partial，不证明产品权限。
 
-首轮非fatal失败在所选真实身份齐备时保存明确partial输入及已得ACL／SG；不足、fatal或取消只保存安全观察和受控原因，无snapshot／成功审计。取消已提交的迟到成功不越过发布准入；敏感反射不写收据。
+连接提供单账号、有限地域与边界的读取上界。allowed_assets／allowed_nat_gateways仅可选收紧，无需逐台登记；对话提供名称／ID／类型／地域等信息，目录定位，本次计划决定对象。接受有限资料准备计划后，同一audit先核缓存、必要时有界metadata与采集，再一次封存规则／Agent输入。歧义或未穷尽停在澄清；ECS批量分页、SG去重；NAT只在CFW管理目录内精确定位，一个任务绑定一个网关。云写工具不存在，用户人工应用策略。
 
-独立collect／pinned固定快照入口保留。connection_check可用identity_only且不要求资产，接受后仅身份读取，结果仍IDENTITY_ONLY partial，不读取产品配置，不证明CFW／ECS字段与权限。云写工具不存在，用户人工应用策略。
+首轮非fatal失败在身份齐备时保存明确partial输入及已得ACL／SG；fatal、取消或不足只保存安全观察与受控原因。独立collect／pinned历史入口仍保留。
 
-## 执行保护、时效与持久授权
+### 执行保护与持久授权
 
-[execution-config.example.json](execution-config.example.json)为公开结构示例，预算全为0，不产生调用授权。显式--execution-config选择四类完整workload：排队／执行、采集／规则／模型／收尾、单模型请求、逻辑模型次数、物理尝试、工具／批量和对象／计算保护。已有私配取严；显式0不回填。未提供时使用有明确legacy标签的历史兼容值，均非厂商SLA或永久产品上限；真实等待和用量须另校准。
+四类完整profile由统一配置生成，计划、Store、Engine、Runner、Collector和HTTP共用；独立逻辑模型次数、物理尝试、单次和阶段时限、工具／批量、对象与计算保护逐层取严。默认工程值尚待真实校准，不是厂商SLA或调用授权。数据复用保持原时点，force_refresh／人工变更不偷用旧资料，历史解释零云。
 
-可选data_freshness包含version、configuration_max_age_seconds、metadata_max_age_seconds。资格还核来源、配置修订、原窗口、双轮稳定、完整性、引用闭合与所需关联，不是单看TTL。未配置使用标注未校准的兼容政策。复用保持原时点；force_refresh／人工变更时点不偷用旧资料，历史解释零云。
-
-云和模型共用一个Manager、application-root持久授权与attempt账本。Ref不能被轮换以重置累计；同Ref追加修订使用base revision CAS、change_id幂等、actor／reason／authorization来源。可明确无到期，或有到期取严；适配器私限不会因共享授权扩大自动放宽。普通启动只建初版或收紧，不自行追加额度／续期。已绑定授权可由env模型继续用，未绑定不凭配置发明额度。
-
-本地--budget-change读取显式修订JSON，应用已有账本后退出，与启动／migrate／config-check互斥；它是独立管理员操作，需停止持有数据库锁的服务。未知送达仍计已用，修订不删attempt。启动、config-check、计划预览与Guidance均零外呼；实际请求只在已接受任务内，逐物理尝试（含重试）预记后发送。
+云和模型共用一个Manager、application-root持久授权和attempt账本。共享初始预算只有一处配置，不再分别在云／模型JSON填额度。普通启动只初始化或收紧，已用量不会因改密钥、换ref、重启或新会话重置。增加额度／续期须停止持库锁的服务，使用`--budget-change`显式追加同ref修订，保留base CAS／change_id幂等和旧attempt。当前任务仍需明确接受，发送前预记每个物理尝试，包含重试；未知送达仍计已用。
 
 ## 对话、业务与结果
 

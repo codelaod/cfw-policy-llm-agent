@@ -121,7 +121,7 @@ E4历史证据验证的是force collect后独立pinned audit两步切片，见[E
 
 ### 6.1 当前统一工作负载与legacy数值
 
-当前[workload](../../server/internal/workload/limits.go)将单次、根／阶段、逻辑模型、物理云／模型、工具／单批、对象及计算保护解析为不可变effective limits，计划、Store、Engine、Runner、Collector和[outbound](../../server/internal/outbound/transport.go)共用。显式`--execution-config`可配置比历史提案更大的合法profile；适配器私限、最新持久授权和显式0始终取严。缺显式profile时使用有legacy标签的30秒、助手4次／审计6次、工具8／12及单批4、助手／采集90秒、审计240秒、采集100次等兼容值。它们仍未校准，不是供应商SLA、永久产品上限或新增付费授权，也不保证全部轮次均有完整窗口。
+当前[workload](../../server/internal/workload/limits.go)将单次、根／阶段、逻辑模型、物理云／模型、工具／单批、对象及计算保护解析为不可变effective limits，计划、Store、Engine、Runner、Collector和[outbound](../../server/internal/outbound/transport.go)共用。统一配置的`CFW_WORKLOAD_*`可配置比历史提案更大的合法profile；适配器私限、最新持久授权和显式0始终取严。当前启动统一生成完整profile，旧持久记录缺profile时仍识别有legacy标签的30秒、助手4次／审计6次、工具8／12及单批4、助手／采集90秒、审计240秒、采集100次等兼容值。它们仍未校准，不是供应商SLA、永久产品上限或新增付费授权，也不保证全部轮次均有完整窗口。
 
 E3／E4人工协议fixture与2026-10-22两个历史模型样例不足以校准真实延迟、分页、工具依赖或token费用。[采集研究](../research/collection-workload.md)证明同20资产的请求量还受CFW切片、共享SG、ACL页数及引用影响；原逐资产路线的合成算例131次曾超过100暂值，当前批量ECS／SG去重已减少重复，但不能无授权扩大CFW切片来凑低次数。需联合实现选择器、批量／去重和统一工作负载保护，而非只抬常量。
 

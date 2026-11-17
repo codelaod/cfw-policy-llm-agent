@@ -8,55 +8,11 @@ import (
 	"io"
 	"os"
 
-	"cfw-policy-llm-agent/server/internal/app"
-	"cfw-policy-llm-agent/server/internal/cloudconfig"
-	"cfw-policy-llm-agent/server/internal/modelconfig"
 	"cfw-policy-llm-agent/server/internal/storage"
 	"cfw-policy-llm-agent/server/internal/workload"
 )
 
 var errExecutionConfiguration = errors.New("EXECUTION_CONFIGURATION_INVALID")
-
-type selectedExecutionSettings struct {
-	Model     modelconfig.Config
-	Cloud     cloudconfig.Config
-	Execution workload.Config
-}
-
-func loadExecutionSettings(modelPath, cloudPath, envFile, executionPath string) (out selectedExecutionSettings, err error) {
-	out.Model, err = modelconfig.LoadSelected(modelPath, envFile)
-	if err != nil {
-		return out, err
-	}
-	if cloudPath != "" {
-		out.Cloud, err = cloudconfig.Load(cloudPath)
-		if err != nil {
-			return out, err
-		}
-	}
-	if executionPath != "" {
-		out.Execution, err = workload.Load(executionPath)
-		if err != nil {
-			return out, err
-		}
-	}
-	out.Model, out.Cloud, err = app.BindExecutionSettings(out.Model, out.Cloud, out.Execution)
-	return
-}
-func checkExecutionConfiguration(modelPath, cloudPath, envFile, executionPath string, w io.Writer) error {
-	if executionPath == "" {
-		return checkConfigurationSelected(modelPath, cloudPath, envFile, w)
-	}
-	settings, e := loadExecutionSettings(modelPath, cloudPath, envFile, executionPath)
-	if e != nil {
-		return e
-	}
-	return json.NewEncoder(w).Encode(struct {
-		Model     modelconfig.Summary `json:"model"`
-		Cloud     cloudconfig.Summary `json:"cloud"`
-		Execution workload.Summary    `json:"execution"`
-	}{settings.Model.Summary(), settings.Cloud.Summary(), settings.Execution.Summary()})
-}
 
 type budgetChangeFile struct {
 	SchemaVersion int                  `json:"schema_version"`

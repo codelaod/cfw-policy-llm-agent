@@ -3,8 +3,6 @@ package app
 import (
 	"context"
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"testing"
 
 	"cfw-policy-llm-agent/server/internal/workload"
@@ -30,11 +28,7 @@ func batchDialogProfile(t *testing.T, rules int) workload.Config {
 		profiles[kind] = l
 	}
 	b, _ := json.Marshal(map[string]any{"schema_version": 1, "profile_ref": "batch-conversation-fixture", "profiles": profiles})
-	path := filepath.Join(t.TempDir(), "execution.json")
-	if e := os.WriteFile(path, b, 0600); e != nil {
-		t.Fatal(e)
-	}
-	cfg, e := workload.Load(path)
+	cfg, e := workload.ParseSettings(b)
 	if e != nil {
 		t.Fatal(e)
 	}

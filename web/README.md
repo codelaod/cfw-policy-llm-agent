@@ -21,7 +21,7 @@ npm run build
 
 [对话浏览器检查函数](scripts/conversation-browser-check.js)用于专用的本机公开人工夹具服务：通过真实 Go API 保存目标、选择候选、接受计划、运行规则、导出固定报告及重开历史，并检查窄屏、会话隔离和敏感输入。它需要专用服务与明确的公开 fixture 元信息，不读取真实私配，不应对用户实际业务库运行。用既有 Playwright CLI 打开该服务后，将整段函数交给 `run-code`；测试口令从忽略的公开 fixture 文件取得而不回显。结果／截图位于忽略的 `output/playwright/`，不将该联调解释为真实云或上游模型验收。
 
-`build` 先运行严格类型检查再生成 `dist/`。`npm run preview` 仅预览静态构建，不代理 API；完整操作可使用开发代理，或按[后端说明](../server/README.md)用`--web-dir ../web/dist`开启单Go服务同源托管。构建产物和依赖目录不进入 Git。
+`build` 先运行严格类型检查再生成 `dist/`。`npm run preview` 仅预览静态构建，不代理 API；完整操作可使用开发代理，或按[后端说明](../server/README.md)在统一配置中设置`CFW_WEB_DIR`开启单Go服务同源托管。构建产物和依赖目录不进入 Git。
 
 ## 当前操作链路
 

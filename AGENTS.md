@@ -31,7 +31,7 @@
 - 策略考虑方向、协议、地址／端口、动作、顺序、状态、引用、默认行为与完整性；不支持明确标记。配置允许不等于实际可达，未知不等于缺失，日志零命中不等于无用。
 - 业务角色、标签、安全组、端口或历史流量不自动证明监听、可达性或业务授权；候选通过对话／表单确认。已采用通用基线可独立检查，不因缺白名单抹除确定事实。
 - 原始规则结果不被模型覆盖；事实、推导、待确认与信息不足分开。推荐有可定位证据、对象、条件和影响，不编造业务网段或管理白名单。
-- business schema 5须显式迁移，旧版或缺账本／Agent／云结果／配置范围目录必要结构的非完整库拒启；不在正常启动AutoMigrate。正式模型从互斥显式`--env-file`（原七字段、进程存在含空值优先）或`--model-config`读取，云从`--cloud-config` JSON和点名环境读取，执行政策从`--execution-config`读取；不自动寻找dotenv或默认profile；当前云凭据仅env_ak／env_sts静态Provider，无角色自动续期；`--config-check`只输出本地脱敏摘要。enabled／configured不等上游验证或付费授权，保留当前MiniMax模型和512等更严私配。
+- business schema 5须显式迁移，旧版或缺账本／Agent／云结果／配置范围目录必要结构的非完整库拒启；不在正常启动AutoMigrate。所有外部配置由统一configuration入口读取：显式`--env-file`或同名进程环境，进程存在值（含空）优先、云凭据整组选择；模板覆盖应用／模型／云／共享预算／执行保护／时效，旧分散JSON与实验私配入口已删除；不自动寻找dotenv或默认profile；当前云凭据仅env_ak／env_sts静态Provider，无角色自动续期；`--config-check`只输出本地脱敏摘要。enabled／configured不等上游验证或付费授权，保留当前MiniMax模型和512等更严私配。
 - 独立collect接受显式assets或NAT gateway_policy；对话audit可接受有限selector，在原任务／共享预算内发现、必要采集并一次晚封存，歧义／未穷尽停止澄清；metadata Discover不是无限discover_region。独立collect／pinned入口仍保留。connection_check当前仅IDENTITY_ONLY partial，不等产品权限通过；人工HTTPfixture的live_readonly路径标记不等真实云观测。云／模型共用Manager与持久授权，同Ref append revision、base CAS／change_id重放保留attempt；私限与共享head在发送前取严，省略／暂时blocked不改另一类授权，显式0保持0。
 - 产品使用原则：业务任务从对话提取名称／ID／类型／地域等信息，经目录解析和必要澄清形成类型化计划，不要求管理员逐台预配资产。单台ECS是案例资源复用，3会话是并发要求，均不构成资产总数假设。连接权限上界、资源目录和本次审计对象须分开；原30秒／4或6次／100次及90秒只是未校准的历史工程提案，不当作供应商SLA或永久产品上限。
 - 显式CredentialProvider，不读机器其他profile／公司环境兜底；启动／配置检查／推荐预览零外呼。所有物理HTTP与凭据交换统一准入、共享预算取严；3会话不产生额外授权额度。

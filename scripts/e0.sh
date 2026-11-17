@@ -20,10 +20,16 @@ if (( $# > 0 )); then
 fi
 case "$task_mode" in
   migrate|server)
+    # Process paths belong to the caller; file values belong to the dotenv file.
+    for task_key in CFW_DB_PATH CFW_WEB_DIR; do
+      if [[ -n "${!task_key-}" && "${!task_key}" != /* ]]; then
+        export "$task_key=$task_caller_dir/${!task_key}"
+      fi
+    done
     # Go runs from server/, but explicit paths belong to the caller's cwd.
     while (( $# > 0 )); do
       case "$1" in
-        --model-config|--env-file|--execution-config|--budget-change|--cloud-config|--db|--web-dir|-model-config|-env-file|-execution-config|-budget-change|-cloud-config|-db|-web-dir)
+        --env-file|--budget-change|-env-file|-budget-change)
           task_args+=("$1")
           shift
           if (( $# > 0 )); then
@@ -31,7 +37,7 @@ case "$task_mode" in
             shift
           fi
           ;;
-        --model-config=*|--env-file=*|--execution-config=*|--budget-change=*|--cloud-config=*|--db=*|--web-dir=*|-model-config=*|-env-file=*|-execution-config=*|-budget-change=*|-cloud-config=*|-db=*|-web-dir=*)
+        --env-file=*|--budget-change=*|-env-file=*|-budget-change=*)
           append_explicit_path "${1#*=}" "${1%%=*}="
           shift
           ;;
@@ -56,11 +62,11 @@ esac
 case "$task_mode" in
   migrate)
     cd "$task_root/server"
-    exec go run -mod=readonly ./cmd/server --migrate "${task_args[@]}"
+    exec go run -mod=readonly ./cmd/server --migrate ${task_args[@]+"${task_args[@]}"}
     ;;
   server)
     cd "$task_root/server"
-    exec go run -mod=readonly ./cmd/server "${task_args[@]}"
+    exec go run -mod=readonly ./cmd/server ${task_args[@]+"${task_args[@]}"}
     ;;
   test)
     cd "$task_root/server"

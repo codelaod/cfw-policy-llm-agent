@@ -1,5 +1,5 @@
-// Package modelconfig reads only an explicitly selected configuration source.
-// It never discovers dotenv files or profiles and performs no network work.
+// Package modelconfig validates resolved model settings without source discovery
+// or network work. External configuration belongs to configuration.
 package modelconfig
 
 import (
@@ -11,15 +11,12 @@ import (
 	"errors"
 	"io"
 	"net/url"
-	"os"
 	"regexp"
 	"strings"
 	"time"
 )
 
 var ErrInvalid = errors.New("MODEL_CONFIG_INVALID")
-var ErrCredential = errors.New("MODEL_CREDENTIAL_UNAVAILABLE")
-var ErrSourceConflict = errors.New("MODEL_CONFIG_SOURCE_CONFLICT")
 
 type Budget struct {
 	Ref                      string `json:"ref"`
@@ -71,52 +68,9 @@ type Summary struct {
 var envName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,127}$`)
 var ref = regexp.MustCompile(`^[A-Za-z0-9_-]{1,128}$`)
 
-type envLookup func(string) (string, bool)
-
-// Load retains the explicit JSON entrypoint; operational blocks are reported
-// in Summary rather than preventing the application's offline mode.
-func Load(path string) (Config, error) { return loadJSON(path, os.LookupEnv) }
-
-// LoadSelected rejects ambiguity before reading either source. An absent source
-// is the ordinary offline configuration, not an ambient discovery request.
-func LoadSelected(jsonPath, envFile string) (Config, error) {
-	if jsonPath != "" && envFile != "" {
-		return Config{}, ErrSourceConflict
-	}
-	if envFile != "" {
-		return LoadEnvFile(envFile)
-	}
-	if jsonPath != "" {
-		return Load(jsonPath)
-	}
-	return Config{}, nil
-}
-func readFile(path string, maximum int64) ([]byte, error) {
-	if strings.TrimSpace(path) == "" {
-		return nil, ErrInvalid
-	}
-	info, err := os.Stat(path)
-	if err != nil || !info.Mode().IsRegular() {
-		return nil, ErrInvalid
-	}
-	f, err := os.Open(path)
-	if err != nil {
-		return nil, ErrInvalid
-	}
-	defer f.Close()
-	info, err = f.Stat()
-	if err != nil || !info.Mode().IsRegular() {
-		return nil, ErrInvalid
-	}
-	body, err := io.ReadAll(io.LimitReader(f, maximum+1))
-	if err != nil || int64(len(body)) > maximum {
-		return nil, ErrInvalid
-	}
-	return body, nil
-}
-func loadJSON(path string, lookup envLookup) (Config, error) {
-	body, err := readFile(path, 32<<10)
-	if err != nil || !uniqueJSON(body) {
+// ParseSettings validates resolved settings without source discovery.
+func ParseSettings(body []byte, lookup func(string) (string, bool)) (Config, error) {
+	if len(body) > 32<<10 || !workload.ValidJSONDocument(body) {
 		return Config{}, ErrInvalid
 	}
 	d := json.NewDecoder(bytes.NewReader(body))
@@ -129,7 +83,7 @@ func loadJSON(path string, lookup envLookup) (Config, error) {
 	if d.Decode(&extra) != io.EOF {
 		return Config{}, ErrInvalid
 	}
-	c, err := build(input, "json")
+	c, err := build(input)
 	if err != nil {
 		return Config{}, err
 	}
@@ -154,24 +108,32 @@ func validBudget(b Budget) bool {
 	}
 	return true
 }
-func build(input fileConfig, source string) (Config, error) {
-	if (input.APIStyle != "chat_completions" && input.APIStyle != "responses") || (input.ProviderProfile != "openai-compatible" && input.ProviderProfile != "minimax") || input.Model == "" || len(input.Model) > 128 || strings.TrimSpace(input.Model) != input.Model || hasControl(input.Model) || !envName.MatchString(input.APIKeyEnv) || input.MaxOutputTokens < 1 || input.MaxOutputTokens > 1024 || input.TimeoutSeconds < 1 || int64(input.TimeoutSeconds) > workload.MaxSeconds || input.MaxHTTPAttempts < 0 || input.MaxHTTPAttempts > workload.MaxCounter || !validBudget(input.Budget) {
+func build(input fileConfig) (Config, error) {
+	if (input.APIStyle != "chat_completions" && input.APIStyle != "responses") || (input.ProviderProfile != "openai-compatible" && input.ProviderProfile != "minimax") || (input.Enabled && input.Model == "") || len(input.Model) > 128 || strings.TrimSpace(input.Model) != input.Model || hasControl(input.Model) || !envName.MatchString(input.APIKeyEnv) || input.MaxOutputTokens < 1 || input.MaxOutputTokens > 1024 || input.TimeoutSeconds < 1 || int64(input.TimeoutSeconds) > workload.MaxSeconds || input.MaxHTTPAttempts < 0 || input.MaxHTTPAttempts > workload.MaxCounter || !validBudget(input.Budget) {
 		return Config{}, ErrInvalid
 	}
-	u, err := url.Parse(input.BaseURL)
-	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" || u.RawPath != "" || hasControl(input.BaseURL) || strings.TrimSpace(input.BaseURL) != input.BaseURL {
-		return Config{}, ErrInvalid
+	endpoint := ""
+	if input.BaseURL != "" || input.Enabled {
+		u, err := url.Parse(input.BaseURL)
+		if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.Opaque != "" || u.RawPath != "" || len(input.BaseURL) > 2048 || hasControl(input.BaseURL) || strings.TrimSpace(input.BaseURL) != input.BaseURL {
+			return Config{}, ErrInvalid
+		}
+		path := strings.TrimRight(u.Path, "/")
+		if strings.Contains(path, "//") || strings.Contains(path, "..") || strings.HasSuffix(path, "/chat/completions") || strings.HasSuffix(path, "/responses") {
+			return Config{}, ErrInvalid
+		}
+		u.Path = path + "/chat/completions"
+		endpoint = u.String()
 	}
-	if strings.Contains(u.Path, "//") || strings.Contains(u.Path, "..") || strings.HasSuffix(strings.TrimRight(u.Path, "/"), "/chat/completions") {
-		return Config{}, ErrInvalid
+	if input.Model == "" || endpoint == "" {
+		return Config{settings: input}, nil
 	}
-	u.Path = strings.TrimRight(u.Path, "/") + "/chat/completions"
 	canonical, err := json.Marshal(input)
 	if err != nil {
 		return Config{}, ErrInvalid
 	}
-	digest := sha256.Sum256(append([]byte(source+"\x00"), canonical...))
-	return Config{settings: input, endpoint: u.String(), revision: "model-config_" + hex.EncodeToString(digest[:])[:32], sourceKind: source}, nil
+	digest := sha256.Sum256(canonical)
+	return Config{settings: input, endpoint: endpoint, revision: "model-config_" + hex.EncodeToString(digest[:])[:32], sourceKind: "unified"}, nil
 }
 func hasControl(value string) bool {
 	return strings.IndexFunc(value, func(r rune) bool { return r < 0x20 || r == 0x7f }) >= 0
@@ -199,7 +161,7 @@ func (c Config) WithBudget(b Budget) (Config, error) {
 	}
 	input := c.settings
 	input.Budget = b
-	out, err := build(input, c.sourceKind)
+	out, err := build(input)
 	if err != nil {
 		return Config{}, err
 	}
@@ -209,7 +171,7 @@ func (c Config) WithBudget(b Budget) (Config, error) {
 func (c Config) WithProviderProfile(profile string) (Config, error) {
 	input := c.settings
 	input.ProviderProfile = profile
-	out, err := build(input, c.sourceKind)
+	out, err := build(input)
 	if err != nil {
 		return Config{}, err
 	}

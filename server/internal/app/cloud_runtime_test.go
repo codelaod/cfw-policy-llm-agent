@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -22,11 +21,7 @@ func cloudRuntimeConfig(t *testing.T, enabled bool, period string, modelLimit in
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := filepath.Join(t.TempDir(), "cloud.json")
-	if err = os.WriteFile(p, b, 0600); err != nil {
-		t.Fatal(err)
-	}
-	c, err := cloudconfig.Load(p)
+	c, err := cloudconfig.ParseSettings(b, os.LookupEnv)
 	if err != nil {
 		t.Fatal(err)
 	}

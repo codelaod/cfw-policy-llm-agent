@@ -27,15 +27,11 @@ type wireRequest struct {
 	ReasoningSplit      bool             `json:"reasoning_split"`
 }
 
+const fixtureKey = "fixture-secret-never-real"
+
 func liveTestConfig(t *testing.T, base string) modelConfig {
 	t.Helper()
-	values := configValues()
-	values["CFW_MODEL_BASE_URL"] = base
-	cfg, err := loadModelConfig("", lookupValues(values))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return cfg
+	return modelConfig{baseURL: base, apiKey: fixtureKey, modelName: "fixture-model", apiStyle: "chat_completions", timeoutSeconds: 30, maxCalls: 4, maxOutputTokens: 512}
 }
 
 func writeModelResponse(w http.ResponseWriter, message map[string]any, finish string, usage bool) {

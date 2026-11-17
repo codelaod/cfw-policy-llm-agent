@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -40,11 +39,7 @@ func testConfig(t *testing.T) cloudconfig.Config {
 	t.Setenv("CFW_E4_API_AK", "synthetic-access-key")
 	t.Setenv("CFW_E4_API_SECRET", "synthetic-access-secret")
 	body := `{"enabled":true,"connection_ref":"connection-a","credential_mode":"env_ak","access_key_id_env":"CFW_E4_API_AK","access_key_secret_env":"CFW_E4_API_SECRET","expected_account_id":"1234567890123456","control_plane_region":"cn-hangzhou","allowed_boundaries":["internet/in","internet/out","nat/out"],"allowed_regions":["cn-hangzhou"],"allowed_assets":[{"region":"cn-hangzhou","instance_id":"i-synthetic"}],"allowed_nat_gateways":[{"region":"cn-hangzhou","id":"ngw-synthetic"}],"timeout_seconds":10,"max_http_attempts":30,"budget":{"ref":"explicit-period","expires_at":"2099-01-01T00:00:00Z","application_cloud_attempts":100,"session_cloud_attempts":50,"application_model_attempts":0,"session_model_attempts":0}}`
-	p := filepath.Join(t.TempDir(), "cloud.json")
-	if e := os.WriteFile(p, []byte(body), 0600); e != nil {
-		t.Fatal(e)
-	}
-	c, e := cloudconfig.Load(p)
+	c, e := cloudconfig.ParseSettings([]byte(body), os.LookupEnv)
 	if e != nil {
 		t.Fatal(e)
 	}

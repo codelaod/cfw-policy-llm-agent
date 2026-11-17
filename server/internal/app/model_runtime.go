@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
-	"errors"
 	"net/url"
 
 	"cfw-policy-llm-agent/server/internal/aliyunapi"
@@ -43,17 +42,6 @@ func NewRuntimeWithExecution(store *storage.Store, cfg modelconfig.Config, cloud
 	if store == nil {
 		return nil, storage.ErrInputInvalid
 	}
-	if cfg.Summary().SourceKind == "env_file" && cfg.RequestedEnabled() && cfg.Budget().Ref == "" && !execution.HasBudget() {
-		policy, e := store.BudgetForOwner(context.Background(), "application-root")
-		if e == nil {
-			cfg, e = cfg.WithBudget(modelconfig.Budget{Ref: policy.Ref, ExpiresAt: policy.ExpiresAt, ApplicationModelAttempts: int(policy.ApplicationModelAttempts), SessionModelAttempts: int(policy.SessionModelAttempts)})
-			if e != nil {
-				return nil, e
-			}
-		} else if !errors.Is(e, storage.ErrBudgetNotConfigured) {
-			return nil, e
-		}
-	}
 	var settingsError error
 	cfg, cloud, settingsError = BindExecutionSettings(cfg, cloud, execution)
 	if settingsError != nil {
@@ -62,10 +50,6 @@ func NewRuntimeWithExecution(store *storage.Store, cfg modelconfig.Config, cloud
 	runtime := &ModelRuntime{Plans: NewPlanService(store), SensitiveValues: append([]string(nil), additionalSecrets...)}
 	runtime.Plans.Workloads = execution
 	runtime.Plans.ModelTimeout = cfg.Timeout()
-	if cfg.Summary().SourceKind == "env_file" {
-		calls := cfg.MaxHTTPAttempts()
-		runtime.Plans.ModelLogicalCalls = &calls
-	}
 
 	cloudSecrets := append(append([]string(nil), additionalSecrets...), cfg.APIKey(), cfg.BaseURL(), cfg.Endpoint(), cloud.AccessKeyID(), cloud.AccessKeySecret(), cloud.SecurityToken())
 	if cfg.Summary().Configured {

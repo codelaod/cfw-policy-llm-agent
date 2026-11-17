@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"cfw-policy-llm-agent/server/internal/app"
+	"cfw-policy-llm-agent/server/internal/configuration"
 	"cfw-policy-llm-agent/server/internal/httpapi"
-	"cfw-policy-llm-agent/server/internal/modelconfig"
 	"cfw-policy-llm-agent/server/internal/storage"
 )
 
@@ -35,50 +35,46 @@ func main() {
 	}
 }
 
-func run() error {
-	db := flag.String("db", "../data/private/e0.sqlite", "private business database path")
-	migrate := flag.Bool("migrate", false, "explicitly apply the local SQL schema and exit")
-	webDir := flag.String("web-dir", "", "optional built web/dist directory; serves only public bundle files and business routes")
-	envFile := flag.String("env-file", "", "explicit project model environment file; mutually exclusive with model-config")
-	modelPath := flag.String("model-config", "", "explicit private model JSON configuration; no dotenv or profile discovery")
-	cloudPath := flag.String("cloud-config", "", "explicit private read-only cloud connection JSON; no default credential discovery")
-	executionPath := flag.String("execution-config", "", "explicit workload and shared policy JSON; no provider calls")
-	budgetChangePath := flag.String("budget-change", "", "apply one explicit local authorization revision and exit; existing ledger required")
-	configCheck := flag.Bool("config-check", false, "validate the explicitly selected model configuration locally and print a redacted summary")
-	flag.Parse()
-	if *budgetChangePath != "" {
-		if *configCheck || *migrate || *modelPath != "" || *cloudPath != "" || *envFile != "" || *executionPath != "" {
-			return errExecutionConfiguration
-		}
-		return applyBudgetChange(*db, *budgetChangePath, os.Stdout)
+func run() error { return runCommand(os.Args[1:], os.Stdout) }
+
+func runCommand(args []string, output io.Writer) error {
+	flags := flag.NewFlagSet("cfw", flag.ContinueOnError)
+	flags.SetOutput(output)
+	envFile := flags.String("env-file", "", "explicit unified dotenv file; process CFW_* values take precedence")
+	migrate := flags.Bool("migrate", false, "explicitly apply the local SQL schema and exit")
+	budgetChangePath := flags.String("budget-change", "", "apply one explicit local authorization revision and exit; existing ledger required")
+	configCheck := flags.Bool("config-check", false, "validate unified settings locally and print a redacted summary")
+	if err := flags.Parse(args); err != nil {
+		return err
+	}
+	if flags.NArg() != 0 || (*configCheck && *migrate) || (*budgetChangePath != "" && (*configCheck || *migrate)) {
+		return errExecutionConfiguration
+	}
+	settings, err := configuration.Load(*envFile)
+	if err != nil {
+		return err
 	}
 	if *configCheck {
-		return checkExecutionConfiguration(*modelPath, *cloudPath, *envFile, *executionPath, os.Stdout)
+		return json.NewEncoder(output).Encode(settings.Summary())
 	}
-	if *modelPath != "" && *envFile != "" {
-		return modelconfig.ErrSourceConflict
+	if *budgetChangePath != "" {
+		return applyBudgetChange(settings.DBPath(), *budgetChangePath, output)
 	}
-	// Startup/config validation is local and only explicitly selected credentials
-	// are read. No provider, identity, dotenv or machine profile is contacted.
-	token := os.Getenv("CFW_APP_TOKEN")
-	if !*migrate && len(token) < 16 {
-		return fmt.Errorf("set CFW_APP_TOKEN to at least 16 characters (value is never logged)")
+	token := settings.Token()
+	if !*migrate && !settings.TokenReady() {
+		return fmt.Errorf("CFW_APP_TOKEN must contain 16..8192 characters without surrounding whitespace (value is never logged)")
 	}
-	store, err := storage.Open(*db, *migrate)
+	store, err := storage.Open(settings.DBPath(), *migrate)
 	if err != nil {
 		return fmt.Errorf("local storage initialization failed: %w", err)
 	}
 	defer store.Close()
 	if *migrate {
-		fmt.Printf("Local business schema version %d ready\n", storage.BusinessSchemaVersion)
+		fmt.Fprintf(output, "Local business schema version %d ready\n", storage.BusinessSchemaVersion)
 		return nil
 	}
 	if err = store.Recover(context.Background()); err != nil {
 		return fmt.Errorf("task recovery failed")
-	}
-	settings, err := loadExecutionSettings(*modelPath, *cloudPath, *envFile, *executionPath)
-	if err != nil {
-		return fmt.Errorf("explicit settings are unavailable: %w", err)
 	}
 	selectedModel := settings.Model
 	modelRuntime, err := app.NewRuntimeWithExecution(store, settings.Model, settings.Cloud, settings.Execution, token)
@@ -130,7 +126,7 @@ func run() error {
 	if workflow.Agent != nil {
 		workflow.Agent.SensitiveValues = privateValues
 	}
-	router, err := httpapi.New(engine, token, httpapi.Options{WebDir: *webDir, Plans: modelRuntime.Plans, SensitiveValues: privateValues})
+	router, err := httpapi.New(engine, token, httpapi.Options{WebDir: settings.WebDir(), Plans: modelRuntime.Plans, SensitiveValues: privateValues})
 	if err != nil {
 		return err
 	}

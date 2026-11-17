@@ -2,11 +2,13 @@
 
 日期：2026-10-28。状态：**E4当前切片限定离线适配验证通过**。本记录只确认已实现切片的本机人工协议验证，真实账号与完整能力未验收；机器可读状态见[e4-adapters-local.json](e4-adapters-local.json)。[E3](e3-local.md)及前序历史证据保持原结论，不回写为E4结果。G1／G2和业务边界不变。
 
+2026-11-17外部配置已统一，以下JSON来源描述是本记录当时的历史窗口；当前入口见[后端说明](../../../server/README.md)，不再提供旧参数。
+
 ## 当前实际切片
 
 | 范围 | 实现与证据落点 |
 | --- | --- |
-| 显式云配置 | cloudconfig只读取--cloud-config JSON和点名环境变量，当前仅静态env_ak／env_sts；固定生产端点、expected account、有限边界／地域／资产／网关。无dotenv／默认profile／实例元数据、AssumeRole或自动续期。见[配置](../../../server/internal/cloudconfig/config.go)与[空白模板](../../../server/cloud-config.example.json)。 |
+| 显式云配置 | cloudconfig只读取--cloud-config JSON和点名环境变量，当前仅静态env_ak／env_sts；固定生产端点、expected account、有限边界／地域／资产／网关。无dotenv／默认profile／实例元数据、AssumeRole或自动续期。见[配置](../../../server/internal/cloudconfig/config.go)与[现行统一模板](../../../.env.example)。 |
 | SDK与身份先行 | aliyunapi仅固定CFW五操作＋ECS两操作＋GetCallerIdentity。产品读取前核账号及受支持RAMUser／AssumedRoleUser与ARN，root／空资源／类型冲突拒绝；安全组先从所选ECS关联后才可读。构造与本地config-check不查身份。见[适配器](../../../server/internal/aliyunapi/api.go)、[身份回归](../../../server/internal/aliyunapi/external_review_test.go)。 |
 | 受限采集 | 当前仅显式assets或单NAT gateway_policy，不支持discover_region或空列表全量发现。两轮配置族读取保留页号／TotalCount类型、NextToken、引用、未知条件、窗口／完整性与一致性；默认动作unknown，不由同VPC生成NAT关联。见[Collector](../../../server/internal/aliyuncollector/collector.go)、[分页](../../../server/internal/aliyuncollector/pagination.go)。 |
 | 保守规范化 | 地址簿AddressList与Addresses双表示冲突／畸形保持unknown，不挑一边证明完整。两轮保护状态冲突降unknown／PROTECTION_CHANGED，后轮未核实降PROTECTION_UNVERIFIED；状态一致而后续ACL失败仍保留独立保护事实。未知枚举、复杂条件与缺引用不静默删除。见[Review回归](../../../server/internal/aliyuncollector/external_review_test.go)。 |

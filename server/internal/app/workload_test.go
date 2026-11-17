@@ -5,8 +5,6 @@ import (
 	"cfw-policy-llm-agent/server/internal/workload"
 	"context"
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"testing"
 	"time"
 )
@@ -32,11 +30,7 @@ func explicitWorkloads(t *testing.T) workload.Config {
 		profiles[kind] = l
 	}
 	b, _ := json.Marshal(map[string]any{"schema_version": 1, "profile_ref": "explicit-plans", "profiles": profiles})
-	p := filepath.Join(t.TempDir(), "execution.json")
-	if err := os.WriteFile(p, b, 0600); err != nil {
-		t.Fatal(err)
-	}
-	c, err := workload.Load(p)
+	c, err := workload.ParseSettings(b)
 	if err != nil {
 		t.Fatal(err)
 	}
