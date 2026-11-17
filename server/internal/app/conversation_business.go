@@ -20,7 +20,6 @@ type ConversationBusinessResult = storage.ConversationBusinessResult
 var businessSignal = regexp.MustCompile(`(?i)(?:用途|角色|必须保留|必要访问|允许集合|不允许任何|管理(?:入口|来源|白名单).*(?:未知|不知道)|(?:来源|白名单).*(?:未知|不知道)|业务草稿|业务资料|风险例外|(?:记|添加|新增|登记).*例外|例外.*(?:理由|授权|到期)|拒绝.*候选|接受.*候选|(?:确认|它是|这是|改为|改成).*(?:web(?:服务)?|数据库|管理服务|管理接口|缓存服务|dns服务)|^(?:允许|该服务允许|这个服务允许).*(?:[0-9]|https|http|tcp|udp))`)
 var businessConfirmation = regexp.MustCompile(`^确认(?:当前|本次|刚才)?预览(?:中的?|的)?(角色|访问|角色和访问|角色与访问)(?:部分|项目)?[。！!]?\s*$`)
 var businessAddress = regexp.MustCompile(`\b(?:\d{1,3}\.){3}\d{1,3}(?:/\d{1,2})?\b`)
-var businessPort = regexp.MustCompile(`(?i)(?:tcp|udp|端口)\s*[:：/]?\s*([0-9]{1,5})\b`)
 
 // HandleBusiness is local only. Natural language produces a bounded draft and
 // preview; saving a business version requires an explicit current preview and
@@ -89,7 +88,17 @@ func (s *IntentService) HandleBusiness(ctx context.Context, conversation, key, t
 }
 
 func businessClarification(current storage.ConversationBusinessContext, missing []string) ConversationBusinessResult {
-	return ConversationBusinessResult{State: "needs_clarification", Reply: "请明确当前资产／服务及要修改的业务项目；可查看同一份草稿后分项预览和确认。没有明确声明的来源与允许范围保持未知。", Target: current.Target, Draft: current.Draft, Candidates: current.Candidates, UnknownFields: []string{}, MissingInputs: append([]string{}, missing...)}
+	reply := "请明确当前资产／服务及要修改的业务项目；可查看同一份草稿后分项预览和确认。没有明确声明的来源与允许范围保持未知。"
+	if hasString(missing, "separate_service_statements") {
+		reply = "这段话涉及多个服务或相互冲突的声明，尚未修改草稿。请用分号或换行分别说明每个服务的协议、端口和来源／目标，也可以打开业务表单逐项修改。"
+	} else if hasString(missing, "explicit_business_change") {
+		reply = "尚未修改草稿。请明确要保存的角色、允许集合或必要访问；否定某个角色或某段访问不能直接变成允许，也不代表拒绝全部。可在业务表单中逐项核对。"
+	} else if hasString(missing, "valid_explicit_protocol_and_ports") {
+		reply = "尚未修改草稿。请明确每个服务的协议和有效端口，范围可写为 TCP1000-2000；不同服务用分号或换行分别说明，也可以使用业务表单。"
+	} else if hasString(missing, "single_business_action") {
+		reply = "请分别修改、预览或确认业务资料。当前草稿和确认版本保留，本次没有合并执行这些操作。"
+	}
+	return ConversationBusinessResult{State: "needs_clarification", Reply: reply, Target: current.Target, Draft: current.Draft, Candidates: current.Candidates, UnknownFields: []string{}, MissingInputs: append([]string{}, missing...)}
 }
 
 func businessReply(result ConversationBusinessResult) string {
@@ -118,9 +127,18 @@ func businessReply(result ConversationBusinessResult) string {
 	}
 }
 
-func evaluateBusinessText(current storage.ConversationBusinessContext, text string) (request ConversationBusinessRequest, missing []string) {
+func evaluateBusinessStatement(current storage.ConversationBusinessContext, text string) (request ConversationBusinessRequest, missing []string) {
 	request.UnknownFields = []string{}
 	missing = []string{}
+	identityText := text
+	text = businessEndpointText(current, text)
+	// Negations and resource names must never turn into affirmative business
+	// declarations. Model mode phrases are separate from business permissions.
+	semantic := businessSemanticText(text)
+	semantic = strings.NewReplacer("不允许任何", "", "不用模型", "", "不使用模型", "").Replace(semantic)
+	if businessNegativeDeclaration.MatchString(semantic) {
+		return request, []string{"explicit_business_change"}
+	}
 	if match := businessConfirmation.FindStringSubmatch(text); len(match) > 0 {
 		if current.Draft == nil || current.Draft.Status != "previewed" || current.Draft.PreviewID == "" {
 			return request, []string{"current_preview"}
@@ -156,6 +174,18 @@ func evaluateBusinessText(current storage.ConversationBusinessContext, text stri
 		}
 		return request, missing
 	}
+	endpoints, valid := businessEndpoints(text)
+	if !valid {
+		return request, []string{"valid_explicit_protocol_and_ports"}
+	}
+	if len(endpoints) > 1 {
+		return request, []string{"separate_service_statements"}
+	}
+	if (strings.Contains(text, "必须保留") || strings.Contains(text, "必要访问")) && strings.Contains(text, "允许") {
+		// Even one endpoint can have different necessary and allowed addresses.
+		// Require explicit statement boundaries rather than pooling both sets.
+		return request, []string{"separate_service_statements"}
+	}
 	if strings.Contains(text, "管理") && (strings.Contains(text, "未知") || strings.Contains(text, "不知道")) {
 		request.UnknownFields = append(request.UnknownFields, "management_sources")
 	}
@@ -172,7 +202,7 @@ func evaluateBusinessText(current storage.ConversationBusinessContext, text stri
 		request.Action = "keep_unknown"
 		return request, missing
 	}
-	assetID := businessTextAsset(current, text)
+	assetID := businessTextAsset(current, identityText)
 	if assetID == "" {
 		return request, []string{"asset_selection"}
 	}
@@ -218,7 +248,7 @@ func evaluateBusinessText(current storage.ConversationBusinessContext, text stri
 		if len(roles) == 1 {
 			rp, rports = protocol, ports
 		}
-		serviceID, ambiguous := businessTextService(services, text, role, rp, rports)
+		serviceID, ambiguous := businessTextService(services, identityText, role, rp, rports)
 		if ambiguous {
 			return request, []string{"service_selection"}
 		}
@@ -243,7 +273,7 @@ func evaluateBusinessText(current storage.ConversationBusinessContext, text stri
 				}
 			}
 			if index < 0 {
-				serviceID, ambiguous := businessTextService(services, text, "", protocol, ports)
+				serviceID, ambiguous := businessTextService(services, identityText, "", protocol, ports)
 				if ambiguous {
 					return request, []string{"service_selection"}
 				}
@@ -273,17 +303,17 @@ func evaluateBusinessText(current storage.ConversationBusinessContext, text stri
 		if strings.Contains(text, "管理") {
 			role = "management"
 		}
-		serviceID, ambiguous := businessTextService(services, text, role, protocol, ports)
+		serviceID, ambiguous := businessTextService(services, identityText, role, protocol, ports)
 		if ambiguous || serviceID == "" {
 			return request, []string{"service_for_explicit_empty_permissions"}
 		}
 		request.Patches = append(request.Patches, storage.ConversationBusinessPatch{AssetID: assetID, ServiceID: serviceID, Allowed: &storage.BusinessAllowedChange{Complete: true, DenyAll: true, Allowed: []domain.Access{}, PublicAccess: "not_required"}})
 	} else if strings.Contains(text, "允许") && len(addresses) > 0 {
-		serviceID, ambiguous := businessTextService(services, text, "", protocol, ports)
+		serviceID, ambiguous := businessTextService(services, identityText, "", protocol, ports)
 		if ambiguous || serviceID == "" || len(ports) == 0 {
 			return request, []string{"service_and_ports_for_permissions"}
 		}
-		request.Patches = append(request.Patches, storage.ConversationBusinessPatch{AssetID: assetID, ServiceID: serviceID, Allowed: &storage.BusinessAllowedChange{Complete: strings.Contains(text, "完整"), Allowed: []domain.Access{{ScopeRef: current.Target.Scope.Ref, Protocol: protocol, Addresses: addresses, Ports: ports, Applicability: "applicable"}}, PublicAccess: "unknown"}})
+		request.Patches = append(request.Patches, storage.ConversationBusinessPatch{AssetID: assetID, ServiceID: serviceID, Allowed: &storage.BusinessAllowedChange{Complete: businessAllowedSetComplete(text), Allowed: []domain.Access{{ScopeRef: current.Target.Scope.Ref, Protocol: protocol, Addresses: addresses, Ports: ports, Applicability: "applicable"}}, PublicAccess: "unknown"}})
 	}
 	if strings.Contains(text, "例外") {
 		missing = append(missing, "exception_check_and_scope", "exception_reason", "exception_authorization_source", "exception_expiry")
@@ -388,25 +418,9 @@ func businessTextService(services []domain.Service, text, role, protocol string,
 	return "", len(ids) > 1
 }
 func businessProtocolPorts(text string) (string, []domain.PortRange) {
-	lower := strings.ToLower(text)
-	if strings.Contains(lower, "https") {
-		return "tcp", []domain.PortRange{{From: 443, To: 443}}
-	}
-	if strings.Contains(lower, "http") {
-		return "tcp", []domain.PortRange{{From: 80, To: 80}}
-	}
-	if match := businessPort.FindStringSubmatch(text); len(match) > 0 {
-		n := 0
-		for _, r := range match[1] {
-			n = n*10 + int(r-'0')
-		}
-		if n >= 1 && n <= 65535 {
-			protocol := "tcp"
-			if strings.Contains(lower, "udp") {
-				protocol = "udp"
-			}
-			return protocol, []domain.PortRange{{From: n, To: n}}
-		}
+	endpoints, valid := businessEndpoints(text)
+	if valid && len(endpoints) == 1 {
+		return endpoints[0].protocol, []domain.PortRange{endpoints[0].ports}
 	}
 	return "unknown", []domain.PortRange{}
 }

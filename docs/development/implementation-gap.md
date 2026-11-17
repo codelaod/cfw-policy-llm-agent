@@ -1,6 +1,6 @@
 # 当前正式实现与需求目标的差异
 
-核查日期：2026-10-30。对象为main正式Go／Vue／API及本次交付内容；独立Review时包含未提交改动，本次按用户新授权统一纳入版本。本台账维护当前状态；历史原型与整改前缺口由Git追溯，不继续作为现行未实现事实。目标以[系统需求](../requirements/system.md)、[PRD](../requirements/product.md)、[领域需求](../requirements/audit-domain.md)和[24旅程／88分支目录](../requirements/customer-journeys.json)为准。
+核查日期：2026-11-17。对象为拉取`7c91181`后的main正式Go／Vue／API及本轮修复；2026-10-30版本已提交推送，本轮修复按用户随后明确授权纳入本次main提交与普通推送，实际交付结果以Git为准。本台账维护当前状态；历史原型与整改前缺口由Git追溯，不继续作为现行未实现事实。目标以[系统需求](../requirements/system.md)、[PRD](../requirements/product.md)、[领域需求](../requirements/audit-domain.md)和[24旅程／88分支目录](../requirements/customer-journeys.json)为准。
 
 “已接”表示存在正式代码；“限定回归”只表示实际人工输入、loopback或浏览器范围，不表示完整AC通过。阶段结果见[代码记录](../validation/evidence/conversation-implementation-local.md)，后续顺序见[实施计划§2.3](implementation-plan.md)。原[E0](../validation/evidence/e0-local.md)～[E4](../validation/evidence/e4-adapters-local.md)证据不改写。
 
@@ -9,6 +9,8 @@
 正式主入口已能无快照保存目标、检索／消歧、确认计划，并在同一audit内准备资料、一次晚封存、执行规则／受限Agent和报告。配置承接、来源隔离目录、metadata／SG、合格缓存、执行policy、历史解释／强刷关联和本地Guidance已有正式实现及限定回归。
 
 可信归属、业务草稿卡／表单共用、完整有限集串行父请求／覆盖汇总和固定模型对照执行器均已接入正式代码并有本地回归。当前仍未完整闭合：全部88分支正式验收、真实接入／正式评价及标准性能取证。自然解析仍为有限结构化实现，不能从几个例句推导通用自然语言能力或百万目录规模。
+
+2026-11-17核查实际复现并修复4类业务声明缺陷：多服务／必要与允许地址混合、否定被当肯定、端口范围只取首端口、未知／不完整允许集合被提升为完整。多服务按分号／换行绑定同一份草稿，冲突及不能确定的输入保留原稿并澄清；入向／出向、未知端口、资源名隔离、分项确认和原回执已有新增回归。正式HTTP入口验证了确认后的下一次实际规则计算和旧输入隔离。当前主要M0功能都有代码，仍不能把这些限定结果等同完整产品验收；本轮结果见[现有证据的新窗口](../validation/evidence/conversation-implementation-local.md#本地进度复核与业务声明修复2026-11-17)。
 
 ## 2. 关键代码与证明范围
 
@@ -20,6 +22,7 @@
 | [workload](../../server/internal/workload/config.go)／[runtime](../../server/internal/app/model_runtime.go)／[budget revisions](../../server/internal/storage/budget_revisions.go) | 显式配置、统一profile、共享授权head与私限、原attempt保留 | 更大profile／0及启动零调用有回归；数值仍需真实校准 |
 | [agentquery](../../server/internal/agentquery/tools.go)／[bindings](../../server/internal/agentquery/bindings.go) | sealed资料九工具、SG完整状态、别名、证据候选与最终校验 | 实际工具／人工Eino模型，不是自主选择质量 |
 | [conversation business](../../server/internal/app/conversation_business.go)／[drafts](../../server/internal/storage/conversation_drafts.go) | 对话／表单共用既有草稿、分项预览确认、候选与冲突、例外授权来源 | 正式业务卡／表单同稿分项确认23项浏览器；无ID未知443服务复用反例已修 |
+| [business text](../../server/internal/app/conversation_business_text.go)／[业务HTTP旅程](../../server/internal/httpapi/business_declaration_journey_test.go) | 分句绑定服务／端口／地址；否定与完整性未知不产生肯定授权；范围保持，混合或冲突先澄清 | 2026-11-17新增11个顶层回归；正式HTTP人工输入→预览／确认→新审计及原回执，不是通用NLU或真实业务验收 |
 | [history](../../server/internal/app/conversation_history.go)／[guidance](../../server/internal/app/conversation_guidance.go) | 固定报告解释、强刷复审关联、本地版本化下一步 | 历史A／当前B复审绑定与pinned旧草稿恢复已独立复验；引导不生成父合并报告 |
 | [ConversationWorkspace](../../web/src/ConversationWorkspace.vue)／[GuidancePanel](../../web/src/GuidancePanel.vue) | 正式对话、候选／计划／任务、准备观察与共用引导 | 业务23／归属27／分批28项浏览器通过；自然确认15／历史模型12／同稿恢复17／改善12等窗口分别取证，完整正式验收待执行 |
 
@@ -122,5 +125,7 @@
 2026-10-30已执行客户主链独立整体Review：确认的5项P2代码／界面缺陷和1项P2需求／实现漂移均已修复、针对性验证及独立复验；同时纠正需求正文3处过时的“未实现”状态。可复现反例、准确位置、需求依据与本轮范围并入[现有阶段证据](../validation/evidence/conversation-implementation-local.md#客户主链独立整体review2026-10-30)。本轮补了真实本机HTTP离线链与同库重开，不扩大为完整88分支或真实整改。
 
 现有业务／归属／批段、固定模型评价、同稿冲突恢复和复审改善代码已完成阶段独立Review→修复→复验，普通Go全包与Web回归通过。后续从客户全流程核对需求、设计与正式实现，补齐正式分支／异常／重启／并发的完整验收证据；新发现问题继续修复并独立复验，逐条关闭本表出口后再更新完整旅程结论。缺真实账号不阻止这些离线审查和验收。
+
+2026-11-17本轮业务语义修复及自审回归通过：Go696个顶层、18个有测试包，Web193项、vet、无CGO后端构建及前端类型／生产构建。该窗口没有新浏览器验收、真实云／模型调用或正式评价；2026-10-30的独立Review与历史浏览器结果保持原范围。
 
 真实上游兼容、真实权限、至少一次真实整改和标准性能另取证；不把loopback的live_readonly路径标签、人工模型、浏览器或测试数量当真实业务质量。默认关闭的定时采集、M1日志／精确状态和未来CLI／TUI维持可选，不把它们混入M0欠项。没有新增多云、多Agent、云写、云安全中心或通用平台。

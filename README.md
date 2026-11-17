@@ -6,6 +6,8 @@
 
 **2026-10-30产品主链代码整改及独立整体Review修复已形成限定本机结果。** 已接正式无快照对话、资源目录／消歧、同一审计任务资料准备与晚封存、合格复用、结构化元数据／SG、共享执行政策及本地引导；业务草稿／表单分项确认、可信归属、完整有限集串行分批与固定模型评价执行器已有正式代码及限定回归；完整旅程和真实验收仍待完成。限定结果见[代码阶段证据](docs/validation/evidence/conversation-implementation-local.md)，剩余项见[实施计划§2.3](docs/development/implementation-plan.md)与[差异台账](docs/development/implementation-gap.md)。[PRD](docs/requirements/product.md)和[24旅程／88分支目录](docs/requirements/customer-journeys.json)仍是目标；历史原型／局部测试不扩大为完整验收。
 
+2026-11-17拉取`7c91181`后继续核查并修复业务声明的跨服务混合、否定误读、端口范围截断和完整性误判。多服务按分号／换行分别绑定，歧义保留原草稿并澄清；真实HTTP回归验证新确认进入下一次实际规则、旧输入不改写及原请求回执重放。当前Go696项、Web193项、vet及前后端构建通过，范围见同一[代码阶段证据](docs/validation/evidence/conversation-implementation-local.md#本地进度复核与业务声明修复2026-11-17)。主要M0功能已有正式实现，完整88分支、真实接入／整改／评价与标准性能仍待验收。
+
 ## 文档入口
 
 完整分类与阅读顺序见 **[项目文档导航](docs/README.md)**。

@@ -1,8 +1,10 @@
 # 开发交接与环境恢复
 
-更新日期：2026-10-30。需求B2、整体设计v0.6已通过；E0依赖契约及[E1离线核心／持久闭环](../validation/evidence/e1-local.md)已有实际证据，E2正式离线服务／五视图已通过限定离线验证；E3受限Agent已通过限定离线验证，实际结果与待验边界见[E3记录](../validation/evidence/e3-local.md)。E4当前切片已通过限定离线适配验证，范围与待验项见[E4适配记录](../validation/evidence/e4-adapters-local.md)。当前任务状态与授权见[项目决策](../project/decisions.md)。
+更新日期：2026-11-17。需求B2、整体设计v0.6已通过；E0依赖契约及[E1离线核心／持久闭环](../validation/evidence/e1-local.md)已有实际证据，E2正式离线服务／五视图已通过限定离线验证；E3受限Agent已通过限定离线验证，实际结果与待验边界见[E3记录](../validation/evidence/e3-local.md)。E4当前切片已通过限定离线适配验证，范围与待验项见[E4适配记录](../validation/evidence/e4-adapters-local.md)。当前任务状态与授权见[项目决策](../project/decisions.md)。
 
 最新独立整体Review已完成并落入[现有阶段证据](../validation/evidence/conversation-implementation-local.md#客户主链独立整体review2026-10-30)：5项P2缺陷与1项P2需求／实现漂移已修复和独立复验；当前Go685项、Web193项、vet／类型／构建及实际API核对通过。仍保留人工浏览器服务宿主超时失败与审批拒绝记录；完整88分支、真实接入／整改／评价和标准性能未验收。上述Review未执行提交或推送；2026-10-30用户随后已明确授权将当前整改和文档清理纳入本次main提交并普通推送，实际提交／远端结果以Git为准，完成后不复用该次许可。
+
+2026-11-17已快进拉取至`7c91181`，按用户要求核查并继续开发。业务声明4类语义缺陷已修复，新增正式HTTP确认→下一次规则／旧输入隔离／原回执流程。当前Go696项、Web193项、vet与前后端构建通过，范围见[本机新窗口](../validation/evidence/conversation-implementation-local.md#本地进度复核与业务声明修复2026-11-17)。用户随后明确授权将本轮修复和文档在main提交并普通推送一版，实际交付结果以Git为准。当前没有已知必须在接入前补完的M0功能开发，可开始准备真实环境；剩余验证以现行台账为准。新窗口使用本机Go1.26.3／Node26.0.0，不能冒称复验了历史Node24环境或标准机器性能。
 
 ## 1. 推荐恢复顺序
 

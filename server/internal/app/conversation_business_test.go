@@ -17,7 +17,25 @@ func businessRouterCase(t *testing.T) (*IntentService, storage.Conversation, sto
 
 func businessRouterInputCase(t *testing.T, changeInput func(*domain.Input)) (*IntentService, storage.Conversation, storage.SnapshotRecord, storage.Job) {
 	t.Helper()
+	return businessRouterExampleCase(t, "internet-in", changeInput)
+}
+
+func businessRouterExampleCase(t *testing.T, example string, changeInput func(*domain.Input)) (*IntentService, storage.Conversation, storage.SnapshotRecord, storage.Job) {
+	t.Helper()
 	store, plans, snapshot, conversation, request := planCase(t)
+	if example != "internet-in" {
+		var err error
+		snapshot, err = NewAuditService(store).LoadExample(context.Background(), example)
+		if err != nil {
+			t.Fatal(err)
+		}
+		conversation, err = store.CreateConversation(context.Background(), "人工出向业务审计", snapshot.ScopeRef)
+		if err != nil {
+			t.Fatal(err)
+		}
+		request.ConversationID, request.PolicyScopeRef = conversation.ID, snapshot.ScopeRef
+		request.Selection.AssetIDs = append([]string{}, snapshot.Input.Selection.AssetIDs...)
+	}
 	in := snapshot.Input
 	for i := range in.Assets {
 		in.Assets[i].AllowedConfirmed, in.Assets[i].AllowedComplete, in.Assets[i].DenyAll = false, false, false
