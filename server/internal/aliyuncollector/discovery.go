@@ -23,17 +23,16 @@ type Selector struct {
 	Name        string            `json:"name,omitempty"`
 	ResourceIDs []string          `json:"resource_ids,omitempty"`
 	Tags        map[string]string `json:"tags,omitempty"`
-	MaxPages    int               `json:"max_pages"`
 	MaxObjects  int               `json:"max_objects"`
 	Cursor      string            `json:"cursor,omitempty"`
 }
 type Discovery struct {
-	Resources    []domain.Resource        `json:"resources"`
-	Coverage     domain.CatalogueCoverage `json:"coverage"`
-	NextCursor   string                   `json:"next_cursor,omitempty"`
-	Exhausted    bool                     `json:"exhausted"`
-	Observations []Observation            `json:"observations"`
-	Artifacts    []RawArtifact            `json:"-"`
+	Resources    []domain.Resource         `json:"resources"`
+	Coverage     domain.CatalogueCoverage  `json:"coverage"`
+	NextCursor   string                    `json:"next_cursor,omitempty"`
+	Exhausted    bool                      `json:"exhausted"`
+	Observations []Observation             `json:"observations"`
+	Artifacts    []domain.CloudRawArtifact `json:"-"`
 }
 type discoveryCursor struct {
 	Version  int    `json:"v"`
@@ -53,7 +52,6 @@ func metadataText(value string, max int) bool {
 }
 func selectorBinding(cfg Config, s Selector) string {
 	s.Cursor = ""
-	s.MaxPages = 0
 	s.MaxObjects = 0
 	b, _ := json.Marshal(struct {
 		Account, Source, Scope string
@@ -125,7 +123,7 @@ func Discover(ctx context.Context, reader Reader, cfg Config, s Selector) (out D
 	if err != nil {
 		return out, err
 	}
-	if len(cfg.AllowedRegions) == 0 || !allowedRegion(cfg, s.Region) || (s.Type != "ecs" && s.Type != "nat_gateway") || s.MaxPages <= 0 || s.MaxObjects <= 0 || s.MaxPages > workload.MaxCounter || s.MaxObjects > workload.MaxCounter || !metadataText(s.Name, 128) || len(s.Tags) > 20 {
+	if len(cfg.AllowedRegions) == 0 || !allowedRegion(cfg, s.Region) || (s.Type != "ecs" && s.Type != "nat_gateway") || s.MaxObjects <= 0 || s.MaxObjects > workload.MaxCounter || !metadataText(s.Name, 128) || len(s.Tags) > 20 {
 		return out, Failure("COLLECTOR_SCOPE_DENIED")
 	}
 	if s.Type == "nat_gateway" && (len(s.Tags) > 0 || strings.Contains(s.Name, "*")) {
@@ -192,16 +190,9 @@ func Discover(ctx context.Context, reader Reader, cfg Config, s Selector) (out D
 			return out, Failure("COLLECTOR_SCOPE_DENIED")
 		}
 	}
-	maxPages := s.MaxPages
-	if cfg.MaxAttempts < maxPages {
-		maxPages = cfg.MaxAttempts
-	}
 	maxObjects := s.MaxObjects
 	if cfg.Workload.Limits.AssetsPerBatch < maxObjects {
 		maxObjects = cfg.Workload.Limits.AssetsPerBatch
-	}
-	if maxPages <= 0 || maxObjects <= 0 {
-		return out, Failure("COLLECTION_ATTEMPT_LIMIT")
 	}
 	binding := selectorBinding(cfg, s)
 	cursor := discoveryCursor{Version: 1, Binding: binding, Page: 1, PageSize: ecsPageSize(cfg)}
@@ -227,7 +218,7 @@ func Discover(ctx context.Context, reader Reader, cfg Config, s Selector) (out D
 			return out, Failure("DISCOVERY_CURSOR_INVALID")
 		}
 	}
-	window, _ := workload.Seconds(cfg.Workload.Limits.CollectionSeconds)
+	window, _ := workload.Seconds(cfg.Workload.Limits.ExecutionSeconds)
 	ctx, cancel := context.WithTimeout(ctx, window)
 	defer cancel()
 	run := &run{collector: &Collector{reader: reader, cfg: cfg}, ctx: ctx}
@@ -271,7 +262,7 @@ func Discover(ctx context.Context, reader Reader, cfg Config, s Selector) (out D
 		seenTokens[cursor.Token] = true
 	}
 	predicateIncomplete := false
-	for page := 0; page < maxPages; page++ {
+	for {
 		if err := ctx.Err(); err != nil {
 			return out, err
 		}
@@ -531,9 +522,6 @@ func Discover(ctx context.Context, reader Reader, cfg Config, s Selector) (out D
 			return out, nil
 		}
 	}
-	out.NextCursor = encodeDiscoveryCursor(cursor)
-	out.Coverage.Limitations = append(out.Coverage.Limitations, "DISCOVERY_PAGE_LIMIT")
-	return out, nil
 }
 func (c *Collector) Discover(ctx context.Context, s Selector) (Discovery, error) {
 	return Discover(ctx, c.reader, c.cfg, s)

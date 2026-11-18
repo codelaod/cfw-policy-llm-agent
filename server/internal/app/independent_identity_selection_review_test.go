@@ -35,7 +35,6 @@ func TestIndependentIdentityOnlyIsRejectedByEveryCollectionAdmission(t *testing.
 	if err != nil {
 		t.Fatal(err)
 	}
-	p.EffectCeiling.CloudHTTPAttempts = p.Workload.Limits.CloudHTTPAttempts
 	p.Request, _ = json.Marshal(req)
 	if _, err = store.SavePlan(ctx, p); err == nil || sent.Load() != 0 {
 		t.Fatal("storage accepted identity-only collection plan", err)

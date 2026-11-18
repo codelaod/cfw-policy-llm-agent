@@ -14,7 +14,7 @@ function plan(mode: 'rules_only' | 'rules_and_agent'): ExecutionPlan {
   return {
     id: 'recheck-plan', expires_at: '2099-01-01T00:00:00Z', mode, policy_scope_ref: 'scope-original',
     request: { kind: 'audit', conversation_id: 'conversation-original', data_source_id: 'local-offline', policy_scope_ref: 'scope-original', selection: { kind: 'assets', asset_ids: ['asset-original-a', 'asset-original-b'] }, data_policy: { mode: 'pinned_snapshot', snapshot_id: 'snapshot-plan' }, baseline_version_id: 'baseline-one', mode },
-    effect_ceiling: { allow_cloud_reads: false, allow_model_requests: mode === 'rules_and_agent', cloud_http_attempts: 0, model_http_attempts: mode === 'rules_and_agent' ? 2 : 0 },
+    effect_ceiling: { allow_cloud_reads: false, allow_model_requests: mode === 'rules_and_agent' },
     gaps: ['管理来源尚未知'], warnings: ['仅分析固定输入时点的配置，不证明实际监听或端到端可达。'],
   }
 }
@@ -50,7 +50,7 @@ test('report recheck acceptance shows its exact fixed objects, rules mode and ze
 test('report recheck acceptance reveals inherited model effects and respects an unavailable model gap', async () => {
   const agent = await render(plan('rules_and_agent'))
   assert.ok(agent.includes('规则后由受限模型补充')); assert.ok(agent.includes('允许本次有界模型补充')); assert.ok(agent.includes('本计划不允许新增云读取'))
-  const blocked = plan('rules_and_agent'); blocked.effect_ceiling = { allow_cloud_reads: false, allow_model_requests: false, cloud_http_attempts: 0, model_http_attempts: 0 }; blocked.gaps = ['MODEL_NOT_CONFIGURED']
+  const blocked = plan('rules_and_agent'); blocked.effect_ceiling = { allow_cloud_reads: false, allow_model_requests: false }; blocked.gaps = ['MODEL_NOT_CONFIGURED']
   const missing = await render(blocked)
   assert.ok(missing.includes('模型尚未配置')); assert.ok(missing.includes('本计划不使用模型请求')); assert.ok(!missing.includes('允许本次有界模型补充'))
 })

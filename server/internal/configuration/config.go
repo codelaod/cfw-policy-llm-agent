@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strconv"
 	"strings"
 
@@ -60,8 +59,6 @@ func (c Config) GoString() string             { return c.String() }
 
 type field struct{ kind, fallback string }
 
-var kinds = []string{"audit", "assistant_turn", "collect", "connection_check"}
-
 func fields() map[string]field {
 	m := map[string]field{}
 	add := func(kind, key, value string) { m[key] = field{kind, value} }
@@ -73,9 +70,6 @@ func fields() map[string]field {
 		"CFW_CLOUD_EXPECTED_ACCOUNT_ID": "", "CFW_CLOUD_CONTROL_PLANE_REGION": "cn-hangzhou",
 		"CFW_CLOUD_CREDENTIAL_EXPIRES_AT": "",
 		"CFW_ALIYUN_ACCESS_KEY_ID":        "", "CFW_ALIYUN_ACCESS_KEY_SECRET": "", "CFW_ALIYUN_SECURITY_TOKEN": "",
-		"CFW_BUDGET_REF": "", "CFW_BUDGET_EXPIRES_AT": "",
-		"CFW_WORKLOAD_PROFILE_REF": "local-workload-v1",
-		"CFW_FRESHNESS_VERSION":    "local-freshness-v1",
 	} {
 		add("string", key, value)
 	}
@@ -83,10 +77,8 @@ func fields() map[string]field {
 		add("bool", key, "false")
 	}
 	for key, value := range map[string]string{
-		"CFW_MODEL_TIMEOUT_SECONDS": "30", "CFW_MODEL_MAX_HTTP_ATTEMPTS": "4", "CFW_MODEL_MAX_OUTPUT_TOKENS": "512",
-		"CFW_CLOUD_TIMEOUT_SECONDS": "30", "CFW_CLOUD_MAX_HTTP_ATTEMPTS": "100",
-		"CFW_BUDGET_APPLICATION_CLOUD_ATTEMPTS": "0", "CFW_BUDGET_SESSION_CLOUD_ATTEMPTS": "0",
-		"CFW_BUDGET_APPLICATION_MODEL_ATTEMPTS": "0", "CFW_BUDGET_SESSION_MODEL_ATTEMPTS": "0",
+		"CFW_MODEL_TIMEOUT_SECONDS": "30", "CFW_MODEL_MAX_OUTPUT_TOKENS": "512",
+		"CFW_CLOUD_TIMEOUT_SECONDS":                   "30",
 		"CFW_FRESHNESS_CONFIGURATION_MAX_AGE_SECONDS": "900", "CFW_FRESHNESS_METADATA_MAX_AGE_SECONDS": "3600",
 	} {
 		add("int", key, value)
@@ -98,23 +90,9 @@ func fields() map[string]field {
 	} {
 		add("array", key, value)
 	}
-	typ := reflect.TypeOf(workload.Limits{})
-	for _, kind := range kinds {
-		limits := workload.Default(kind)
-		if limits.FinalizeSeconds == 0 {
-			limits.FinalizeSeconds = 10
-			if limits.ModelSeconds > 0 {
-				limits.ModelSeconds -= 10
-			} else {
-				limits.CollectionSeconds -= 10
-			}
-		}
-		v := reflect.ValueOf(limits)
-		for i := 0; i < typ.NumField(); i++ {
-			key := "CFW_WORKLOAD_" + strings.ToUpper(kind+"_"+typ.Field(i).Tag.Get("json"))
-			add("int", key, strconv.FormatInt(v.Field(i).Int(), 10))
-		}
-	}
+	add("int", "CFW_TASK_TIMEOUT_SECONDS", "240")
+	add("int", "CFW_QUEUE_TIMEOUT_SECONDS", "120")
+	add("int", "CFW_AGENT_MAX_ROUNDS", "6")
 	return m
 }
 
@@ -234,29 +212,15 @@ func load(envFile string, process map[string]string, cwd string) (Config, error)
 		}
 		return out
 	}
-	budget := selectValues("CFW_BUDGET_", "ref", "expires_at", "application_cloud_attempts", "session_cloud_attempts", "application_model_attempts", "session_model_attempts")
-	if budget["ref"] == "" {
-		if budget["expires_at"] != "" || budget["application_cloud_attempts"] != 0 || budget["session_cloud_attempts"] != 0 || budget["application_model_attempts"] != 0 || budget["session_model_attempts"] != 0 {
-			return Config{}, invalidField("CFW_BUDGET_REF")
-		}
-	}
-	profiles := map[string]any{}
-	typ := reflect.TypeOf(workload.Limits{})
-	for _, kind := range kinds {
-		profile := map[string]any{}
-		for i := 0; i < typ.NumField(); i++ {
-			name := typ.Field(i).Tag.Get("json")
-			profile[name] = resolved["CFW_WORKLOAD_"+strings.ToUpper(kind+"_"+name)]
-		}
-		profiles[kind] = profile
-	}
-	execution := map[string]any{"schema_version": 1, "profile_ref": resolved["CFW_WORKLOAD_PROFILE_REF"], "profiles": profiles,
-		"data_freshness": map[string]any{"version": resolved["CFW_FRESHNESS_VERSION"], "configuration_max_age_seconds": resolved["CFW_FRESHNESS_CONFIGURATION_MAX_AGE_SECONDS"], "metadata_max_age_seconds": resolved["CFW_FRESHNESS_METADATA_MAX_AGE_SECONDS"]}}
-	if budget["ref"] != "" {
-		execution["budget"] = budget
-	}
-	body, _ := json.Marshal(execution)
-	c.Execution, err = workload.ParseSettings(body)
+	limits := workload.Default("audit")
+	limits.ExecutionSeconds = resolved["CFW_TASK_TIMEOUT_SECONDS"].(int)
+	limits.QueueSeconds = resolved["CFW_QUEUE_TIMEOUT_SECONDS"].(int)
+	limits.MaxRounds = resolved["CFW_AGENT_MAX_ROUNDS"].(int)
+	c.Execution, err = workload.NewConfig(limits, &workload.Freshness{
+		Version:                    "freshness-v1",
+		ConfigurationMaxAgeSeconds: resolved["CFW_FRESHNESS_CONFIGURATION_MAX_AGE_SECONDS"].(int),
+		MetadataMaxAgeSeconds:      resolved["CFW_FRESHNESS_METADATA_MAX_AGE_SECONDS"].(int),
+	})
 	if err != nil {
 		return Config{}, err
 	}
@@ -270,21 +234,21 @@ func load(envFile string, process map[string]string, cwd string) (Config, error)
 	}
 	// Disabled blank adapters need no fabricated account, URL or model name.
 	{
-		model := selectValues("CFW_MODEL_", "enabled", "api_style", "provider_profile", "base_url", "timeout_seconds", "max_http_attempts", "max_output_tokens")
-		model["model"], model["api_key_env"], model["budget"] = resolved["CFW_MODEL_NAME"], "CFW_MODEL_API_KEY", selectValues("CFW_BUDGET_", "ref", "expires_at", "application_model_attempts", "session_model_attempts")
-		body, _ = json.Marshal(model)
+		model := selectValues("CFW_MODEL_", "enabled", "api_style", "provider_profile", "base_url", "timeout_seconds", "max_output_tokens")
+		model["model"], model["api_key_env"] = resolved["CFW_MODEL_NAME"], "CFW_MODEL_API_KEY"
+		body, _ := json.Marshal(model)
 		c.Model, err = modelconfig.ParseSettings(body, lookup)
 		if err != nil {
 			return Config{}, err
 		}
 	}
 	{
-		cloud := selectValues("CFW_CLOUD_", "enabled", "connection_ref", "credential_mode", "credential_expires_at", "expected_account_id", "control_plane_region", "allowed_regions", "allowed_boundaries", "allowed_assets", "allowed_nat_gateways", "timeout_seconds", "max_http_attempts")
-		cloud["access_key_id_env"], cloud["access_key_secret_env"], cloud["budget"] = "CFW_ALIYUN_ACCESS_KEY_ID", "CFW_ALIYUN_ACCESS_KEY_SECRET", budget
+		cloud := selectValues("CFW_CLOUD_", "enabled", "connection_ref", "credential_mode", "credential_expires_at", "expected_account_id", "control_plane_region", "allowed_regions", "allowed_boundaries", "allowed_assets", "allowed_nat_gateways", "timeout_seconds")
+		cloud["access_key_id_env"], cloud["access_key_secret_env"] = "CFW_ALIYUN_ACCESS_KEY_ID", "CFW_ALIYUN_ACCESS_KEY_SECRET"
 		if cloud["credential_mode"] == "env_sts" {
 			cloud["security_token_env"] = "CFW_ALIYUN_SECURITY_TOKEN"
 		}
-		body, _ = json.Marshal(cloud)
+		body, _ := json.Marshal(cloud)
 		c.Cloud, err = cloudconfig.ParseSettings(body, lookup)
 		if err != nil {
 			return Config{}, err

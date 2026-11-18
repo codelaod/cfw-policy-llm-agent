@@ -15,7 +15,6 @@ import (
 	"strings"
 
 	"cfw-policy-llm-agent/server/internal/outbound"
-	"cfw-policy-llm-agent/server/internal/workload"
 	openai "github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/model"
 	"github.com/cloudwego/eino/schema"
@@ -48,7 +47,7 @@ type Factory struct {
 
 func New(manager *outbound.Manager, cfg Config) (*Factory, error) {
 	u, err := url.Parse(cfg.BaseURL)
-	if manager == nil || err != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.RawPath != "" || u.Opaque != "" || cfg.APIKey == "" || strings.TrimSpace(cfg.APIKey) != cfg.APIKey || strings.ContainsAny(cfg.APIKey, "\r\n\x00") || cfg.Model == "" || len(cfg.Model) > 128 || strings.ContainsAny(cfg.Model, "\r\n\x00") || cfg.MaxOutputTokens < 1 || cfg.MaxOutputTokens > workload.MaxCounter || (cfg.ProviderProfile != "openai-compatible" && cfg.ProviderProfile != "minimax") {
+	if manager == nil || err != nil || u.Hostname() == "" || u.User != nil || u.RawQuery != "" || u.ForceQuery || u.Fragment != "" || u.RawPath != "" || u.Opaque != "" || cfg.APIKey == "" || strings.TrimSpace(cfg.APIKey) != cfg.APIKey || strings.ContainsAny(cfg.APIKey, "\r\n\x00") || cfg.Model == "" || len(cfg.Model) > 128 || strings.ContainsAny(cfg.Model, "\r\n\x00") || cfg.MaxOutputTokens < 1 || (cfg.ProviderProfile != "openai-compatible" && cfg.ProviderProfile != "minimax") {
 		return nil, Failure("MODEL_CONFIGURATION_INVALID")
 	}
 	if u.Scheme != "https" {
@@ -104,7 +103,7 @@ func ErrorCode(err error) string {
 		return string(controlled)
 	}
 	switch code := outbound.ErrorCode(err); code {
-	case "ATTEMPT_LIMIT", "EXECUTION_CLOSED", "BUDGET_NOT_CONFIGURED", "BUDGET_EXPIRED", "EFFECT_DENIED", "CONFIGURATION_STALE", "ATTEMPT_RECORD_FAILED", "ADMISSION_UNAVAILABLE", "OUTBOUND_STOPPING", "DESTINATION_REFUSED", "UPSTREAM_TRANSPORT", "UPSTREAM_HTTP_ERROR", "UPSTREAM_READ", "UPSTREAM_RESPONSE_TOO_LARGE", "UPSTREAM_ENCODING_UNSUPPORTED", "REDIRECT_REFUSED":
+	case "EXECUTION_CLOSED", "EFFECT_DENIED", "CONFIGURATION_STALE", "ATTEMPT_RECORD_FAILED", "ADMISSION_UNAVAILABLE", "OUTBOUND_STOPPING", "DESTINATION_REFUSED", "UPSTREAM_TRANSPORT", "UPSTREAM_HTTP_ERROR", "UPSTREAM_READ", "UPSTREAM_RESPONSE_TOO_LARGE", "UPSTREAM_ENCODING_UNSUPPORTED", "REDIRECT_REFUSED":
 		return code
 	}
 	return "MODEL_REQUEST_FAILED"

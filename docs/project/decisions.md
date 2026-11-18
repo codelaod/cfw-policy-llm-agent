@@ -25,6 +25,8 @@
 
 2026-11-17用户明确要求“所有外部配置统一处理”，随后明确“没必要兼容、一次改好、测试修好、多余去掉”。据此收敛为一份显式dotenv／同名进程环境schema，覆盖应用、模型、云、共享预算、时效和四类workload；删除原三份JSON入口／模板、单独云dotenv及实验私配读取，不维护旧来源兼容。进程存在值含空优先、0不回填、云凭据整组选择；保留持久授权与云只读边界，不新增外呼授权。提交与普通推送按上表本次新授权执行。现行契约见[凭据设计](../design/credentials-and-permissions.md)。
 
+2026-11-18用户明确要求全面精简代码、测试、文档和配置，不兼容未上线旧机制。删除应用／会话累计额度、budget ref／到期、owner绑定、只准收紧、同ref增额修订和管理命令；删除阶段时间及逻辑／物理／工具重复额度。保留任务总超时、排队等待、Agent最大轮数、有限重试、取消、数据大小保护、只读身份／范围和实际调用记录。输出token只控制回复长度，不设人为1024上限。此前更重的工程设计由本条替代，不重开G1／G2；本轮不自动真实外呼、提交或推送。
+
 ## 2. 当前实现基线
 
 | 方面 | 已采用方案／边界 | 详细依据 |
@@ -37,7 +39,7 @@
 | 历史与并发 | 业务会话／消息／确认／任务／审阅／报告持久化；3个不同会话可并行，同会话1任务；重启不重放外呼 | [会话执行](../design/session-and-execution.md) |
 | 存储 | 纯Go SQLite WAL＋普通连接池；GORM不合格可退direct modernc；事务不跨网络 | [架构与存储](../design/architecture.md) |
 | 模型协议 | 非流式Chat Completions兼容首适配；真实多轮依赖、结构与失败能力需单独证据 | [Agent设计](../design/audit-and-agent.md)、[前期模型实验](../validation/experiments/live-model.md) |
-| 凭据与预算 | 显式CredentialProvider；不读机器其他profile；所有物理尝试统一准入、共享预算取严；预览零外呼 | [认证与准入](../design/credentials-and-permissions.md) |
+| 凭据与外呼 | 显式CredentialProvider；外呼校验活动任务、配置版本、允许效果与截止时间，逐次记录；预览零外呼 | [认证与准入](../design/credentials-and-permissions.md) |
 | API文档 | 固定Swag从Go注释／DTO生成并保留Swagger JSON／YAML；当前已注册业务接口与E0诊断接口均生成留存，SSE另有八类事件schema | [实际API](../api/README.md)、[数据与API](../design/data-and-api.md) |
 | 评价与真实资源 | 20～30独立人工案例，三组公平比较；优先同一台ECS／同一套防火墙串行复用，至少一次真实人工整改复审 | [评价计划](../validation/evaluation-plan.md) |
 

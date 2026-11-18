@@ -6,7 +6,6 @@ import (
 	"errors"
 	"sort"
 	"strings"
-	"time"
 
 	"cfw-policy-llm-agent/server/internal/audit"
 	"cfw-policy-llm-agent/server/internal/domain"
@@ -69,21 +68,17 @@ type RecheckRequest struct {
 // PlanService previews and freezes local effects. Presence of credentials or a
 // URL is never a permission source; availability is explicitly wired by runtime.
 type PlanService struct {
-	Workloads         workload.Config
-	ModelTimeout      time.Duration
-	ModelLogicalCalls *int
-	Store             *storage.Store
-	ConfigRevision    string
-	BudgetRef         string
-	ModelReady        bool
-	ModelConfigured   bool
-	ModelHTTPAttempts int
-	ModelMode         string
-	Cloud             *CloudService
+	Workloads       workload.Config
+	Store           *storage.Store
+	ConfigRevision  string
+	ModelReady      bool
+	ModelConfigured bool
+	ModelMode       string
+	Cloud           *CloudService
 }
 
 func NewPlanService(store *storage.Store) *PlanService {
-	return &PlanService{Store: store, ConfigRevision: "offline-v1", BudgetRef: "application-default", ModelMode: "unconfigured"}
+	return &PlanService{Store: store, ConfigRevision: "offline-v1", ModelMode: "unconfigured"}
 }
 
 func (s *PlanService) Preview(ctx context.Context, req PlanRequest) (PlanPreview, error) {
@@ -182,12 +177,7 @@ func (s *PlanService) Preview(ctx context.Context, req PlanRequest) (PlanPreview
 	}
 	if req.Mode == "rules_and_agent" {
 		if s.ModelReady {
-			allowance := resolved.Limits.ModelHTTPAttempts
-			effects.AllowModelRequests = allowance > 0
-			effects.ModelHTTPAttempts = allowance
-			if allowance == 0 {
-				gaps = append(gaps, "MODEL_BUDGET_BLOCKED")
-			}
+			effects.AllowModelRequests = true
 		} else {
 			gaps = append(gaps, "MODEL_NOT_CONFIGURED")
 			warnings = append(warnings, "模型未配置或未获授权；将保留规则结果并标记部分完成。")
@@ -197,48 +187,8 @@ func (s *PlanService) Preview(ctx context.Context, req PlanRequest) (PlanPreview
 	if err != nil {
 		return PlanPreview{}, err
 	}
-	plan, err := s.Store.SavePlan(ctx, storage.ExecutionPlan{Workload: resolved, Kind: "audit", ConversationID: conversation.ID, DataSourceID: "local-offline", PolicyScopeRef: in.Scope.Ref, SnapshotID: snapshot.ID, Mode: req.Mode, ConversationRevision: conversation.Revision, RecheckOfJobID: req.RecheckOfJobID, EvaluationAt: req.EvaluationAt, Request: encoded, EffectCeiling: effects, PreparedInput: in, Heads: heads, ConfigRevision: s.ConfigRevision, BudgetRef: s.BudgetRef})
+	plan, err := s.Store.SavePlan(ctx, storage.ExecutionPlan{Workload: resolved, Kind: "audit", ConversationID: conversation.ID, DataSourceID: "local-offline", PolicyScopeRef: in.Scope.Ref, SnapshotID: snapshot.ID, Mode: req.Mode, ConversationRevision: conversation.Revision, RecheckOfJobID: req.RecheckOfJobID, EvaluationAt: req.EvaluationAt, Request: encoded, EffectCeiling: effects, PreparedInput: in, Heads: heads, ConfigRevision: s.ConfigRevision})
 	return PlanPreview{ExecutionPlan: plan, Gaps: gaps, Warnings: warnings}, err
-}
-
-// ResolveWorkload combines the explicit profile with private connection ceilings.
-// ModelConfigured distinguishes a deliberate zero allowance from old callers
-// that supplied no model configuration at all.
-func (s *PlanService) ResolveWorkload(kind string) (workload.Resolved, error) {
-	ceilings := workload.Ceilings{ModelLogicalCalls: s.ModelLogicalCalls}
-	if s.Cloud != nil && s.Cloud.Configured {
-		n := s.Cloud.MaxHTTPAttempts
-		ceilings.CloudHTTPAttempts = &n
-	}
-	if s.ModelConfigured || s.ModelHTTPAttempts != 0 {
-		value := s.ModelHTTPAttempts
-		ceilings.ModelHTTPAttempts = &value
-	}
-	if s.ModelTimeout < 0 {
-		return workload.Resolved{}, storage.ErrInputInvalid
-	}
-	if s.ModelTimeout > 0 {
-		seconds := int(s.ModelTimeout / time.Second)
-		if s.ModelTimeout%time.Second != 0 {
-			seconds++
-		}
-		ceilings.ModelRequestSeconds = &seconds
-	}
-	resolved, err := s.Workloads.Resolve(kind, ceilings)
-	if err != nil {
-		return workload.Resolved{}, storage.ErrInputInvalid
-	}
-	return resolved, nil
-}
-
-// modelAllowance retains old internal call sites while resolving the profile;
-// the former numeric argument no longer supplies a hidden 4/6 ceiling.
-func (s *PlanService) modelAllowance(_ int) (int, error) {
-	resolved, err := s.ResolveWorkload("audit")
-	if err != nil {
-		return 0, err
-	}
-	return resolved.Limits.ModelHTTPAttempts, nil
 }
 
 func requestedVersions(ids []string, aggregate string, heads []storage.AssetHeadVersion, profile bool) bool {
@@ -345,10 +295,6 @@ func (s *PlanService) StartAssistant(ctx context.Context, engine *Engine, conver
 	if err != nil {
 		return invalid(err)
 	}
-	allowance := resolved.Limits.ModelHTTPAttempts
-	if allowance == 0 || resolved.Limits.ModelLogicalCalls == 0 {
-		return invalid(ErrModelNotConfigured)
-	}
 	plan.Workload = resolved
 	conversation, err := s.Store.GetConversation(ctx, conversationID)
 	if err != nil {
@@ -393,10 +339,14 @@ func (s *PlanService) StartAssistant(ctx context.Context, engine *Engine, conver
 	plan.PreparedInput = input
 	plan.Heads = heads
 	plan.ConfigRevision = s.ConfigRevision
-	plan.BudgetRef = s.BudgetRef
-	plan.EffectCeiling = storage.EffectCeiling{AllowModelRequests: true, ModelHTTPAttempts: allowance}
+	plan.EffectCeiling = storage.EffectCeiling{AllowModelRequests: true}
 	if req.ReportID != "" {
 		plan.EvaluationAt = input.EvaluationAt
 	}
 	return engine.EnqueueAssistant(ctx, plan, message)
+}
+
+// ResolveWorkload freezes task time, Agent rounds and data protection.
+func (s *PlanService) ResolveWorkload(kind string) (workload.Resolved, error) {
+	return s.Workloads.Resolve(kind)
 }

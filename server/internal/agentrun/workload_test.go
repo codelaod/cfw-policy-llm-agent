@@ -12,11 +12,7 @@ import (
 
 func TestExplicitWorkloadSeparatesLogicalCallsFromPhysicalAttemptCeiling(t *testing.T) {
 	limits := workload.Default("audit")
-	limits.ModelLogicalCalls = 8
-	limits.ModelHTTPAttempts = 1
-	limits.ToolCalls = 20
-	limits.ToolBatch = 5
-	limits.ModelRequestSeconds = 60
+	limits.MaxRounds = 8
 	step := 0
 	out, err := Run(context.Background(), task(newQuery("explicit"), func(ctx context.Context, _ []*schema.Message, _ ...model.Option) (*schema.Message, error) {
 		step++
@@ -28,14 +24,13 @@ func TestExplicitWorkloadSeparatesLogicalCallsFromPhysicalAttemptCeiling(t *test
 			return calls(call(fmt.Sprintf("explicit_%d", step), "get_business_intent", `{}`)), nil
 		}
 		return answer(final("explicit")), nil
-	}), Config{Workload: workload.Resolved{ProfileRef: "explicit-model", Limits: limits}}, noSink)
+	}), Config{ModelTimeout: 60 * time.Second, Workload: workload.Resolved{ProfileRef: "explicit-model", Limits: limits}}, noSink)
 	if err != nil || out.ModelCalls != 7 || out.ToolCalls != 6 {
 		t.Fatalf("logical calls inherited physical or legacy cap: %+v %v", out, err)
 	}
 }
 func TestExplicitToolBatchAndZeroModelCeilingAreEnforced(t *testing.T) {
 	limits := workload.Default("audit")
-	limits.ToolBatch = 5
 	step := 0
 	out, err := Run(context.Background(), task(newQuery("batch"), func(context.Context, []*schema.Message, ...model.Option) (*schema.Message, error) {
 		step++
@@ -51,7 +46,7 @@ func TestExplicitToolBatchAndZeroModelCeilingAreEnforced(t *testing.T) {
 	if err != nil || out.ToolCalls != 5 {
 		t.Fatalf("explicit batch still limited to four: %+v %v", out, err)
 	}
-	limits.ModelHTTPAttempts = 0
+	limits.MaxRounds = 0
 	called := false
 	_, err = Run(context.Background(), task(newQuery("zero"), func(context.Context, []*schema.Message, ...model.Option) (*schema.Message, error) {
 		called = true

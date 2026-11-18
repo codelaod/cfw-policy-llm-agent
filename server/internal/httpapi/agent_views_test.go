@@ -105,9 +105,6 @@ func TestE3HTTPResultIncludesAuthoritativeAgentAndUsageAtFinalSequence(t *testin
 			if err != nil {
 				t.Fatal(err)
 			}
-			if err = store.ConfigureBudgetPolicy(ctx, storage.BudgetPolicy{Ref: plan.BudgetRef, ApplicationModelAttempts: 4, SessionModelAttempts: 4, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano)}); err != nil {
-				t.Fatal(err)
-			}
 			attempt, err := store.ReserveAttempt(ctx, f.job.ID, "model", "configured-model", plan.ConfigRevision)
 			if err != nil {
 				t.Fatal(err)

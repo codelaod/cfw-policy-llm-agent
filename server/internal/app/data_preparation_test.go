@@ -160,7 +160,7 @@ func TestCustomerAuditPreparesDataInSameAcceptedJobThenReusesWithoutHTTP(t *test
 	if e != nil || reuseInput.CollectedAt != view.Audit.Input.CollectedAt || reuseInput.SnapshotVersion != view.Audit.Input.SnapshotVersion {
 		t.Fatal("reuse retimestamped original data", e)
 	}
-	usage, e := s.Store.BudgetUsage(context.Background(), s.Plans.BudgetRef, "", warmJob.ID)
+	usage, e := s.Store.AttemptUsage(context.Background(), "", warmJob.ID)
 	if e != nil || usage.CloudAttempts != 0 || usage.ModelAttempts != 0 {
 		t.Fatal("reuse consumed external budget", usage, e)
 	}
@@ -210,10 +210,6 @@ func TestWorkflowUsesConfiguredRulesAndFinalizationWindows(t *testing.T) {
 	p.ConsumedJobID = ""
 	limits := workload.Default("audit")
 	limits.ExecutionSeconds = 600
-	limits.CollectionSeconds = 180
-	limits.RulesSeconds = 45
-	limits.ModelSeconds = 300
-	limits.FinalizeSeconds = 25
 	p.Workload = workload.Resolved{ProfileRef: "configured-workflow", Limits: limits}
 	saved, e := st.SavePlan(context.Background(), p)
 	if e != nil {
@@ -231,7 +227,7 @@ func TestWorkflowUsesConfiguredRulesAndFinalizationWindows(t *testing.T) {
 	w.rules = func(ctx context.Context, in domain.Input) (domain.Result, error) {
 		called = true
 		deadline, ok := ctx.Deadline()
-		if !ok || time.Until(deadline) < 40*time.Second || time.Until(deadline) > 45*time.Second {
+		if !ok || time.Until(deadline) < 590*time.Second || time.Until(deadline) > 600*time.Second {
 			t.Fatal("rules retain hidden 20-second ceiling")
 		}
 		return audit.Run(ctx, in)
@@ -256,13 +252,14 @@ func TestWorkflowUsesConfiguredRulesAndFinalizationWindows(t *testing.T) {
 	if !strings.Contains(string(reports[0].Content), "configured-workflow") {
 		t.Fatal("report omitted executed protection profile")
 	}
-	root, cancelRoot := context.WithTimeout(context.Background(), 30*time.Second)
+	root, cancelRoot := context.WithTimeout(context.Background(), time.Second)
 	defer cancelRoot()
-	phase, cancelPhase := reserveFinalization(root, 25*time.Second)
+	phase, cancelPhase := reserveFinalization(root, 5*time.Second)
 	defer cancelPhase()
-	d, _ := phase.Deadline()
-	if time.Until(d) > 5*time.Second || time.Until(d) < 4*time.Second {
-		t.Fatal("finalization reserve extended or erased root")
+	rootDeadline, _ := root.Deadline()
+	analysisDeadline, _ := phase.Deadline()
+	if reserved := rootDeadline.Sub(analysisDeadline); reserved <= 0 || reserved > time.Second/5 || phase.Err() != nil {
+		t.Fatal("report reservation used the short task's execution window", reserved, phase.Err())
 	}
 }
 
@@ -612,7 +609,7 @@ func TestThreeConversationPreparationsRunWithFourthQueuedAndOneSharedLedger(t *t
 			time.Sleep(10 * time.Millisecond)
 		}
 	}
-	usage, e := s.Store.BudgetUsage(ctx, s.Plans.BudgetRef, "", "")
+	usage, e := s.Store.AttemptUsage(ctx, "", "")
 	if e != nil || usage.CloudAttempts != int64(physical.Load()) || usage.ModelAttempts != 0 || usage.CloudAttempts <= 0 || usage.CloudAttempts > 100 {
 		t.Fatal("conversations duplicated shared authorization or lost physical accounting", usage, e)
 	}
@@ -643,14 +640,14 @@ func TestCancelledPreparationKeepsObservedDirectoryWithoutSealingAudit(t *testin
 	if e != nil || view.PreparationDiscovery == nil || len(view.PreparationDiscovery.Resources) != 1 || view.InputSealed || view.Audit != nil {
 		t.Fatal("cancel discarded observed metadata or invented sealed data", e)
 	}
-	before, e := s.Store.BudgetUsage(context.Background(), s.Plans.BudgetRef, "", job.ID)
+	before, e := s.Store.AttemptUsage(context.Background(), "", job.ID)
 	if e != nil {
 		t.Fatal(e)
 	}
 	if _, _, e = s.Store.Page(context.Background(), job.ID, 0, 100); e != nil {
 		t.Fatal(e)
 	}
-	after, e := s.Store.BudgetUsage(context.Background(), s.Plans.BudgetRef, "", job.ID)
+	after, e := s.Store.AttemptUsage(context.Background(), "", job.ID)
 	if e != nil || !reflect.DeepEqual(before, after) {
 		t.Fatal("observation replay resumed requests", e)
 	}

@@ -524,7 +524,7 @@
       "design_evidence": [
         {
           "file": "docs/design/session-and-execution.md",
-          "marker": "## 6. 累计"
+          "marker": "## 6. 任务时限与执行保护"
         },
         {
           "file": "docs/design/session-and-execution.md",
@@ -557,7 +557,7 @@
         "docs/validation/evidence/conversation-implementation-local.md"
       ],
       "implementation_gaps": [
-        "2026-10-29: 多层硬封已改为显式workload、共享总账本与独立私限，串行分批共享根时间/额度；真实慢链路/标准性能仍未校准。"
+        "2026-11-18: 总时限覆盖采集、规则、模型与串行批次；实际调用与用量持久记录，历史用量不参与准入。真实慢链路与标准性能仍待测量。"
       ]
     },
     {

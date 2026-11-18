@@ -158,8 +158,6 @@ definitions:
         type: boolean
       identity_verified:
         type: boolean
-      max_http_attempts:
-        type: integer
       scopes:
         items:
           $ref: '#/definitions/app.CollectionScope'
@@ -350,8 +348,6 @@ definitions:
     properties:
       batch:
         $ref: '#/definitions/storage.BatchSpec'
-      budget_ref:
-        type: string
       consumed_job_id:
         type: string
       context_report_id:
@@ -2159,10 +2155,6 @@ definitions:
         type: boolean
       allow_model_requests:
         type: boolean
-      cloud_http_attempts:
-        type: integer
-      model_http_attempts:
-        type: integer
     type: object
   storage.Event:
     properties:
@@ -2232,8 +2224,6 @@ definitions:
     type: object
   storage.Job:
     properties:
-      budget_ref:
-        type: string
       conversation_id:
         type: string
       created_at:
@@ -2647,39 +2637,19 @@ definitions:
     properties:
       assets_per_batch:
         type: integer
-      cloud_http_attempts:
-        type: integer
-      collection_seconds:
-        type: integer
       execution_seconds:
-        type: integer
-      finalize_seconds:
         type: integer
       max_policies:
         type: integer
       max_query_cells:
         type: integer
-      model_http_attempts:
-        type: integer
-      model_logical_calls:
-        type: integer
-      model_request_seconds:
-        type: integer
-      model_seconds:
+      max_rounds:
         type: integer
       queue_seconds:
-        type: integer
-      rules_seconds:
-        type: integer
-      tool_batch:
-        type: integer
-      tool_calls:
         type: integer
     type: object
   workload.Resolved:
     properties:
-      legacy:
-        type: boolean
       limits:
         $ref: '#/definitions/workload.Limits'
       profile_ref:

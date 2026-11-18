@@ -198,7 +198,7 @@ func (s *AuditService) prepareReport(ctx context.Context, auditID, format string
 				return nil, nil, e
 			}
 			if agent != nil {
-				usage, e := s.Store.BudgetUsage(ctx, job.BudgetRef, job.ConversationID, job.ID)
+				usage, e := s.Store.AttemptUsage(ctx, job.ConversationID, job.ID)
 				if e != nil {
 					return nil, nil, e
 				}

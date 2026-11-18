@@ -36,7 +36,7 @@ func executionCase(t *testing.T) (*Store, SnapshotRecord, Conversation, Executio
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := ExecutionPlan{Kind: "audit", ConversationID: conversation.ID, DataSourceID: "local-offline", PolicyScopeRef: in.Scope.Ref, SnapshotID: snapshot.ID, Mode: "rules_only", ConversationRevision: conversation.Revision, PreparedInput: frozen, Heads: heads, ConfigRevision: "offline-v1", BudgetRef: "shared-local-batch", Request: json.RawMessage(`{"kind":"audit","mode":"rules_only"}`)}
+	p := ExecutionPlan{Kind: "audit", ConversationID: conversation.ID, DataSourceID: "local-offline", PolicyScopeRef: in.Scope.Ref, SnapshotID: snapshot.ID, Mode: "rules_only", ConversationRevision: conversation.Revision, PreparedInput: frozen, Heads: heads, ConfigRevision: "offline-v1", Request: json.RawMessage(`{"kind":"audit","mode":"rules_only"}`)}
 	return s, snapshot, conversation, p
 }
 
@@ -117,7 +117,7 @@ func TestAssistantAdmissionNeverLeavesAnOrphanMessage(t *testing.T) {
 	s, _, conversation, p := executionCase(t)
 	p.Kind = "assistant_turn"
 	p.Mode = "assistant"
-	p.EffectCeiling = EffectCeiling{AllowModelRequests: true, ModelHTTPAttempts: 4}
+	p.EffectCeiling = EffectCeiling{AllowModelRequests: true}
 	if _, err := s.SavePlan(ctx, p); !errors.Is(err, ErrInputInvalid) {
 		t.Fatal("public plan endpoint accepted assistant kind")
 	}
@@ -308,7 +308,7 @@ func TestHistoricalReportAssistantUsesSavedInputAfterHeadsAndScopeChange(t *test
 	p.Kind, p.Mode = "assistant_turn", "assistant"
 	p.ContextReportID, p.EvaluationAt, p.Heads = report.ID, oldInput.EvaluationAt, nil
 	p.ConversationRevision, p.PreparedInput = conversation.Revision, oldInput
-	p.EffectCeiling = EffectCeiling{AllowModelRequests: true, ModelHTTPAttempts: 4}
+	p.EffectCeiling = EffectCeiling{AllowModelRequests: true}
 	job, _, _, err := s.EnqueueAssistant(ctx, p, MessageInput{ClientMessageID: "explain-old-report", Role: "user", PublicText: "解释旧报告", PolicyScopeRef: source.ScopeRef})
 	if err != nil {
 		t.Fatalf("historical report blocked by current heads/scope: %v", err)
@@ -372,7 +372,7 @@ func TestReportAssistantRejectsForgedBindingsAndBindsIdempotencyToReport(t *test
 		t.Fatal(err)
 	}
 	p.Kind, p.Mode, p.ContextReportID, p.Heads, p.EvaluationAt = "assistant_turn", "assistant", report.ID, nil, run.Input.EvaluationAt
-	p.EffectCeiling = EffectCeiling{AllowModelRequests: true, ModelHTTPAttempts: 4}
+	p.EffectCeiling = EffectCeiling{AllowModelRequests: true}
 	for _, test := range []struct {
 		name   string
 		change func(*ExecutionPlan)

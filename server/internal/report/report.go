@@ -500,12 +500,8 @@ func markdown(ctx context.Context, d Document) ([]byte, error) {
 		if d.Execution.Workload != nil {
 			w := d.Execution.Workload
 			l := w.Limits
-			qualifier := "显式配置"
-			if w.Legacy {
-				qualifier = "兼容配置，尚未校准"
-			}
-			fmt.Fprintf(&out, "执行保护版本：%s（%s）。排队 %d 秒，执行 %d 秒；采集／规则／模型／收尾阶段 %d／%d／%d／%d 秒。\n\n", w.ProfileRef, qualifier, l.QueueSeconds, l.ExecutionSeconds, l.CollectionSeconds, l.RulesSeconds, l.ModelSeconds, l.FinalizeSeconds)
-			fmt.Fprintf(&out, "模型单次 %d 秒，逻辑请求 %d 次，物理尝试上限 %d 次；工具 %d 次／单批 %d 个；云物理尝试上限 %d 次。资产单批 %d 个，策略 %d 条，单查询计算单元 %d。上述值是本任务保护配置，不表示实际用量或供应商服务承诺。\n\n", l.ModelRequestSeconds, l.ModelLogicalCalls, l.ModelHTTPAttempts, l.ToolCalls, l.ToolBatch, l.CloudHTTPAttempts, l.AssetsPerBatch, l.MaxPolicies, l.MaxQueryCells)
+
+			fmt.Fprintf(&out, "执行保护：排队 %d 秒，任务总时限 %d 秒，Agent最多 %d 轮。数据保护：单批 %d 个对象、%d 条策略、%d 个查询单元。\n\n", l.QueueSeconds, l.ExecutionSeconds, l.MaxRounds, l.AssetsPerBatch, l.MaxPolicies, l.MaxQueryCells)
 		}
 		if d.Execution.JobStatus != "" {
 			jobText := map[string]string{"completed": "整体任务流程已结束；这不表示所有检查通过或风险已修复。", "partial": "整体任务部分完成；已保存规则或模型结果保留，未完成阶段仍需核对。", "failed": "整体任务未完成；已有阶段结果不代表全流程成功。", "cancelled": "整体任务已取消；已有阶段结果保留，未自动恢复执行。", "interrupted": "整体任务中断；模型阶段完成不表示整个流程已完成。"}[d.Execution.JobStatus]

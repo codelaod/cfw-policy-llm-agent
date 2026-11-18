@@ -47,7 +47,7 @@ func TestNaturalConfirmationRequiresReviewedVersionAndUnchangedEffects(t *testin
 
 func TestQueuedBatchCancellationClosesAllUnstartedSegmentsAndGuidance(t *testing.T) {
 	s, c, _ := selectedGroupDialog(t, 5)
-	s.Plans.Workloads = batchDialogProfile(t, 20)
+	s.Plans.Workloads = batchDialogProfile(t)
 	offer := goalTurn(t, s, c.ID, "queued-batch-offer", "按完整对象集分批审计")
 	ctx := context.Background()
 	accepted, e := s.Store.AcceptIntentProposal(ctx, c.ID, offer.Proposal.ID, "queued-batch-accept", s.Plans.ConfigRevision, offer.Intent.Revision)

@@ -35,11 +35,6 @@ test('local collection options cannot invent a verified identity or accept anoth
   assert.throws(() => decodeCollectionOptions({ ...options, identity_verified: true }, 'cloud-local'))
   assert.throws(() => decodeCollectionOptions(options, 'different-source'))
 })
-test('server-selected larger HTTP profiles remain valid local options without a legacy hundred-attempt cap',()=>{
- const options=cloudOptionsFixture();options.max_http_attempts=250
- assert.equal(decodeCollectionOptions(options,'cloud-local').max_http_attempts,250)
- assert.throws(()=>decodeCollectionOptions({...options,max_http_attempts:Infinity},'cloud-local'))
-})
 test('explicit directory membership supports more than fifty selected assets without weakening source or duplicate checks',()=>{
  const options=cloudOptionsFixture();options.scopes[0]!.assets=Array.from({length:75},(_,i)=>({id:'asset-'+i,region:'region-one'}))
  const ids=options.scopes[0]!.assets.map(asset=>asset.id)

@@ -19,14 +19,6 @@ import (
 
 var ErrInvalid = errors.New("CLOUD_CONFIG_INVALID")
 
-type Budget struct {
-	Ref                      string `json:"ref"`
-	ExpiresAt                string `json:"expires_at"`
-	ApplicationCloudAttempts int    `json:"application_cloud_attempts"`
-	SessionCloudAttempts     int    `json:"session_cloud_attempts"`
-	ApplicationModelAttempts int    `json:"application_model_attempts"`
-	SessionModelAttempts     int    `json:"session_model_attempts"`
-}
 type Asset struct {
 	Region     string `json:"region"`
 	InstanceID string `json:"instance_id"`
@@ -50,11 +42,8 @@ type fileConfig struct {
 	AllowedAssets       []Asset   `json:"allowed_assets"`
 	AllowedNATGateways  []Gateway `json:"allowed_nat_gateways"`
 	TimeoutSeconds      int       `json:"timeout_seconds"`
-	MaxHTTPAttempts     int       `json:"max_http_attempts"`
-	Budget              Budget    `json:"budget"`
 }
 type Config struct {
-	modelBudgetDeclared         bool
 	settings                    fileConfig
 	ak, secret, token, revision string
 	credentialState             string
@@ -66,8 +55,6 @@ type Summary struct {
 	CredentialLocalReady  bool   `json:"credential_local_ready"`
 	CredentialState       string `json:"credential_state"`
 	CredentialExpired     bool   `json:"credential_expired"`
-	ExecutionPolicyReady  bool   `json:"execution_policy_ready"`
-	AuthorizationState    string `json:"authorization_state"`
 	BlockedReason         string `json:"blocked_reason,omitempty"`
 	LedgerState           string `json:"ledger_state"`
 	UpstreamValidation    string `json:"upstream_validation"`
@@ -81,7 +68,6 @@ type Summary struct {
 	NATGatewayCount       int    `json:"nat_gateway_count"`
 	ScopeCount            int    `json:"scope_count"`
 	TimeoutSeconds        int    `json:"timeout_seconds"`
-	MaxHTTPAttempts       int    `json:"max_http_attempts"`
 }
 type Binding struct {
 	Scope             domain.Scope
@@ -101,30 +87,13 @@ func ParseSettings(body []byte, lookup func(string) (string, bool)) (Config, err
 	if len(body) > 64<<10 || !workload.ValidJSONDocument(body) {
 		return result, ErrInvalid
 	}
-	var raw map[string]json.RawMessage
-	if json.Unmarshal(body, &raw) != nil {
-		return result, ErrInvalid
-	}
-	for key, value := range raw {
-		if strings.EqualFold(key, "budget") {
-			var fields map[string]json.RawMessage
-			if json.Unmarshal(value, &fields) != nil {
-				return result, ErrInvalid
-			}
-			for field := range fields {
-				if strings.EqualFold(field, "application_model_attempts") || strings.EqualFold(field, "session_model_attempts") {
-					result.modelBudgetDeclared = true
-				}
-			}
-		}
-	}
 	d := json.NewDecoder(bytes.NewReader(body))
 	d.DisallowUnknownFields()
 	var in fileConfig
 	if d.Decode(&in) != nil {
 		return result, ErrInvalid
 	}
-	if !alias.MatchString(in.ConnectionRef) || in.ConnectionRef == "local-offline" || !envName.MatchString(in.AccessKeyIDEnv) || !envName.MatchString(in.AccessKeySecretEnv) || in.AccessKeyIDEnv == in.AccessKeySecretEnv || ((in.Enabled || in.ExpectedAccountID != "") && !accountID.MatchString(in.ExpectedAccountID)) || in.TimeoutSeconds < 1 || int64(in.TimeoutSeconds) > workload.MaxSeconds || in.MaxHTTPAttempts < 0 || in.MaxHTTPAttempts > workload.MaxCounter {
+	if !alias.MatchString(in.ConnectionRef) || in.ConnectionRef == "local-offline" || !envName.MatchString(in.AccessKeyIDEnv) || !envName.MatchString(in.AccessKeySecretEnv) || in.AccessKeyIDEnv == in.AccessKeySecretEnv || ((in.Enabled || in.ExpectedAccountID != "") && !accountID.MatchString(in.ExpectedAccountID)) || in.TimeoutSeconds < 1 || int64(in.TimeoutSeconds) > workload.MaxSeconds {
 		return result, ErrInvalid
 	}
 	if in.ControlPlaneRegion != "cn-hangzhou" && in.ControlPlaneRegion != "ap-southeast-1" && in.ControlPlaneRegion != "ap-southeast-3" {
@@ -145,7 +114,7 @@ func ParseSettings(body []byte, lookup func(string) (string, bool)) (Config, err
 			return result, ErrInvalid
 		}
 	}
-	if len(in.AllowedRegions) == 0 || len(in.AllowedRegions) > 10 || len(in.AllowedAssets) > 50 || len(in.AllowedNATGateways) > 50 || len(in.AllowedBoundaries) == 0 || len(in.AllowedBoundaries) > 3 {
+	if len(in.AllowedRegions) == 0 || len(in.AllowedBoundaries) == 0 || len(in.AllowedBoundaries) > 3 {
 		return result, ErrInvalid
 	}
 	regions := map[string]bool{}
@@ -177,9 +146,6 @@ func ParseSettings(body []byte, lookup func(string) (string, bool)) (Config, err
 		}
 		seen[g.ID] = true
 	}
-	if !validBudget(in.Budget) {
-		return result, ErrInvalid
-	}
 	ak, secret, token := "", "", ""
 	credentialState := "disabled"
 	if in.Enabled {
@@ -209,7 +175,7 @@ func ParseSettings(body []byte, lookup func(string) (string, bool)) (Config, err
 	if in.ExpectedAccountID == "" {
 		return Config{settings: in}, nil
 	}
-	result = Config{modelBudgetDeclared: result.modelBudgetDeclared, settings: in, ak: ak, secret: secret, token: token, revision: "cloud-config_" + digest(string(canonical)), credentialState: credentialState}
+	result = Config{settings: in, ak: ak, secret: secret, token: token, revision: "cloud-config_" + digest(string(canonical)), credentialState: credentialState}
 	return result, nil
 }
 func validSecret(s string) bool {
@@ -218,7 +184,7 @@ func validSecret(s string) bool {
 func digest(s string) string            { sum := sha256.Sum256([]byte(s)); return hex.EncodeToString(sum[:])[:32] }
 func (c Config) RequestedEnabled() bool { return c.settings.Enabled }
 func (c Config) Ready() bool {
-	return c.revision != "" && c.settings.Enabled && c.credentialState == "available" && !c.credentialExpired() && c.authorizationState() == "active"
+	return c.revision != "" && c.settings.Enabled && c.credentialState == "available" && !c.credentialExpired()
 }
 func (c Config) Enabled() bool               { return c.Ready() }
 func (c Config) Revision() string            { return c.revision }
@@ -260,11 +226,9 @@ func (c Config) ECSOrigin(region string) string {
 func (c Config) Timeout() time.Duration {
 	return time.Duration(c.settings.TimeoutSeconds) * time.Second
 }
-func (c Config) MaxHTTPAttempts() int { return c.settings.MaxHTTPAttempts }
-func (c Config) Budget() Budget       { return c.settings.Budget }
-func (c Config) Assets() []Asset      { return append([]Asset{}, c.settings.AllowedAssets...) }
-func (c Config) Gateways() []Gateway  { return append([]Gateway{}, c.settings.AllowedNATGateways...) }
-func (c Config) Regions() []string    { return append([]string{}, c.settings.AllowedRegions...) }
+func (c Config) Assets() []Asset     { return append([]Asset{}, c.settings.AllowedAssets...) }
+func (c Config) Gateways() []Gateway { return append([]Gateway{}, c.settings.AllowedNATGateways...) }
+func (c Config) Regions() []string   { return append([]string{}, c.settings.AllowedRegions...) }
 func (c Config) SensitiveValues() []string {
 	return []string{c.ak, c.secret, c.token, c.settings.ExpectedAccountID}
 }
@@ -309,20 +273,6 @@ func (c Config) bindings() []Binding {
 	}
 	return out
 }
-func validBudget(b Budget) bool {
-	if b.Ref == "" {
-		return b.ExpiresAt == "" && b.ApplicationCloudAttempts == 0 && b.SessionCloudAttempts == 0 && b.ApplicationModelAttempts == 0 && b.SessionModelAttempts == 0
-	}
-	if !alias.MatchString(b.Ref) || b.ApplicationCloudAttempts < 0 || b.ApplicationCloudAttempts > workload.MaxCounter || b.SessionCloudAttempts < 0 || b.SessionCloudAttempts > b.ApplicationCloudAttempts || b.ApplicationModelAttempts < 0 || b.ApplicationModelAttempts > workload.MaxCounter || b.SessionModelAttempts < 0 || b.SessionModelAttempts > b.ApplicationModelAttempts {
-		return false
-	}
-	if b.ExpiresAt != "" {
-		if _, err := time.Parse(time.RFC3339Nano, b.ExpiresAt); err != nil {
-			return false
-		}
-	}
-	return true
-}
 func (c Config) credentialExpired() bool {
 	if c.settings.CredentialExpiresAt == "" {
 		return false
@@ -330,34 +280,7 @@ func (c Config) credentialExpired() bool {
 	at, err := time.Parse(time.RFC3339Nano, c.settings.CredentialExpiresAt)
 	return err != nil || !at.After(time.Now())
 }
-func (c Config) authorizationState() string {
-	b := c.settings.Budget
-	if b.Ref == "" {
-		return "not_configured"
-	}
-	if b.ExpiresAt != "" {
-		at, err := time.Parse(time.RFC3339Nano, b.ExpiresAt)
-		if err != nil || !at.After(time.Now()) {
-			return "expired"
-		}
-	}
-	if b.ApplicationCloudAttempts == 0 || b.SessionCloudAttempts == 0 || c.settings.MaxHTTPAttempts == 0 {
-		return "blocked"
-	}
-	return "active"
-}
 
-// WithBudget binds only an explicitly resolved policy and retains credentials,
-// limits and source scope. It does not establish a new authorization period.
-func (c Config) WithBudget(b Budget) (Config, error) {
-	if c.revision == "" || !validBudget(b) {
-		return Config{}, ErrInvalid
-	}
-	c.settings.Budget = b
-	canonical, _ := json.Marshal(c.settings)
-	c.revision = "cloud-config_" + digest(string(canonical))
-	return c, nil
-}
 func (c Config) AllowsAsset(region, id string) bool {
 	if c.revision == "" || !strings.HasPrefix(id, "i-") || !resourceID.MatchString(id) || c.ECSOrigin(region) == "" {
 		return false
@@ -412,7 +335,7 @@ func (c Config) Summary() Summary {
 	if c.RequestedEnabled() && credentialState == "available" && c.credentialExpired() {
 		credentialState = "expired"
 	}
-	out := Summary{Configured: c.revision != "", Enabled: c.RequestedEnabled(), Ready: c.Ready(), SourceSelected: c.revision != "", StructureValid: c.revision != "", CredentialLocalReady: c.credentialState == "available" && !c.credentialExpired(), CredentialState: credentialState, CredentialExpired: c.credentialExpired(), ExecutionPolicyReady: c.authorizationState() == "active", AuthorizationState: c.authorizationState(), LedgerState: "not_checked", UpstreamValidation: "not_checked", CredentialMode: c.settings.CredentialMode, CredentialExpiryKnown: c.settings.CredentialExpiresAt != "", Refreshable: false, RegionCount: len(c.settings.AllowedRegions), AssetCount: len(c.settings.AllowedAssets), NATGatewayCount: len(c.settings.AllowedNATGateways), ScopeCount: len(c.Scopes()), TimeoutSeconds: c.settings.TimeoutSeconds, MaxHTTPAttempts: c.settings.MaxHTTPAttempts}
+	out := Summary{Configured: c.revision != "", Enabled: c.RequestedEnabled(), Ready: c.Ready(), SourceSelected: c.revision != "", StructureValid: c.revision != "", CredentialLocalReady: c.credentialState == "available" && !c.credentialExpired(), CredentialState: credentialState, CredentialExpired: c.credentialExpired(), LedgerState: "not_checked", UpstreamValidation: "not_checked", CredentialMode: c.settings.CredentialMode, CredentialExpiryKnown: c.settings.CredentialExpiresAt != "", Refreshable: false, RegionCount: len(c.settings.AllowedRegions), AssetCount: len(c.settings.AllowedAssets), NATGatewayCount: len(c.settings.AllowedNATGateways), ScopeCount: len(c.Scopes()), TimeoutSeconds: c.settings.TimeoutSeconds}
 	switch {
 	case !out.Configured:
 		out.BlockedReason = "not_configured"
@@ -421,8 +344,6 @@ func (c Config) Summary() Summary {
 		out.BlockedReason = "disabled"
 	case !out.CredentialLocalReady:
 		out.BlockedReason = "credential_" + out.CredentialState
-	case !out.ExecutionPolicyReady:
-		out.BlockedReason = "authorization_" + out.AuthorizationState
 	}
 	return out
 }
@@ -441,8 +362,6 @@ func (c Config) AllowsBoundary(kind string) bool {
 func (c Config) AllowedBoundaries() []string {
 	return append([]string{}, c.settings.AllowedBoundaries...)
 }
-
-func (c Config) ModelBudgetDeclared() bool { return c.modelBudgetDeclared }
 
 // Local aliases carry no provider credential or raw account number.
 func (c Config) AccountAlias() string {

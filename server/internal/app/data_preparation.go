@@ -71,31 +71,30 @@ func preparationVersions(boundary string) DataVersions {
 func (s *CloudService) reuseRequest(scope domain.Scope, selection domain.Selection, mode, freshAfter string) DataEligibilityRequest {
 	policy := s.Freshness
 	if policy.Version == "" {
-		policy = LegacyDataFreshnessPolicy()
+		policy = DefaultDataFreshnessPolicy()
 	}
 	fresh, _ := time.Parse(time.RFC3339Nano, freshAfter)
 	return DataEligibilityRequest{Scope: scope, Selection: selection, SourceRef: s.SourceRef, ConfigRevision: s.ConfigRevision, Versions: preparationVersions(scope.Boundary), Now: time.Now().UTC(), FreshAfter: fresh, Policy: policy, Mode: mode, RequireMetadata: true, RequireSecurityGroups: selection.Kind == "assets"}
 }
 
 func cloudContent(job storage.Job, p storage.ExecutionPlan, collected aliyuncollector.Collection) (storage.CloudContent, error) {
-	content := storage.CloudContent{JobID: job.ID, Kind: "audit", ScopeRef: collected.Input.Scope.Ref, SourceRef: p.DataSourceID, ConfigRevision: p.ConfigRevision, IdentityVerified: true, ProductReady: true, Observations: []storage.CloudObservation{}, Limitations: []string{}}
+	content := storage.CloudContent{JobID: job.ID, Kind: job.Kind, ScopeRef: collected.Input.Scope.Ref, SourceRef: p.DataSourceID, ConfigRevision: p.ConfigRevision, IdentityVerified: true, ProductReady: true, Observations: []storage.CloudObservation{}, Limitations: []string{}}
 	for _, o := range collected.Observations {
 		content.Observations = append(content.Observations, storage.CloudObservation{Round: o.Round, Operation: o.Operation, Pages: o.Pages, StartedAt: o.StartedAt, FinishedAt: o.FinishedAt, EnumerationComplete: o.EnumerationComplete, SemanticSHA256: o.SemanticSHA256})
 	}
-	artifacts := make([]storage.CloudRawArtifact, 0, len(collected.Artifacts))
-	for _, a := range collected.Artifacts {
-		artifacts = append(artifacts, storage.CloudRawArtifact{Round: a.Round, Operation: a.Operation, Query: a.Query, Body: []byte(a.Body), SHA256: a.SHA256})
+	artifacts := collected.Artifacts
+	if artifacts == nil {
+		artifacts = []domain.CloudRawArtifact{}
 	}
 	raw, e := json.Marshal(artifacts)
-	if e != nil || len(raw) > 32<<20 {
+	if e != nil || len(raw) > domain.MaxCloudEvidenceBytes {
 		return content, JobFailure{Code: "COLLECTION_RAW_LIMIT"}
 	}
 	content.RawArtifacts = raw
 	return content, nil
 }
 
-// PrepareAudit performs discovery and collection inside the original accepted
-// audit. It creates no child job, new budget, or independent execution deadline.
+// PrepareAudit performs discovery and collection inside the accepted audit.
 func (s *CloudService) PrepareAudit(ctx context.Context, job storage.Job, p storage.ExecutionPlan) (domain.Input, error) {
 	fail := func(code string) (domain.Input, error) { return domain.Input{}, workflowFailure(ctx, code, false) }
 	if s == nil || s.Store == nil || p.Preparation == nil || p.Kind != "audit" || p.ConsumedJobID != job.ID || p.DataSourceID != s.SourceRef || p.ConfigRevision != s.ConfigRevision {
@@ -132,10 +131,10 @@ func (s *CloudService) PrepareAudit(ctx context.Context, job storage.Job, p stor
 			return b.Input, nil
 		}
 	}
-	if !s.Ready || s.NewReader == nil || !p.EffectCeiling.AllowCloudReads || p.EffectCeiling.CloudHTTPAttempts <= 0 {
+	if !s.Ready || s.NewReader == nil || !p.EffectCeiling.AllowCloudReads {
 		return fail("CLOUD_NOT_CONFIGURED")
 	}
-	collectCtx, cancel := context.WithTimeout(ctx, time.Duration(p.Workload.Limits.CollectionSeconds)*time.Second)
+	collectCtx, cancel := context.WithTimeout(ctx, time.Duration(p.Workload.Limits.ExecutionSeconds)*time.Second)
 	defer cancel()
 	reader, e := s.NewReader(collectCtx, job.ID)
 	if e != nil {
@@ -153,7 +152,8 @@ func (s *CloudService) PrepareAudit(ctx context.Context, job storage.Job, p stor
 		cfg.SourceRef = s.SourceRef
 		all := []domain.Resource{}
 		coverages := []domain.CatalogueCoverage{}
-		artifacts := []storage.CloudRawArtifact{}
+		artifacts := []domain.CloudRawArtifact{}
+		rawArtifactBytes := 2 // enclosing JSON array brackets
 		complete := true
 		saveDiscovery := func(code string) error {
 			raw, err := json.Marshal(artifacts)
@@ -182,18 +182,26 @@ func (s *CloudService) PrepareAudit(ctx context.Context, job storage.Job, p stor
 			if len(ids) > 0 && len(regionIDs) == 0 {
 				continue
 			}
-			discovery, err := aliyuncollector.Discover(collectCtx, reader, cfg, aliyuncollector.Selector{Region: region, Type: spec.Query.ResourceType, Name: spec.Query.Name, ResourceIDs: regionIDs, Tags: spec.Query.Tags, MaxPages: p.EffectCeiling.CloudHTTPAttempts, MaxObjects: spec.ResultLimit + 1})
+			discovery, err := aliyuncollector.Discover(collectCtx, reader, cfg, aliyuncollector.Selector{Region: region, Type: spec.Query.ResourceType, Name: spec.Query.Name, ResourceIDs: regionIDs, Tags: spec.Query.Tags, MaxObjects: spec.ResultLimit + 1})
 			encoded, _ := json.Marshal(discovery.Resources)
 			if cloudContainsSecret(encoded, s.SensitiveValues) {
 				return fail("CLOUD_RESPONSE_CONTAINS_CREDENTIAL")
 			}
+			regionArtifactBytes := 0
 			for _, a := range discovery.Artifacts {
 				q, _ := json.Marshal(a.Query)
 				if cloudContainsSecret(q, s.SensitiveValues) || cloudContainsSecret(a.Body, s.SensitiveValues) {
 					return fail("CLOUD_RESPONSE_CONTAINS_CREDENTIAL")
 				}
-				artifacts = append(artifacts, storage.CloudRawArtifact{Round: a.Round, Operation: a.Operation, Query: a.Query, Body: []byte(a.Body), SHA256: a.SHA256})
+				regionArtifactBytes += a.EncodedSize() + 1
 			}
+			if rawArtifactBytes+regionArtifactBytes > domain.MaxCloudEvidenceBytes {
+				discoveryErr = workflowFailure(collectCtx, "COLLECTION_RAW_LIMIT", false)
+				discoveryCode = "DISCOVERY_FAILED"
+				break
+			}
+			rawArtifactBytes += regionArtifactBytes
+			artifacts = append(artifacts, discovery.Artifacts...)
 			all = append(all, discovery.Resources...)
 			if discovery.Coverage.ObservedAt != "" {
 				coverages = append(coverages, discovery.Coverage)

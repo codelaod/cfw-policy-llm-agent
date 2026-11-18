@@ -204,7 +204,6 @@ type Binding struct {
 	Journal Journal
 	// These are existing server authority references, not newly created grants.
 	RuntimeRevision string
-	BudgetRef       string
 	ModelConfigRef  string
 	Sampling        Sampling
 	SensitiveValues []string
@@ -283,7 +282,7 @@ func FreezeCase(ctx context.Context, d CaseDefinition, input domain.Input, profi
 		return FrozenCase{}, ErrProtocol
 	}
 	limits := normalized.Limits
-	bounded, e := audit.WithExecutionLimits(ctx, audit.ExecutionLimits{MaxAssets: limits.AssetsPerBatch, MaxPolicies: limits.MaxPolicies, MaxQueryCells: limits.MaxQueryCells, Timeout: time.Duration(limits.RulesSeconds) * time.Second})
+	bounded, e := audit.WithExecutionLimits(ctx, audit.ExecutionLimits{MaxAssets: limits.AssetsPerBatch, MaxPolicies: limits.MaxPolicies, MaxQueryCells: limits.MaxQueryCells, Timeout: time.Duration(limits.ExecutionSeconds) * time.Second})
 	if e != nil {
 		return FrozenCase{}, ErrProtocol
 	}
@@ -298,7 +297,7 @@ func FreezeCase(ctx context.Context, d CaseDefinition, input domain.Input, profi
 func (c FrozenCase) Input() (domain.Input, error)  { return copyJSON(c.input) }
 func (c FrozenCase) Rules() (domain.Result, error) { return copyJSON(c.rules) }
 func NewRunner(b Binding) (*Runner, error) {
-	if b.Store == nil || b.Journal == nil || b.RuntimeRevision == "" || b.BudgetRef == "" || !publicRef.MatchString(b.ModelConfigRef) || !validSampling(b.Sampling) {
+	if b.Store == nil || b.Journal == nil || b.RuntimeRevision == "" || !publicRef.MatchString(b.ModelConfigRef) || !validSampling(b.Sampling) {
 		return nil, ErrBinding
 	}
 	b.SensitiveValues = append([]string(nil), b.SensitiveValues...)

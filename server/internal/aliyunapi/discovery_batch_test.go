@@ -23,7 +23,7 @@ func discoveryPolicyFixture(t *testing.T, h http.Handler, regions []string, gate
 	t.Helper()
 	t.Setenv("API_PUBLIC_DISCOVERY_AK", "synthetic-access-key")
 	t.Setenv("API_PUBLIC_DISCOVERY_SECRET", "synthetic-access-secret")
-	raw := `{"enabled":true,"connection_ref":"public-discovery","credential_mode":"env_ak","access_key_id_env":"API_PUBLIC_DISCOVERY_AK","access_key_secret_env":"API_PUBLIC_DISCOVERY_SECRET","expected_account_id":"1234567890123456","control_plane_region":"cn-hangzhou","allowed_boundaries":["internet/in","nat/out"],"allowed_regions":["cn-hangzhou"],"allowed_assets":[],"allowed_nat_gateways":[],"timeout_seconds":10,"max_http_attempts":100,"budget":{"ref":"public-period","expires_at":"2099-01-01T00:00:00Z","application_cloud_attempts":1000,"session_cloud_attempts":500,"application_model_attempts":0,"session_model_attempts":0}}`
+	raw := `{"enabled":true,"connection_ref":"public-discovery","credential_mode":"env_ak","access_key_id_env":"API_PUBLIC_DISCOVERY_AK","access_key_secret_env":"API_PUBLIC_DISCOVERY_SECRET","expected_account_id":"1234567890123456","control_plane_region":"cn-hangzhou","allowed_boundaries":["internet/in","nat/out"],"allowed_regions":["cn-hangzhou"],"allowed_assets":[],"allowed_nat_gateways":[],"timeout_seconds":10}`
 	var policy map[string]any
 	if e := json.Unmarshal([]byte(raw), &policy); e != nil {
 		t.Fatal(e)
@@ -204,7 +204,6 @@ func TestForeignReturnedRegionDoesNotAuthorizeCFWOrGroupReads(t *testing.T) {
 
 func discoveryCollectorConfig() aliyuncollector.Config {
 	limits := workload.Default("collect")
-	limits.CloudHTTPAttempts = 20
 	return aliyuncollector.Config{ExpectedAccountID: "1234567890123456", AllowedRegions: []string{"cn-hangzhou"}, Workload: workload.Resolved{ProfileRef: "public-directory", Limits: limits}}
 }
 func TestSignedNATGenericNameMatchesNativeGatewayWithoutMisusingProxyName(t *testing.T) {
@@ -237,7 +236,7 @@ func TestSignedNATGenericNameMatchesNativeGatewayWithoutMisusingProxyName(t *tes
 		t.Fatal(err)
 	}
 	for _, name := range []string{"gateway-native", "firewall-prod", "gateway"} {
-		out, err := aliyuncollector.Discover(context.Background(), reader, discoveryCollectorConfig(), aliyuncollector.Selector{Region: "cn-hangzhou", Type: "nat_gateway", Name: name, MaxPages: 2, MaxObjects: 20})
+		out, err := aliyuncollector.Discover(context.Background(), reader, discoveryCollectorConfig(), aliyuncollector.Selector{Region: "cn-hangzhou", Type: "nat_gateway", Name: name, MaxObjects: 20})
 		want := 1
 		if name == "gateway" {
 			want = 0
@@ -246,7 +245,7 @@ func TestSignedNATGenericNameMatchesNativeGatewayWithoutMisusingProxyName(t *tes
 			t.Fatalf("native/firewall exact-name metadata invalid: name=%q err=%v coverage=%+v resources=%d", name, err, out.Coverage, len(out.Resources))
 		}
 	}
-	if _, err := aliyuncollector.Discover(context.Background(), reader, discoveryCollectorConfig(), aliyuncollector.Selector{Region: "cn-hangzhou", Type: "nat_gateway", Name: "gateway-*", MaxPages: 2, MaxObjects: 20}); err == nil {
+	if _, err := aliyuncollector.Discover(context.Background(), reader, discoveryCollectorConfig(), aliyuncollector.Selector{Region: "cn-hangzhou", Type: "nat_gateway", Name: "gateway-*", MaxObjects: 20}); err == nil {
 		t.Fatal("unsupported NAT wildcard accepted")
 	}
 	if calls != 3 || ledger.reserved != 4 || ledger.recorded != 4 {
@@ -283,7 +282,7 @@ func TestSignedNATDiscoveryRestrictsGatewayAllowlistByPairedRegion(t *testing.T)
 	cfg.AllowedGatewayIDs = []string{"ngw-h", "ngw-b"}
 	cfg.GatewayRegions = map[string]string{"ngw-h": "cn-hangzhou", "ngw-b": "cn-beijing"}
 	for _, region := range cfg.AllowedRegions {
-		out, err := aliyuncollector.Discover(context.Background(), reader, cfg, aliyuncollector.Selector{Region: region, Type: "nat_gateway", MaxPages: 3, MaxObjects: 20})
+		out, err := aliyuncollector.Discover(context.Background(), reader, cfg, aliyuncollector.Selector{Region: region, Type: "nat_gateway", MaxObjects: 20})
 		if err != nil || len(out.Resources) != 1 || !out.Coverage.Complete || out.Resources[0].Region != region {
 			t.Fatalf("paired regional allowlist mixed: region=%s err=%v coverage=%+v resources=%d", region, err, out.Coverage, len(out.Resources))
 		}

@@ -11,7 +11,7 @@ import (
 
 func TestE3AttemptUsageIsAtomicNullableAndReported(t *testing.T) {
 	ctx := context.Background()
-	store, plan, job := e3BudgetCase(t, 0, 6, 0, 6)
+	store, plan, job := e3AttemptCase(t)
 	first, err := store.ReserveAttempt(ctx, job.ID, "model", "configured-model", plan.ConfigRevision)
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +42,7 @@ func TestE3AttemptUsageIsAtomicNullableAndReported(t *testing.T) {
 	if items[0].Usage == nil || items[0].Usage.TotalTokens != 9 || items[1].Usage != nil || items[2].Usage == nil || items[2].Usage.TotalTokens != 0 {
 		t.Fatal("known zero and missing usage were merged or caller mutated saved usage")
 	}
-	summary, err := store.BudgetUsage(ctx, plan.BudgetRef, "", job.ID)
+	summary, err := store.AttemptUsage(ctx, "", job.ID)
 	if err != nil || summary.KnownUsageResponses != 2 || summary.UnknownUsageAttempts != 1 || summary.ReportedTokens == nil || summary.ReportedTokens.TotalTokens != 9 || summary.ReportedTokens.PromptTokens != 3 {
 		t.Fatal("reported usage totals or unknown count lost", err)
 	}
@@ -56,7 +56,7 @@ func TestE3AttemptUsageIsAtomicNullableAndReported(t *testing.T) {
 
 func TestE3AttemptUsageFailureCannotPartiallyFinishOrInventTokens(t *testing.T) {
 	ctx := context.Background()
-	store, plan, job := e3BudgetCase(t, 0, 3, 0, 3)
+	store, plan, job := e3AttemptCase(t)
 	id, err := store.ReserveAttempt(ctx, job.ID, "model", "configured-model", plan.ConfigRevision)
 	if err != nil {
 		t.Fatal(err)
@@ -74,7 +74,7 @@ func TestE3AttemptUsageFailureCannotPartiallyFinishOrInventTokens(t *testing.T) 
 	if err != nil || len(items) != 1 || items[0].State != "reserved" || items[0].Usage != nil {
 		t.Fatal("usage failure partially saved attempt", err)
 	}
-	summary, err := store.BudgetUsage(ctx, plan.BudgetRef, "", "")
+	summary, err := store.AttemptUsage(ctx, "", "")
 	if err != nil || summary.KnownUsageResponses != 0 || summary.UnknownUsageAttempts != 1 || summary.ReportedTokens != nil {
 		t.Fatal("unknown usage became zero totals", err)
 	}
@@ -86,7 +86,7 @@ func TestE3AttemptUsageFailureCannotPartiallyFinishOrInventTokens(t *testing.T) 
 
 func TestE3AttemptUsageStoredPartialProjectionCannotBecomeKnownZero(t *testing.T) {
 	ctx := context.Background()
-	store, plan, job := e3BudgetCase(t, 0, 3, 0, 3)
+	store, plan, job := e3AttemptCase(t)
 	id, err := store.ReserveAttempt(ctx, job.ID, "model", "configured-model", plan.ConfigRevision)
 	if err != nil {
 		t.Fatal(err)
@@ -104,7 +104,7 @@ func TestE3AttemptUsageStoredPartialProjectionCannotBecomeKnownZero(t *testing.T
 
 func TestE3AttemptUsageAggregateOverflowKeepsKnownAttemptsWithoutFalseTotals(t *testing.T) {
 	ctx := context.Background()
-	store, plan, job := e3BudgetCase(t, 0, 3, 0, 3)
+	store, plan, job := e3AttemptCase(t)
 	for range 2 {
 		id, err := store.ReserveAttempt(ctx, job.ID, "model", "configured-model", plan.ConfigRevision)
 		if err != nil {
@@ -114,7 +114,7 @@ func TestE3AttemptUsageAggregateOverflowKeepsKnownAttemptsWithoutFalseTotals(t *
 			t.Fatal(err)
 		}
 	}
-	summary, err := store.BudgetUsage(ctx, plan.BudgetRef, "", "")
+	summary, err := store.AttemptUsage(ctx, "", "")
 	if err != nil || summary.KnownUsageResponses != 2 || summary.UnknownUsageAttempts != 0 || !summary.UsageTotalsOverflow || summary.ReportedTokens != nil {
 		t.Fatal("overflow fabricated exact aggregate counters", err)
 	}
@@ -128,7 +128,7 @@ func TestE3AttemptUsageOnlyBelongsToSuccessfulModelResponses(t *testing.T) {
 	for _, scenario := range []string{"cloud", "http-error", "unknown-delivery"} {
 		t.Run(scenario, func(t *testing.T) {
 			ctx := context.Background()
-			store, plan, job := e3BudgetCase(t, 3, 3, 3, 3)
+			store, plan, job := e3AttemptCase(t)
 			class, source, state, code, status := "model", "configured-model", "response", "", 200
 			switch scenario {
 			case "cloud":
@@ -155,7 +155,7 @@ func TestE3AttemptUsageOnlyBelongsToSuccessfulModelResponses(t *testing.T) {
 
 func TestE3AttemptUsageExplicitMigrationRepairsWIPSchema3WithoutReset(t *testing.T) {
 	ctx := context.Background()
-	store, plan, job := e3BudgetCase(t, 0, 3, 0, 3)
+	store, plan, job := e3AttemptCase(t)
 	id, err := store.ReserveAttempt(ctx, job.ID, "model", "configured-model", plan.ConfigRevision)
 	if err != nil {
 		t.Fatal(err)
@@ -170,7 +170,7 @@ func TestE3AttemptUsageExplicitMigrationRepairsWIPSchema3WithoutReset(t *testing
 		t.Fatal("old WIP shape admitted a request before explicit repair")
 	}
 	for range 2 {
-		if err = store.db.Transaction(migrateBudgets); err != nil {
+		if err = store.db.Transaction(migrateAttempts); err != nil {
 			t.Fatal("explicit usage migration was not idempotent", err)
 		}
 	}
@@ -181,7 +181,7 @@ func TestE3AttemptUsageExplicitMigrationRepairsWIPSchema3WithoutReset(t *testing
 	if err = store.RecordAttemptResultWithUsage(ctx, next, "response", "", 200, 1, &domain.ModelUsage{}); err != nil {
 		t.Fatal(err)
 	}
-	summary, err := store.BudgetUsage(ctx, plan.BudgetRef, "", "")
+	summary, err := store.AttemptUsage(ctx, "", "")
 	if err != nil || summary.ModelAttempts != 2 || summary.KnownUsageResponses != 1 || summary.UnknownUsageAttempts != 1 || summary.ReportedTokens == nil || summary.ReportedTokens.TotalTokens != 0 {
 		t.Fatal("migration reset attempts or filled old unknown usage with zero", err)
 	}

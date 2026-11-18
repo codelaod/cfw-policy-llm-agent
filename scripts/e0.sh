@@ -29,7 +29,7 @@ case "$task_mode" in
     # Go runs from server/, but explicit paths belong to the caller's cwd.
     while (( $# > 0 )); do
       case "$1" in
-        --env-file|--budget-change|-env-file|-budget-change)
+        --env-file|-env-file)
           task_args+=("$1")
           shift
           if (( $# > 0 )); then
@@ -37,7 +37,7 @@ case "$task_mode" in
             shift
           fi
           ;;
-        --env-file=*|--budget-change=*|-env-file=*|-budget-change=*)
+        --env-file=*|-env-file=*)
           append_explicit_path "${1#*=}" "${1%%=*}="
           shift
           ;;

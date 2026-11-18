@@ -32,7 +32,7 @@ func eligibilityFixture(t *testing.T) (storage.SnapshotCandidate, DataEligibilit
 	a.SecurityGroupCollection = "complete"
 	a.SecurityGroups = []domain.SecurityGroupEvidence{{ID: "sg-artificial", Region: a.Region, Complete: true, ObservedAt: stamp, Permissions: []domain.SecurityGroupPermission{}}}
 	c := storage.SnapshotCandidate{Snapshot: storage.SnapshotRecord{ID: "snapshot-artificial", ScopeRef: in.Scope.Ref, SourceKind: in.SourceKind, CreatedAt: now.Format(time.RFC3339Nano), Input: in}, ProducerStatus: "completed", Cloud: &storage.CloudRecord{ID: "cloud-artificial", SourceRef: "configured-cloud", ConfigRevision: "config-current", Content: storage.CloudContent{Kind: "collect", ScopeRef: in.Scope.Ref, SnapshotID: "snapshot-artificial", IdentityVerified: true, ProductReady: true, Observations: []storage.CloudObservation{{Round: 1, Operation: "DescribeControlPolicy", Pages: 1, StartedAt: stamp, FinishedAt: stamp, EnumerationComplete: true}, {Round: 2, Operation: "DescribeControlPolicy", Pages: 1, StartedAt: stamp, FinishedAt: stamp, EnumerationComplete: true}, {Round: 1, Operation: "DescribeInstances", Pages: 1, StartedAt: stamp, FinishedAt: stamp, EnumerationComplete: true}}}}}
-	req := DataEligibilityRequest{Scope: in.Scope, Selection: in.Selection, SourceRef: "configured-cloud", ConfigRevision: "config-current", Versions: DataVersions{SchemaVersion: in.SchemaVersion, NormalizerVersion: in.NormalizerVersion, KernelVersion: in.KernelVersion, SemanticsProfileID: in.Semantics.ProfileID, SemanticsVersion: in.Semantics.Version}, Now: now, Policy: LegacyDataFreshnessPolicy(), Mode: "prefer_fresh", RequireMetadata: true, RequireSecurityGroups: true}
+	req := DataEligibilityRequest{Scope: in.Scope, Selection: in.Selection, SourceRef: "configured-cloud", ConfigRevision: "config-current", Versions: DataVersions{SchemaVersion: in.SchemaVersion, NormalizerVersion: in.NormalizerVersion, KernelVersion: in.KernelVersion, SemanticsProfileID: in.Semantics.ProfileID, SemanticsVersion: in.Semantics.Version}, Now: now, Policy: DefaultDataFreshnessPolicy(), Mode: "prefer_fresh", RequireMetadata: true, RequireSecurityGroups: true}
 	return c, req
 }
 func reasonHas(d DataEligibilityDecision, code string) bool {
@@ -353,7 +353,7 @@ func TestCommittedWarmReuseUsesStoreOnlyAndKeepsOriginalManifest(t *testing.T) {
 		t.Fatal(err)
 	}
 	prepared := domain.Input{Scope: r.Scope, Selection: r.Selection, Baseline: c.Snapshot.Input.Baseline}
-	p, err := store.SavePlan(context.Background(), storage.ExecutionPlan{Kind: "collect", ConversationID: conv.ID, ConversationRevision: conv.Revision, DataSourceID: r.SourceRef, PolicyScopeRef: r.Scope.Ref, Mode: "rules_only", ConfigRevision: r.ConfigRevision, BudgetRef: "artificial-cache-period", PreparedInput: prepared, EffectCeiling: storage.EffectCeiling{AllowCloudReads: true, CloudHTTPAttempts: 6}})
+	p, err := store.SavePlan(context.Background(), storage.ExecutionPlan{Kind: "collect", ConversationID: conv.ID, ConversationRevision: conv.Revision, DataSourceID: r.SourceRef, PolicyScopeRef: r.Scope.Ref, Mode: "rules_only", ConfigRevision: r.ConfigRevision, PreparedInput: prepared, EffectCeiling: storage.EffectCeiling{AllowCloudReads: true}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +385,7 @@ func TestCommittedWarmReuseUsesStoreOnlyAndKeepsOriginalManifest(t *testing.T) {
 	if err != nil || !reflect.DeepEqual(before, after) {
 		t.Fatal("warm lookup rewrote original snapshot", err)
 	}
-	usage, err := store.BudgetUsage(context.Background(), "artificial-cache-period", conv.ID, job.ID)
+	usage, err := store.AttemptUsage(context.Background(), conv.ID, job.ID)
 	if err != nil || usage.CloudAttempts != 0 || usage.ModelAttempts != 0 {
 		t.Fatal("warm reuse performed cloud/identity/model work", err)
 	}
@@ -412,7 +412,7 @@ func TestQualifiedBroadAuditSnapshotBindsAcceptedSubset(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	base := storage.ExecutionPlan{Kind: "audit", ConversationID: producerConversation.ID, ConversationRevision: producerConversation.Revision, DataSourceID: req.SourceRef, PolicyScopeRef: req.Scope.Ref, Mode: "rules_only", ConfigRevision: req.ConfigRevision, BudgetRef: "same-cache-budget", PreparedInput: domain.Input{Scope: req.Scope, Baseline: in.Baseline}, EffectCeiling: storage.EffectCeiling{AllowCloudReads: true, CloudHTTPAttempts: 6}, Preparation: &storage.PreparationSpec{SourceRef: req.SourceRef, ConfigRevision: req.ConfigRevision, Query: domain.ResourceQuery{Region: "cn-hangzhou", ResourceType: "ecs", Name: "web-*"}, Boundary: "internet", Direction: "in", DataPolicy: "prefer_fresh", AllowMultiple: true, ResultLimit: 2}}
+	base := storage.ExecutionPlan{Kind: "audit", ConversationID: producerConversation.ID, ConversationRevision: producerConversation.Revision, DataSourceID: req.SourceRef, PolicyScopeRef: req.Scope.Ref, Mode: "rules_only", ConfigRevision: req.ConfigRevision, PreparedInput: domain.Input{Scope: req.Scope, Baseline: in.Baseline}, EffectCeiling: storage.EffectCeiling{AllowCloudReads: true}, Preparation: &storage.PreparationSpec{SourceRef: req.SourceRef, ConfigRevision: req.ConfigRevision, Query: domain.ResourceQuery{Region: "cn-hangzhou", ResourceType: "ecs", Name: "web-*"}, Boundary: "internet", Direction: "in", DataPolicy: "prefer_fresh", AllowMultiple: true, ResultLimit: 2}}
 	producerPlan, err := store.SavePlan(ctx, base)
 	if err != nil {
 		t.Fatal(err)

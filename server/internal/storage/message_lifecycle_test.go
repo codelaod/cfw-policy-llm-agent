@@ -20,7 +20,7 @@ func lifecycleJob(t *testing.T, kind string, claim bool) (*Store, SnapshotRecord
 	if kind == "assistant_turn" {
 		p.Kind, p.Mode = "assistant_turn", "assistant"
 		p.Request = json.RawMessage(`{"kind":"assistant_turn"}`)
-		p.EffectCeiling = EffectCeiling{AllowModelRequests: true, ModelHTTPAttempts: 4}
+		p.EffectCeiling = EffectCeiling{AllowModelRequests: true}
 		job, _, _, err = s.EnqueueAssistant(ctx, p, MessageInput{ClientMessageID: "lifecycle-user", Role: "user", PublicText: "解释固定输入", PolicyScopeRef: snapshot.ScopeRef})
 	} else {
 		var plan ExecutionPlan

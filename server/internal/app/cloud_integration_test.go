@@ -47,7 +47,7 @@ func cloudProtocolFixture(action string) string {
 func cloudIntegration(t *testing.T, boundary string, handler http.Handler) (*storage.Store, *PlanService, *CloudService, PlanRequest) {
 	t.Helper()
 	store, plans, _, _, _ := planCase(t)
-	cfg := cloudRuntimeConfig(t, true, "e4-integration-period", 0)
+	cfg := cloudRuntimeConfig(t, true)
 	upstream := httptest.NewServer(handler)
 	t.Cleanup(upstream.Close)
 	sources := aliyunapi.Sources(cfg)
@@ -56,7 +56,6 @@ func cloudIntegration(t *testing.T, boundary string, handler http.Handler) (*sto
 		sources[i].AllowLoopbackHTTP = true
 	}
 	plans.ConfigRevision = "e4-integration-config"
-	plans.BudgetRef = cfg.Budget().Ref
 	manager, err := outbound.NewManager(store, outbound.Config{Revision: plans.ConfigRevision, Sources: sources})
 	if err != nil {
 		t.Fatal(err)
@@ -66,7 +65,7 @@ func cloudIntegration(t *testing.T, boundary string, handler http.Handler) (*sto
 	if err != nil {
 		t.Fatal(err)
 	}
-	cloud := &CloudService{Store: store, SourceRef: cfg.ConnectionRef(), ConfigRevision: plans.ConfigRevision, Configured: true, Ready: true, MaxHTTPAttempts: cfg.MaxHTTPAttempts(), Scopes: map[string]aliyuncollector.Config{}, NewReader: func(ctx context.Context, id string) (CloudReader, error) { return factory.Reader(ctx, id) }}
+	cloud := &CloudService{Store: store, SourceRef: cfg.ConnectionRef(), ConfigRevision: plans.ConfigRevision, Configured: true, Ready: true, Scopes: map[string]aliyuncollector.Config{}, NewReader: func(ctx context.Context, id string) (CloudReader, error) { return factory.Reader(ctx, id) }}
 	var scope domain.Scope
 	for _, s := range cfg.Scopes() {
 		if s.Boundary == boundary {
@@ -77,11 +76,8 @@ func cloudIntegration(t *testing.T, boundary string, handler http.Handler) (*sto
 		t.Fatal("integration scope missing")
 	}
 	binding, _ := cfg.ScopeBinding(scope.Ref)
-	cloud.Scopes[scope.Ref] = aliyuncollector.Config{Scope: scope, ExpectedAccountID: cfg.ExpectedAccountID(), AssetRegions: map[string]string{"i-runtime-synthetic": "cn-hangzhou"}, AllowedGatewayIDs: []string{"ngw-runtime-synthetic"}, GatewayID: binding.GatewayID, GatewayRegion: binding.Region, PageSize: 50, MaxAttempts: 20, MaxPolicies: 1000}
+	cloud.Scopes[scope.Ref] = aliyuncollector.Config{Scope: scope, ExpectedAccountID: cfg.ExpectedAccountID(), AssetRegions: map[string]string{"i-runtime-synthetic": "cn-hangzhou"}, AllowedGatewayIDs: []string{"ngw-runtime-synthetic"}, GatewayID: binding.GatewayID, GatewayRegion: binding.Region, PageSize: 50}
 	if err = store.RegisterConfiguredScopes(context.Background(), cfg.ConnectionRef(), plans.ConfigRevision, []domain.Scope{scope}); err != nil {
-		t.Fatal(err)
-	}
-	if err = store.ConfigureBudgetPolicy(context.Background(), storage.BudgetPolicy{Ref: plans.BudgetRef, ApplicationCloudAttempts: 100, SessionCloudAttempts: 50, ExpiresAt: cfg.Budget().ExpiresAt}); err != nil {
 		t.Fatal(err)
 	}
 	conv, err := store.CreateConversation(context.Background(), "本机真实SDK链", scope.Ref)

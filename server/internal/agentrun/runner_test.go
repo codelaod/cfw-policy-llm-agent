@@ -1,6 +1,7 @@
 package agentrun
 
 import (
+	"cfw-policy-llm-agent/server/internal/workload"
 	"context"
 	"encoding/json"
 	"errors"
@@ -309,7 +310,6 @@ func TestProtocolRejectionStopsBeforeTools(t *testing.T) {
 		{"duplicate_ids", "INVALID_TOOL_CALL_ID", calls(call("same", "get_business_intent", `{}`), call("same", "get_business_intent", `{}`))},
 		{"illegal_id", "INVALID_TOOL_CALL_ID", calls(call("bad id", "get_business_intent", `{}`))},
 		{"blank_id", "INVALID_TOOL_CALL_ID", calls(call("", "get_business_intent", `{}`))},
-		{"batch_limit", "TOOL_BATCH_LIMIT", calls(call("a", "get_business_intent", `{}`), call("b", "get_business_intent", `{}`), call("c", "get_business_intent", `{}`), call("d", "get_business_intent", `{}`), call("e", "get_business_intent", `{}`))},
 		{"byte_args_limit", "TOOL_ARGUMENT_LIMIT", calls(call("one", "get_business_intent", oversizedArgs))},
 		{"array_args", "TOOL_ARGUMENT_INVALID", calls(call("one", "get_business_intent", `[]`))},
 		{"duplicate_argument_key", "TOOL_ARGUMENT_INVALID", calls(call("one", "get_business_intent", `{"ref":"safe","ref":"other"}`))},
@@ -338,47 +338,11 @@ func TestProtocolRejectionStopsBeforeTools(t *testing.T) {
 	}
 }
 
-func TestLogicalHardLimitsCannotBeRaisedByConfig(t *testing.T) {
-	for _, test := range []struct {
-		kind          string
-		models, tools int
-	}{{"audit", 6, 12}, {"assistant_turn", 4, 8}} {
-		t.Run(test.kind, func(t *testing.T) {
-			q := newQuery(test.kind)
-			step := 0
-			runTask := task(q, func(context.Context, []*schema.Message, ...model.Option) (*schema.Message, error) {
-				step++
-				return calls(call(fmt.Sprintf("step_%d", step), "get_business_intent", `{}`)), nil
-			})
-			runTask.Kind = test.kind
-			out, err := Run(context.Background(), runTask, Config{MaxModelCalls: 999, MaxToolCalls: 999, ModelTimeout: time.Hour}, noSink)
-			if err == nil || out.ErrorCode != "MODEL_CALL_LIMIT" || out.ModelCalls != test.models || out.ToolCalls != test.models-1 || q.turns != test.models {
-				t.Fatalf("bad model bound %+v %v turns=%d", out, err, q.turns)
-			}
-			q = newQuery(test.kind)
-			step = 0
-			runTask = task(q, func(context.Context, []*schema.Message, ...model.Option) (*schema.Message, error) {
-				step++
-				batch := []schema.ToolCall{}
-				for i := 0; i < 4; i++ {
-					batch = append(batch, call(fmt.Sprintf("s_%d_%d", step, i), "get_business_intent", `{}`))
-				}
-				return calls(batch...), nil
-			})
-			runTask.Kind = test.kind
-			out, err = Run(context.Background(), runTask, Config{}, noSink)
-			if err == nil || out.ErrorCode != "TOOL_CALL_LIMIT" || out.ToolCalls != test.tools {
-				t.Fatalf("bad tool bound %+v %v", out, err)
-			}
-		})
-	}
-}
-
-func TestLowerLimitsAndModelTimeout(t *testing.T) {
+func TestModelTimeout(t *testing.T) {
 	q := newQuery("short")
 	out, err := Run(context.Background(), task(q, func(context.Context, []*schema.Message, ...model.Option) (*schema.Message, error) {
 		return calls(call("one", "get_business_intent", `{}`)), nil
-	}), Config{MaxModelCalls: 1}, noSink)
+	}), Config{Workload: workload.Resolved{ProfileRef: "one-round", Limits: func() workload.Limits { l := workload.Default("audit"); l.MaxRounds = 1; return l }()}}, noSink)
 	if err == nil || out.ErrorCode != "MODEL_CALL_LIMIT" || out.ModelCalls != 1 {
 		t.Fatalf("outcome %+v %v", out, err)
 	}
@@ -606,7 +570,7 @@ func TestDefaultTimeoutIsThirtySecondsAndSDKUsageStaysUnknown(t *testing.T) {
 		result := answer(final("usage"))
 		result.ResponseMeta.Usage = &schema.TokenUsage{PromptTokens: 0, CompletionTokens: 0, TotalTokens: 0}
 		return result, nil
-	}), Config{ModelTimeout: time.Hour}, noSink)
+	}), Config{}, noSink)
 	if err != nil || out.UsageKnown {
 		t.Fatalf("usage/deadline %+v %v", out, err)
 	}

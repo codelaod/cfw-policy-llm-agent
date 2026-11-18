@@ -220,7 +220,7 @@ func validatePreparation(p ExecutionPlan) error {
 	if spec == nil {
 		return nil
 	}
-	if p.Kind != "audit" || p.ContextReportID != "" || !attemptAlias(spec.SourceRef) || spec.SourceRef == "local-offline" || spec.SourceRef != p.DataSourceID || spec.ConfigRevision != p.ConfigRevision || !attemptAlias(spec.ConfigRevision) || !enum(spec.DataPolicy, "prefer_fresh", "force_refresh") || spec.ResultLimit < 1 || spec.ResultLimit > p.Workload.Limits.AssetsPerBatch || !enum(spec.Boundary, "internet", "nat") || spec.Boundary == "internet" && !enum(spec.Direction, "in", "out") || spec.Boundary == "nat" && spec.Direction != "out" || !p.EffectCeiling.AllowCloudReads || p.EffectCeiling.CloudHTTPAttempts < 1 || p.Mode == "rules_only" && p.EffectCeiling.AllowModelRequests {
+	if p.Kind != "audit" || p.ContextReportID != "" || !attemptAlias(spec.SourceRef) || spec.SourceRef == "local-offline" || spec.SourceRef != p.DataSourceID || spec.ConfigRevision != p.ConfigRevision || !attemptAlias(spec.ConfigRevision) || !enum(spec.DataPolicy, "prefer_fresh", "force_refresh") || spec.ResultLimit < 1 || spec.ResultLimit > p.Workload.Limits.AssetsPerBatch || !enum(spec.Boundary, "internet", "nat") || spec.Boundary == "internet" && !enum(spec.Direction, "in", "out") || spec.Boundary == "nat" && spec.Direction != "out" || !p.EffectCeiling.AllowCloudReads || p.Mode == "rules_only" && p.EffectCeiling.AllowModelRequests {
 		return ErrInputInvalid
 	}
 	q := spec.Query
@@ -564,7 +564,7 @@ func projectPreparedSelection(p ExecutionPlan, in domain.Input) (domain.Input, e
 }
 
 // SavePreparedCloudSnapshot saves one immutable product of the running audit.
-// Saving data does not seal input, end the audit, enqueue work or grant budget.
+// The running audit can seal the saved snapshot in a later transaction.
 func (s *Store) SavePreparedCloudSnapshot(ctx context.Context, jobID string, content CloudContent, input domain.Input) (record CloudRecord, err error) {
 	if content.Kind != "audit" || content.JobID != jobID || input.SourceKind != "live_readonly" || content.ScopeRef != input.Scope.Ref {
 		return record, ErrInputInvalid
@@ -907,7 +907,7 @@ func (s *Store) BindPreparedAuditInput(ctx context.Context, jobID, snapshotID st
 		if e != nil {
 			return e
 		}
-		if p.ConsumedJobID != job.ID || p.ConversationID != job.ConversationID || p.BudgetRef != job.BudgetRef || !reflect.DeepEqual(p.Workload, job.Workload) {
+		if p.ConsumedJobID != job.ID || p.ConversationID != job.ConversationID || !reflect.DeepEqual(p.Workload, job.Workload) {
 			return ErrInputInvalid
 		}
 		var accepted preparedAcceptance

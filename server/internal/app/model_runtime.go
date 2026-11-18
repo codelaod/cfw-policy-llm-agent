@@ -18,8 +18,7 @@ import (
 )
 
 // ModelRuntime owns one application's shared physical admission. Factories
-// create fresh Eino components for individual jobs, while counters and slots
-// remain shared across conversations and survive configuration key rotation.
+// create fresh Eino components for individual jobs, while slots remain shared across conversations.
 type ModelRuntime struct {
 	Plans           *PlanService
 	Factory         *modelprotocol.Factory
@@ -33,7 +32,7 @@ func NewModelRuntime(store *storage.Store, cfg modelconfig.Config) (*ModelRuntim
 }
 
 // NewRuntime composes explicitly configured cloud and model adapters around one
-// manager and authorization period. Neither construction nor local catalog
+// manager and request ledger. Neither construction nor local catalog
 // registration checks a remote identity or sends provider requests.
 func NewRuntime(store *storage.Store, cfg modelconfig.Config, cloud cloudconfig.Config, additionalSecrets ...string) (*ModelRuntime, error) {
 	return NewRuntimeWithExecution(store, cfg, cloud, workload.Config{}, additionalSecrets...)
@@ -42,22 +41,14 @@ func NewRuntimeWithExecution(store *storage.Store, cfg modelconfig.Config, cloud
 	if store == nil {
 		return nil, storage.ErrInputInvalid
 	}
-	var settingsError error
-	cfg, cloud, settingsError = BindExecutionSettings(cfg, cloud, execution)
-	if settingsError != nil {
-		return nil, settingsError
-	}
 	runtime := &ModelRuntime{Plans: NewPlanService(store), SensitiveValues: append([]string(nil), additionalSecrets...)}
 	runtime.Plans.Workloads = execution
-	runtime.Plans.ModelTimeout = cfg.Timeout()
 
 	cloudSecrets := append(append([]string(nil), additionalSecrets...), cfg.APIKey(), cfg.BaseURL(), cfg.Endpoint(), cloud.AccessKeyID(), cloud.AccessKeySecret(), cloud.SecurityToken())
 	if cfg.Summary().Configured {
 		runtime.Plans.ModelConfigured = true
 		runtime.Plans.ConfigRevision = cfg.Revision()
-		runtime.Plans.BudgetRef = cfg.Budget().Ref
 		runtime.Plans.ModelMode = "chat_completions"
-		runtime.Plans.ModelHTTPAttempts = cfg.MaxHTTPAttempts()
 		runtime.SensitiveValues = append(runtime.SensitiveValues, cfg.APIKey(), cfg.BaseURL(), cfg.Endpoint())
 	}
 	if cloud.Summary().Configured {
@@ -66,9 +57,8 @@ func NewRuntimeWithExecution(store *storage.Store, cfg modelconfig.Config, cloud
 			runtime.Plans.ConfigRevision = "runtime_" + hex.EncodeToString(digest[:])[:32]
 		} else {
 			runtime.Plans.ConfigRevision = cloud.Revision()
-			runtime.Plans.BudgetRef = cloud.Budget().Ref
 		}
-		runtime.Cloud = &CloudService{Store: store, SourceRef: cloud.ConnectionRef(), ConfigRevision: runtime.Plans.ConfigRevision, Configured: true, Ready: cloud.Enabled(), MaxHTTPAttempts: cloud.MaxHTTPAttempts(), SensitiveValues: cloudSecrets, Scopes: map[string]aliyuncollector.Config{}}
+		runtime.Cloud = &CloudService{Store: store, SourceRef: cloud.ConnectionRef(), ConfigRevision: runtime.Plans.ConfigRevision, Configured: true, Ready: cloud.Enabled(), SensitiveValues: cloudSecrets, Scopes: map[string]aliyuncollector.Config{}}
 		assetRegions := map[string]string{}
 		for _, asset := range cloud.Assets() {
 			assetRegions[asset.InstanceID] = asset.Region
@@ -84,7 +74,7 @@ func NewRuntimeWithExecution(store *storage.Store, cfg modelconfig.Config, cloud
 			if !ok {
 				return nil, storage.ErrInputInvalid
 			}
-			runtime.Cloud.Scopes[scope.Ref] = aliyuncollector.Config{Scope: scope, ExpectedAccountID: cloud.ExpectedAccountID(), AssetRegions: assetRegions, AllowedGatewayIDs: gatewayIDs, GatewayRegions: gatewayRegions, GatewayID: binding.GatewayID, GatewayRegion: binding.Region, PageSize: 50, MaxAttempts: cloud.MaxHTTPAttempts(), MaxPolicies: 1000}
+			runtime.Cloud.Scopes[scope.Ref] = aliyuncollector.Config{Scope: scope, ExpectedAccountID: cloud.ExpectedAccountID(), AssetRegions: assetRegions, AllowedGatewayIDs: gatewayIDs, GatewayRegions: gatewayRegions, GatewayID: binding.GatewayID, GatewayRegion: binding.Region, PageSize: 50}
 		}
 
 		if policy, ok := execution.DataFreshness(); ok {
@@ -130,10 +120,6 @@ func NewRuntimeWithExecution(store *storage.Store, cfg modelconfig.Config, cloud
 		runtime.Plans.Cloud = runtime.Cloud
 		runtime.SensitiveValues = append(runtime.SensitiveValues, cloud.SensitiveValues()...)
 	}
-	policy, policyErr := runtimeAuthorization(store, cfg, cloud, execution)
-	if policyErr != nil {
-		return nil, policyErr
-	}
 	if execution.Configured() {
 		digest := sha256.Sum256([]byte(runtime.Plans.ConfigRevision + "\x00" + execution.Revision()))
 		runtime.Plans.ConfigRevision = "runtime_" + hex.EncodeToString(digest[:])[:32]
@@ -142,29 +128,7 @@ func NewRuntimeWithExecution(store *storage.Store, cfg modelconfig.Config, cloud
 			runtime.Cloud.Grant.ConfigRevision = runtime.Plans.ConfigRevision
 		}
 	}
-	if policy.Ref != "" {
-		owners := []string{}
-		if cfg.Summary().Configured && cfg.RequestedEnabled() {
-			owners = append(owners, "model-default")
-		}
-		if cloud.Summary().Configured && cloud.RequestedEnabled() {
-			owner := sha256.Sum256([]byte(cloud.ExpectedAccountID()))
-			owners = append(owners, "cloud-account:"+hex.EncodeToString(owner[:16]))
-		}
-		if err := store.ConfigureBudgetForOwners(context.Background(), policy, owners); err != nil {
-			return nil, err
-		}
-		runtime.Plans.BudgetRef = policy.Ref
-	}
-	modelCeiling := modelAdapterCeiling(cfg, cloud)
-	modelEnabled := cfg.Enabled() && policy.ApplicationModelAttempts > 0 && policy.SessionModelAttempts > 0
-	if modelCeiling != nil && (*modelCeiling.ApplicationAttempts <= 0 || *modelCeiling.SessionAttempts <= 0) {
-		modelEnabled = false
-	}
-	cloudEnabled := cloud.Enabled() && policy.ApplicationCloudAttempts > 0 && policy.SessionCloudAttempts > 0
-	if runtime.Cloud != nil {
-		runtime.Cloud.Ready = cloudEnabled
-	}
+	modelEnabled, cloudEnabled := cfg.Enabled(), cloud.Enabled()
 	sources := []outbound.Source{}
 	if modelEnabled {
 		u, err := url.Parse(cfg.Endpoint())
@@ -172,14 +136,10 @@ func NewRuntimeWithExecution(store *storage.Store, cfg modelconfig.Config, cloud
 			return nil, storage.ErrInputInvalid
 		}
 		origin := (&url.URL{Scheme: u.Scheme, Host: u.Host}).String()
-		sources = append(sources, outbound.Source{Ceiling: modelCeiling, Ref: "configured-model", Class: "model", Origin: origin, Routes: []outbound.Route{{Method: "POST", Path: u.Path}}, Timeout: cfg.Timeout(), MaxResponseBytes: modelprotocol.MaxResponseBytes})
+		sources = append(sources, outbound.Source{Ref: "configured-model", Class: "model", Origin: origin, Routes: []outbound.Route{{Method: "POST", Path: u.Path}}, Timeout: cfg.Timeout(), MaxResponseBytes: modelprotocol.MaxResponseBytes})
 	}
 	if cloudEnabled {
 		entries := aliyunapi.Sources(cloud)
-		b := cloud.Budget()
-		for i := range entries {
-			entries[i].Ceiling = adapterCeiling(b.Ref, b.ApplicationCloudAttempts, b.SessionCloudAttempts, b.ExpiresAt)
-		}
 		sources = append(sources, entries...)
 	}
 	if len(sources) > 0 {

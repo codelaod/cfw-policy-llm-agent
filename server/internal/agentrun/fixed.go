@@ -68,7 +68,7 @@ func RunFixed(ctx context.Context, task Task, cfg Config, pipeline FixedPipeline
 	if e := pipeline.Validate(); e != nil {
 		return Outcome{ErrorCode: "FIXED_PIPELINE_INVALID"}, e
 	}
-	models, tools, batch, timeout, stage, e := bounds(task.Kind, cfg)
+	models, timeout, stage, e := bounds(task.Kind, cfg)
 	if e != nil {
 		return Outcome{ErrorCode: e.(*Error).Code}, e
 	}
@@ -80,7 +80,7 @@ func RunFixed(ctx context.Context, task Task, cfg Config, pipeline FixedPipeline
 	cfg.ModelTimeout = timeout
 	cfg.SensitiveValues = append([]string(nil), cfg.SensitiveValues...)
 	cfg.FinalSchema = append(json.RawMessage(nil), cfg.FinalSchema...)
-	run = &state{ctx: runCtx, cancel: cancel, query: task.Queries, sink: sink, cfg: cfg, maxModels: models, maxTools: tools, maxBatch: batch, tools: map[string]bool{}, calls: map[string]*callRecord{}}
+	run = &state{ctx: runCtx, cancel: cancel, query: task.Queries, sink: sink, cfg: cfg, maxModels: models, tools: map[string]bool{}, calls: map[string]*callRecord{}}
 	fail := func(code string) (Outcome, error) {
 		run.mu.Lock()
 		e := run.fail(code)
@@ -142,86 +142,76 @@ func RunFixed(ctx context.Context, task Task, cfg Config, pipeline FixedPipeline
 		if len(refs) > step.MaxItems {
 			return fail("FIXED_PIPELINE_SELECTION_LIMIT")
 		}
-		for offset := 0; offset < len(refs); {
-			end := min(offset+batch, len(refs))
-			if batch <= 0 {
-				return fail("TOOL_BATCH_LIMIT")
+		for _, ref := range refs {
+			args, _ := json.Marshal(map[string]string{selector.key: ref})
+			if len(args) > maxArgsBytes {
+				return fail("TOOL_ARGUMENT_LIMIT")
 			}
-			for _, ref := range refs[offset:end] {
-				if run.toolCalls >= tools {
-					return fail("TOOL_CALL_LIMIT")
+			run.toolCalls++
+			id := fmt.Sprintf("fixed_%04d", run.toolCalls)
+			if e = run.persist(runCtx, Event{Type: "tool_started", ToolName: step.Tool, CallID: id, Status: "started", EvidenceRefs: []string{}}); e != nil {
+				return run.snapshot(), e
+			}
+			start := time.Now()
+			value, invokeErr := invokeQuery(task.Queries, runCtx, step.Tool, string(args))
+			status, code := "succeeded", ""
+			refsOut := []string{}
+			var tree any
+			switch {
+			case run.contextCode() != "":
+				code = run.contextCode()
+				status = "cancelled"
+			case invokeErr != nil:
+				code = run.adapterCode(invokeErr, "TOOL_QUERY_FAILED")
+				status = "failed"
+			case len(value) > maxToolBytes:
+				code = "TOOL_RESULT_LIMIT"
+				status = "truncated"
+			case !objectJSON(value) || run.privateJSON([]byte(value)):
+				code = "TOOL_RESULT_INVALID"
+				status = "rejected"
+			default:
+				var result struct {
+					EvidenceRefs []string `json:"evidence_refs"`
 				}
-				args, _ := json.Marshal(map[string]string{selector.key: ref})
-				if len(args) > maxArgsBytes {
-					return fail("TOOL_ARGUMENT_LIMIT")
-				}
-				run.toolCalls++
-				id := fmt.Sprintf("fixed_%04d", run.toolCalls)
-				if e = run.persist(runCtx, Event{Type: "tool_started", ToolName: step.Tool, CallID: id, Status: "started", EvidenceRefs: []string{}}); e != nil {
-					return run.snapshot(), e
-				}
-				start := time.Now()
-				value, invokeErr := invokeQuery(task.Queries, runCtx, step.Tool, string(args))
-				status, code := "succeeded", ""
-				refsOut := []string{}
-				var tree any
-				switch {
-				case run.contextCode() != "":
-					code = run.contextCode()
-					status = "cancelled"
-				case invokeErr != nil:
-					code = run.adapterCode(invokeErr, "TOOL_QUERY_FAILED")
-					status = "failed"
-				case len(value) > maxToolBytes:
-					code = "TOOL_RESULT_LIMIT"
-					status = "truncated"
-				case !objectJSON(value) || run.privateJSON([]byte(value)):
+				var fields map[string]json.RawMessage
+				if json.Unmarshal([]byte(value), &fields) != nil || fields["evidence_refs"] == nil || json.Unmarshal([]byte(value), &result) != nil || json.Unmarshal([]byte(value), &tree) != nil {
 					code = "TOOL_RESULT_INVALID"
 					status = "rejected"
-				default:
-					var result struct {
-						EvidenceRefs []string `json:"evidence_refs"`
-					}
-					var fields map[string]json.RawMessage
-					if json.Unmarshal([]byte(value), &fields) != nil || fields["evidence_refs"] == nil || json.Unmarshal([]byte(value), &result) != nil || json.Unmarshal([]byte(value), &tree) != nil {
-						code = "TOOL_RESULT_INVALID"
-						status = "rejected"
-					} else {
-						seen := map[string]bool{}
-						for _, v := range result.EvidenceRefs {
-							if v == "" || len(v) > 128 || !utf8.ValidString(v) || strings.IndexFunc(v, func(r rune) bool { return r < 32 || r == 127 }) >= 0 || seen[v] {
-								code = "TOOL_RESULT_INVALID"
-								status = "rejected"
-								break
-							}
-							seen[v] = true
-						}
-						refBytes, _ := json.Marshal(result.EvidenceRefs)
-						if len(result.EvidenceRefs) > 32 || len(refBytes) > 2048 {
+				} else {
+					seen := map[string]bool{}
+					for _, v := range result.EvidenceRefs {
+						if v == "" || len(v) > 128 || !utf8.ValidString(v) || strings.IndexFunc(v, func(r rune) bool { return r < 32 || r == 127 }) >= 0 || seen[v] {
 							code = "TOOL_RESULT_INVALID"
 							status = "rejected"
+							break
 						}
-						if code == "" {
-							refsOut = append(refsOut, result.EvidenceRefs...)
-						}
+						seen[v] = true
+					}
+					refBytes, _ := json.Marshal(result.EvidenceRefs)
+					if len(result.EvidenceRefs) > 32 || len(refBytes) > 2048 {
+						code = "TOOL_RESULT_INVALID"
+						status = "rejected"
+					}
+					if code == "" {
+						refsOut = append(refsOut, result.EvidenceRefs...)
 					}
 				}
-				if e = run.persist(runCtx, Event{Type: "tool_finished", ToolName: step.Tool, CallID: id, Status: status, ElapsedMS: time.Since(start).Milliseconds(), EvidenceRefs: refsOut}); e != nil {
-					return run.snapshot(), e
-				}
-				if code != "" {
-					return fail(code)
-				}
-				packet := map[string]any{"call_id": id, "selection_origin": "predefined_pipeline", "tool": step.Tool, "result": tree}
-				packetBytes, marshalErr := json.Marshal(packet)
-				if marshalErr != nil || len(packetBytes)+1 > maxInputBytes-bytesUsed {
-					return fail("MODEL_INPUT_LIMIT")
-				}
-				bytesUsed += len(packetBytes) + 1
-				collected = append(collected, tree)
-				packets = append(packets, packet)
 			}
-			offset = end
+			if e = run.persist(runCtx, Event{Type: "tool_finished", ToolName: step.Tool, CallID: id, Status: status, ElapsedMS: time.Since(start).Milliseconds(), EvidenceRefs: refsOut}); e != nil {
+				return run.snapshot(), e
+			}
+			if code != "" {
+				return fail(code)
+			}
+			packet := map[string]any{"call_id": id, "selection_origin": "predefined_pipeline", "tool": step.Tool, "result": tree}
+			packetBytes, marshalErr := json.Marshal(packet)
+			if marshalErr != nil || len(packetBytes)+1 > maxInputBytes-bytesUsed {
+				return fail("MODEL_INPUT_LIMIT")
+			}
+			bytesUsed += len(packetBytes) + 1
+			collected = append(collected, tree)
+			packets = append(packets, packet)
 		}
 	}
 	packetBytes, e := json.Marshal(packets)

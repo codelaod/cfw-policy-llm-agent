@@ -19,7 +19,7 @@
 | [conversation_intent](../../server/internal/app/conversation_intent.go)／[intents](../../server/internal/storage/intents.go)／[intent_accept](../../server/internal/storage/intent_accept.go) | 目标、候选、计划与接受持久；旧计划失效、同键重放、本地状态／取消／受限分流 | 有限语句与实际Store回归，不是通用NLU |
 | [data_preparation](../../server/internal/app/data_preparation.go)／[prepared_audits](../../server/internal/storage/prepared_audits.go) | 同audit准备、目录观察、来源／grant／selector核验、接受业务版本与一次绑定 | SDK→loopback；真实身份／产品字段另验 |
 | [catalog](../../server/internal/storage/catalog.go)／[data_eligibility](../../server/internal/app/data_eligibility.go) | 来源独立、覆盖／分页、稳定绑定、合格终态资料与原窗口 | 缓存子集／失效与零新增请求有回归；不合并inflight |
-| [workload](../../server/internal/workload/config.go)／[runtime](../../server/internal/app/model_runtime.go)／[budget revisions](../../server/internal/storage/budget_revisions.go) | 显式配置、统一profile、共享授权head与私限、原attempt保留 | 更大profile／0及启动零调用有回归；数值仍需真实校准 |
+| [workload](../../server/internal/workload/config.go)／[runtime](../../server/internal/app/model_runtime.go)／[调用记录](../../server/internal/storage/attempts.go) | 统一配置、任务总时限／Agent轮数、凭据隔离和实际调用记录 | 本轮离线回归另记；真实参数仍需校准 |
 | [agentquery](../../server/internal/agentquery/tools.go)／[bindings](../../server/internal/agentquery/bindings.go) | sealed资料九工具、SG完整状态、别名、证据候选与最终校验 | 实际工具／人工Eino模型，不是自主选择质量 |
 | [conversation business](../../server/internal/app/conversation_business.go)／[drafts](../../server/internal/storage/conversation_drafts.go) | 对话／表单共用既有草稿、分项预览确认、候选与冲突、例外授权来源 | 正式业务卡／表单同稿分项确认23项浏览器；无ID未知443服务复用反例已修 |
 | [business text](../../server/internal/app/conversation_business_text.go)／[业务HTTP旅程](../../server/internal/httpapi/business_declaration_journey_test.go) | 分句绑定服务／端口／地址；否定与完整性未知不产生肯定授权；范围保持，混合或冲突先澄清 | 2026-11-17新增11个顶层回归；正式HTTP人工输入→预览／确认→新审计及原回执，不是通用NLU或真实业务验收 |
@@ -47,8 +47,8 @@
 | FR-15 | 无快照对话→准备→规则／模型→报告，业务／归属／分批已有正式路径 | 24旅程／88分支整体验收 |
 | FR-16 | 消息／目标／业务／归属／批次／报告持久；pinned旧稿和历史隔离已接 | 同稿rebase、原回执、双CAS与恢复已独立复验；完整正式验收另行执行 |
 | FR-17 | pinned／prefer_fresh／force、原窗口、终态数据资格与批段分别保时点 | 真实时效校准及人工整改闭环 |
-| FR-18 | 3worker／第四排队、同会话单活动、串行分批共根额度与期限 | 标准机器与真实慢链路实测 |
-| FR-19 | 显式env／JSON、静态Provider、状态分层、授权修订与物理私限 | 真实身份／权限；自动续期未实现且不伪装 |
+| FR-18 | 3worker／第四排队、同会话单活动、串行分批共任务截止时间和Agent轮数 | 标准机器与真实慢链路实测 |
+| FR-19 | 统一env、静态Provider、状态分层、只读范围和调用记录 | 真实身份／权限；自动续期未实现且不伪装 |
 | FR-20 | 共用Guidance及五视图；父批次引导实际段集合而非父报告 | 全部情境引导验收；终端仍为后续可选 |
 
 ## 4. J01～J24正式旅程现状
@@ -88,11 +88,11 @@
 | NFR-02 | 固定规则、版本与sealed绑定，模型不覆盖 | 全旅程输入等价／未知降级 |
 | NFR-03 | 统一profile、逻辑／物理分开；总31次SDK和更严20次根上限回归 | 真实校准与完整慢故障组合 |
 | NFR-04 | 持久目标／来源／证据、无reasoning、受控导出 | 新分组／业务字段公开投影 |
-| NFR-05 | 纯Go／schema5显式迁移，新增结构拒残库；构建与恢复回归 | 最终干净环境复验与真实备份恢复 |
+| NFR-05 | 纯Go／schema6显式初始化，新增结构拒残库；构建与恢复回归 | 最终干净环境复验与真实备份恢复 |
 | NFR-06 | 正式对话与三会话限定回归 | 全功能、2CPU／4GiB标准测量 |
 | NFR-07 | 固定模型臂、串行执行、append Journal与独立评分已实现 | 20～30人工冻结标签和正式全部终态统计 |
 | NFR-08 | 固定基线／规则／例外与候选边界 | 新业务版本不改判据、评价去重冻结 |
-| NFR-09 | 缓存原窗口、同根期限、append修订保attempt，分批不复制额度 | 真实时效／费用未知口径校准 |
+| NFR-09 | 缓存原窗口、共任务截止时间、持久调用记录，串行批次共享Agent轮数 | 真实时效／费用未知口径校准 |
 
 下列均不新标为完整通过：
 
@@ -114,9 +114,9 @@
 | AC-14 | 正式无快照主链、可信组、业务、分批、自然确认已有限定验证 | 24旅程／88分支完整正式验收 |
 | AC-15 | 业务／归属／目标／消息持久，pinned旧稿与取消／重启回归 | 全部保存失败与恢复组合 |
 | AC-16 | 复用／force及原窗口；历史A复审不读当前B，各批独立时点 | 真实时效与人工整改取证 |
-| AC-17 | 同根准备、3会话／第四排队、串行批次／累计物理保护 | 真实慢链路与标准机器 |
+| AC-17 | 同根准备、3会话／第四排队、串行批次／调用记录／总时限 | 真实慢链路与标准机器 |
 | AC-18 | 显式来源、零调用检查、静态过期／授权head | 真实身份；续期未实现不伪装 |
-| AC-19 | 纯Go SQLite、schema5显式迁移与短事务；最终普通构建窗口通过 | 干净环境／完整恢复与新增结构组合验收 |
+| AC-19 | 纯Go SQLite、schema6显式初始化与短事务；最终普通构建窗口通过 | 干净环境／完整恢复与新增结构组合验收 |
 | AC-20 | 共用Guidance、五视图、业务／归属／分批正式浏览器子集 | 完整情境复验；未交付终端不计 |
 | AC-21 | 固定臂／同条件Runner／私有Journal／独立评分已实现并本地回归 | 20～30人工冻结标签和正式三组运行 |
 

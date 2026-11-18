@@ -307,7 +307,7 @@ func (s *IntentService) Turn(ctx context.Context, conversation, key string, req 
 			reply = "本次选项与已预览计划不一致，请先按明确对象重新核对模式、资料与效果，再接受新计划。"
 		default:
 			acceptance = &storage.IntentTurnAcceptance{ProposalID: old.Proposal.ID, ExpectedRevision: old.Revision, ConfigRevision: s.Plans.ConfigRevision}
-			reply = "已接受当前已核对的计划，按原对象、资料策略与总额度推进。可以查询进度或明确取消。"
+			reply = "已接受当前已核对的计划，按原对象、资料策略与任务时限推进。可以查询进度或明确取消。"
 		}
 		return save()
 	}
@@ -1053,16 +1053,7 @@ func (s *IntentService) resolvePlan(ctx context.Context, c storage.Conversation,
 	gaps := []string{}
 	if in.Mode == "rules_and_agent" {
 		if s.Plans.ModelReady {
-			n, e := s.Plans.modelAllowance(6)
-			if e != nil {
-				return "", nil, e
-			}
-			if n > 0 {
-				effects.AllowModelRequests = true
-				effects.ModelHTTPAttempts = n
-			} else {
-				gaps = append(gaps, "MODEL_ATTEMPTS_NOT_ALLOWED")
-			}
+			effects.AllowModelRequests = true
 		} else {
 			gaps = append(gaps, "MODEL_NOT_CONFIGURED")
 		}
@@ -1072,7 +1063,7 @@ func (s *IntentService) resolvePlan(ctx context.Context, c storage.Conversation,
 		request.Selection.GatewayRef = prepared.Scope.GatewayRef
 	}
 	encoded, _ := json.Marshal(request)
-	plan := &storage.ExecutionPlan{ResourceGroupVersionID: in.ResourceGroupVersionID, Workload: resolved, Kind: "audit", RecheckOfJobID: in.RecheckOfJobID, ConversationID: c.ID, DataSourceID: "local-offline", PolicyScopeRef: scope[chosen], SnapshotID: chosen, Mode: in.Mode, Request: encoded, EffectCeiling: effects, PreparedInput: prepared, Heads: heads, ConfigRevision: s.Plans.ConfigRevision, BudgetRef: s.Plans.BudgetRef}
+	plan := &storage.ExecutionPlan{ResourceGroupVersionID: in.ResourceGroupVersionID, Workload: resolved, Kind: "audit", RecheckOfJobID: in.RecheckOfJobID, ConversationID: c.ID, DataSourceID: "local-offline", PolicyScopeRef: scope[chosen], SnapshotID: chosen, Mode: in.Mode, Request: encoded, EffectCeiling: effects, PreparedInput: prepared, Heads: heads, ConfigRevision: s.Plans.ConfigRevision}
 	in.Status = "ready_for_confirmation"
 	warnings := []string{"仅分析固定资料时点的配置；允许不等于实际可达。"}
 	if snap.SourceKind != "live_readonly" {

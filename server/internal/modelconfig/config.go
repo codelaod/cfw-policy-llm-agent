@@ -18,12 +18,6 @@ import (
 
 var ErrInvalid = errors.New("MODEL_CONFIG_INVALID")
 
-type Budget struct {
-	Ref                      string `json:"ref"`
-	ExpiresAt                string `json:"expires_at"`
-	ApplicationModelAttempts int    `json:"application_model_attempts"`
-	SessionModelAttempts     int    `json:"session_model_attempts"`
-}
 type fileConfig struct {
 	APIStyle        string `json:"api_style"`
 	ProviderProfile string `json:"provider_profile"`
@@ -32,9 +26,7 @@ type fileConfig struct {
 	APIKeyEnv       string `json:"api_key_env"`
 	MaxOutputTokens int    `json:"max_output_tokens"`
 	TimeoutSeconds  int    `json:"timeout_seconds"`
-	MaxHTTPAttempts int    `json:"max_http_attempts"`
 	Enabled         bool   `json:"enabled"`
-	Budget          Budget `json:"budget"`
 }
 
 // Config keeps private source values inaccessible to JSON and formatting.
@@ -52,8 +44,6 @@ type Summary struct {
 	StructureValid       bool   `json:"structure_valid"`
 	CredentialLocalReady bool   `json:"credential_local_ready"`
 	CredentialState      string `json:"credential_state"`
-	ExecutionPolicyReady bool   `json:"execution_policy_ready"`
-	AuthorizationState   string `json:"authorization_state"`
 	ProtocolSupported    bool   `json:"protocol_supported"`
 	BlockedReason        string `json:"blocked_reason,omitempty"`
 	LedgerState          string `json:"ledger_state"`
@@ -62,7 +52,6 @@ type Summary struct {
 	ProviderProfile      string `json:"provider_profile"`
 	MaxOutputTokens      int    `json:"max_output_tokens"`
 	TimeoutSeconds       int    `json:"timeout_seconds"`
-	MaxHTTPAttempts      int    `json:"max_http_attempts"`
 }
 
 var envName = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]{0,127}$`)
@@ -94,22 +83,8 @@ func ParseSettings(body []byte, lookup func(string) (string, bool)) (Config, err
 	}
 	return c, nil
 }
-func validBudget(b Budget) bool {
-	if b.Ref == "" {
-		return b.ExpiresAt == "" && b.ApplicationModelAttempts == 0 && b.SessionModelAttempts == 0
-	}
-	if !ref.MatchString(b.Ref) || b.ApplicationModelAttempts < 0 || b.ApplicationModelAttempts > workload.MaxCounter || b.SessionModelAttempts < 0 || b.SessionModelAttempts > b.ApplicationModelAttempts {
-		return false
-	}
-	if b.ExpiresAt != "" {
-		if _, err := time.Parse(time.RFC3339Nano, b.ExpiresAt); err != nil {
-			return false
-		}
-	}
-	return true
-}
 func build(input fileConfig) (Config, error) {
-	if (input.APIStyle != "chat_completions" && input.APIStyle != "responses") || (input.ProviderProfile != "openai-compatible" && input.ProviderProfile != "minimax") || (input.Enabled && input.Model == "") || len(input.Model) > 128 || strings.TrimSpace(input.Model) != input.Model || hasControl(input.Model) || !envName.MatchString(input.APIKeyEnv) || input.MaxOutputTokens < 1 || input.MaxOutputTokens > 1024 || input.TimeoutSeconds < 1 || int64(input.TimeoutSeconds) > workload.MaxSeconds || input.MaxHTTPAttempts < 0 || input.MaxHTTPAttempts > workload.MaxCounter || !validBudget(input.Budget) {
+	if (input.APIStyle != "chat_completions" && input.APIStyle != "responses") || (input.ProviderProfile != "openai-compatible" && input.ProviderProfile != "minimax") || (input.Enabled && input.Model == "") || len(input.Model) > 128 || strings.TrimSpace(input.Model) != input.Model || hasControl(input.Model) || !envName.MatchString(input.APIKeyEnv) || input.MaxOutputTokens < 1 || input.TimeoutSeconds < 1 || int64(input.TimeoutSeconds) > workload.MaxSeconds {
 		return Config{}, ErrInvalid
 	}
 	endpoint := ""
@@ -153,47 +128,6 @@ func (c *Config) setCredential(value string) {
 	c.credentialState = "available"
 }
 
-// WithBudget binds an explicitly resolved policy; it never invents a reference,
-// expiry or allowance from a model file, key rotation or process environment.
-func (c Config) WithBudget(b Budget) (Config, error) {
-	if c.revision == "" || !validBudget(b) {
-		return Config{}, ErrInvalid
-	}
-	input := c.settings
-	input.Budget = b
-	out, err := build(input)
-	if err != nil {
-		return Config{}, err
-	}
-	out.key, out.credentialState = c.key, c.credentialState
-	return out, nil
-}
-func (c Config) WithProviderProfile(profile string) (Config, error) {
-	input := c.settings
-	input.ProviderProfile = profile
-	out, err := build(input)
-	if err != nil {
-		return Config{}, err
-	}
-	out.key, out.credentialState = c.key, c.credentialState
-	return out, nil
-}
-func (c Config) authorizationState() string {
-	b := c.settings.Budget
-	if b.Ref == "" {
-		return "not_configured"
-	}
-	if b.ExpiresAt != "" {
-		expiry, err := time.Parse(time.RFC3339Nano, b.ExpiresAt)
-		if err != nil || !expiry.After(time.Now()) {
-			return "expired"
-		}
-	}
-	if b.ApplicationModelAttempts == 0 || b.SessionModelAttempts == 0 || c.settings.MaxHTTPAttempts == 0 {
-		return "blocked"
-	}
-	return "active"
-}
 func (c Config) Model() string           { return c.settings.Model }
 func (c Config) APIKey() string          { return c.key }
 func (c Config) APIStyle() string        { return c.settings.APIStyle }
@@ -204,19 +138,17 @@ func (c Config) MaxOutputTokens() int    { return c.settings.MaxOutputTokens }
 func (c Config) Timeout() time.Duration {
 	return time.Duration(c.settings.TimeoutSeconds) * time.Second
 }
-func (c Config) MaxHTTPAttempts() int   { return c.settings.MaxHTTPAttempts }
-func (c Config) Budget() Budget         { return c.settings.Budget }
 func (c Config) Revision() string       { return c.revision }
 func (c Config) RequestedEnabled() bool { return c.settings.Enabled }
 func (c Config) Ready() bool {
-	return c.revision != "" && c.settings.Enabled && c.credentialState == "available" && c.settings.APIStyle == "chat_completions" && c.authorizationState() == "active"
+	return c.revision != "" && c.settings.Enabled && c.credentialState == "available" && c.settings.APIStyle == "chat_completions"
 }
 
 // Enabled keeps its existing runtime gate semantics. Summary.Enabled records
 // the requested toggle separately from Summary.Ready.
 func (c Config) Enabled() bool { return c.Ready() }
 func (c Config) Summary() Summary {
-	s := Summary{Configured: c.revision != "", Enabled: c.RequestedEnabled(), Ready: c.Ready(), SourceSelected: c.revision != "", SourceKind: c.sourceKind, StructureValid: c.revision != "", CredentialLocalReady: c.credentialState == "available", CredentialState: c.credentialState, ExecutionPolicyReady: c.authorizationState() == "active", AuthorizationState: c.authorizationState(), ProtocolSupported: c.settings.APIStyle == "chat_completions", LedgerState: "not_checked", UpstreamValidation: "not_checked", APIStyle: c.settings.APIStyle, ProviderProfile: c.settings.ProviderProfile, MaxOutputTokens: c.settings.MaxOutputTokens, TimeoutSeconds: c.settings.TimeoutSeconds, MaxHTTPAttempts: c.settings.MaxHTTPAttempts}
+	s := Summary{Configured: c.revision != "", Enabled: c.RequestedEnabled(), Ready: c.Ready(), SourceSelected: c.revision != "", SourceKind: c.sourceKind, StructureValid: c.revision != "", CredentialLocalReady: c.credentialState == "available", CredentialState: c.credentialState, ProtocolSupported: c.settings.APIStyle == "chat_completions", LedgerState: "not_checked", UpstreamValidation: "not_checked", APIStyle: c.settings.APIStyle, ProviderProfile: c.settings.ProviderProfile, MaxOutputTokens: c.settings.MaxOutputTokens, TimeoutSeconds: c.settings.TimeoutSeconds}
 	switch {
 	case !s.Configured:
 		s.BlockedReason = "not_configured"
@@ -227,8 +159,6 @@ func (c Config) Summary() Summary {
 		s.BlockedReason = "credential_" + s.CredentialState
 	case !s.ProtocolSupported:
 		s.BlockedReason = "protocol_unsupported"
-	case !s.ExecutionPolicyReady:
-		s.BlockedReason = "authorization_" + s.AuthorizationState
 	}
 	return s
 }

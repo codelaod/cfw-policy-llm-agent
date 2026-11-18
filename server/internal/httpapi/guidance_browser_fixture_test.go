@@ -76,11 +76,11 @@ func TestHistoricalGuidanceBrowserServe(t *testing.T) {
 		t.Fatal("public rules report A unavailable")
 	}
 	f.request(t, "POST", "/api/v1/conversations/"+c.ID+"/intent-turns", app.IntentTurnRequest{ClientTurnID: "guidance-browser-current-b", Text: "检查北京 ECS i-guidance-b，使用模型补充"}, "guidance-browser-current-b")
-	usage, e := f.store.BudgetUsage(ctx, f.plans.BudgetRef, "", "")
+	usage, e := f.store.AttemptUsage(ctx, "", "")
 	if e != nil || usage.ModelAttempts != 0 || usage.CloudAttempts != 0 {
 		t.Fatal("fixture preparation made provider requests")
 	}
-	state, _ := json.Marshal(map[string]string{"base_url": f.api.URL, "application_token": f.token, "conversation_id": c.ID, "job_a": j.ID, "report_a": view.ReportRef, "snapshot_a": a.ID, "snapshot_b": b.ID, "budget_ref": f.plans.BudgetRef, "stop_path": stopPath, "source": "public artificial inputs; real local protocol adapter configured but no model/cloud request made"})
+	state, _ := json.Marshal(map[string]string{"base_url": f.api.URL, "application_token": f.token, "conversation_id": c.ID, "job_a": j.ID, "report_a": view.ReportRef, "snapshot_a": a.ID, "snapshot_b": b.ID, "stop_path": stopPath, "source": "public artificial inputs; real local protocol adapter configured but no model/cloud request made"})
 	if e = os.WriteFile(statePath, state, 0600); e != nil {
 		t.Fatal(e)
 	}

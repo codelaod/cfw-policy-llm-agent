@@ -9,9 +9,6 @@ import (
 
 var workflowColumns = map[string][]string{
 	"profile_draft_rebase_requests":  {"request_key", "draft_id", "request_digest", "result_json"},
-	"execution_budget_bindings":      {"owner_ref", "budget_ref"},
-	"budget_policy_revisions":        {"ref", "revision", "change_id", "request_digest", "actor_ref", "reason", "authorization_ref", "created_at", "body"},
-	"budget_policy_heads":            {"ref", "revision"},
 	"resource_catalog":               {"id", "source_ref", "account_ref", "region", "resource_type", "resource_id", "name", "body", "observed_at"},
 	"resource_snapshot_bindings":     {"resource_ref", "snapshot_id", "asset_id", "scope_ref", "boundary", "direction"},
 	"resource_catalogue_state":       {"id", "revision"},
@@ -50,13 +47,6 @@ func checkWorkflowShape(db *gorm.DB) error {
 	if singleton != 1 {
 		return errors.New("resource catalogue revision missing; explicit migration required")
 	}
-	var orphan int64
-	if err := db.Raw("SELECT count(*) FROM budget_policies p LEFT JOIN budget_policy_heads h ON h.ref=p.ref LEFT JOIN budget_policy_revisions r ON r.ref=h.ref AND r.revision=h.revision WHERE r.ref IS NULL").Scan(&orphan).Error; err != nil {
-		return err
-	}
-	if orphan != 0 {
-		return errors.New("authorization revision head missing; explicit migration required")
-	}
 	if err := checkBatchSchema(db); err != nil {
 		return err
 	}
@@ -68,10 +58,6 @@ func checkWorkflowShape(db *gorm.DB) error {
 func migrateWorkflowSchema(tx *gorm.DB) error {
 	for _, q := range []string{
 		`CREATE TABLE IF NOT EXISTS profile_draft_rebase_requests(request_key TEXT PRIMARY KEY,draft_id TEXT NOT NULL REFERENCES profile_drafts(id),request_digest TEXT NOT NULL,result_json TEXT NOT NULL CHECK(json_valid(result_json)))`,
-		`CREATE TABLE IF NOT EXISTS execution_budget_bindings(owner_ref TEXT PRIMARY KEY,budget_ref TEXT NOT NULL REFERENCES budget_policies(ref))`,
-
-		`CREATE TABLE IF NOT EXISTS budget_policy_revisions(ref TEXT NOT NULL REFERENCES budget_policies(ref),revision INTEGER NOT NULL CHECK(revision>0),change_id TEXT UNIQUE NOT NULL,request_digest TEXT NOT NULL,actor_ref TEXT NOT NULL,reason TEXT NOT NULL,authorization_ref TEXT NOT NULL,created_at TEXT NOT NULL,body TEXT NOT NULL CHECK(json_valid(body)),PRIMARY KEY(ref,revision))`,
-		`CREATE TABLE IF NOT EXISTS budget_policy_heads(ref TEXT PRIMARY KEY REFERENCES budget_policies(ref),revision INTEGER NOT NULL,FOREIGN KEY(ref,revision) REFERENCES budget_policy_revisions(ref,revision))`,
 
 		`CREATE TABLE IF NOT EXISTS resource_catalog(id TEXT PRIMARY KEY,source_ref TEXT NOT NULL,account_ref TEXT NOT NULL,region TEXT NOT NULL,resource_type TEXT NOT NULL,resource_id TEXT NOT NULL,name TEXT NOT NULL,body TEXT NOT NULL CHECK(json_valid(body)),observed_at TEXT NOT NULL)`,
 		`CREATE INDEX IF NOT EXISTS resource_search ON resource_catalog(account_ref,region,resource_type,name,id)`,
@@ -95,20 +81,11 @@ func migrateWorkflowSchema(tx *gorm.DB) error {
 			return err
 		}
 	}
-	var policies []BudgetPolicy
-	if err := tx.Raw("SELECT p.* FROM budget_policies p WHERE NOT EXISTS(SELECT 1 FROM budget_policy_heads h WHERE h.ref=p.ref)").Scan(&policies).Error; err != nil {
-		return err
-	}
-	for _, p := range policies {
-		if _, err := appendBudgetRevision(tx, p, 0, "migration_"+requestDigest(p.Ref), requestDigest(p), "schema-migration", "preserve existing policy and attempts", "explicit-migration"); err != nil {
-			return err
-		}
-	}
 	var version int
 	if err := tx.Raw("SELECT version FROM business_schema").Scan(&version).Error; err != nil {
 		return err
 	}
-	if version != 4 && version != 5 {
+	if version != 4 && version != BusinessSchemaVersion {
 		return errors.New("unsupported workflow migration")
 	}
 	if version == 4 {
@@ -124,7 +101,7 @@ func migrateWorkflowSchema(tx *gorm.DB) error {
 				return err
 			}
 		}
-		for _, q := range []string{"DROP TABLE business_schema", "CREATE TABLE business_schema(version INTEGER PRIMARY KEY CHECK(version=5))", "INSERT INTO business_schema VALUES(5)"} {
+		for _, q := range []string{"DROP TABLE business_schema", "CREATE TABLE business_schema(version INTEGER PRIMARY KEY CHECK(version=6))", "INSERT INTO business_schema VALUES(6)"} {
 			if err := tx.Exec(q).Error; err != nil {
 				return err
 			}

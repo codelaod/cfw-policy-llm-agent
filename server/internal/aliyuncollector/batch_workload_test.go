@@ -15,8 +15,8 @@ import (
 
 func explicitWorkload() workload.Resolved {
 	l := workload.Default("collect")
-	l.ExecutionSeconds, l.CollectionSeconds, l.FinalizeSeconds = 150, 120, 10
-	l.CloudHTTPAttempts, l.AssetsPerBatch, l.MaxPolicies = 300, 120, 2000
+	l.ExecutionSeconds = 150
+	l.AssetsPerBatch, l.MaxPolicies = 120, 2000
 	return workload.Resolved{ProfileRef: "public-collector-fixture", Limits: l}
 }
 func batchConfig(count int) Config {
@@ -144,28 +144,6 @@ func TestSameSGIDIsNotSharedAcrossRegions(t *testing.T) {
 		if a.SecurityGroups[0].Region != a.Region {
 			t.Fatal("foreign region group attached")
 		}
-	}
-}
-func TestExplicitProfileZerosNeverFallBackAndLargerProfileIsNotLegacyClamped(t *testing.T) {
-	cfg := natConfig()
-	cfg.Workload = explicitWorkload()
-	cfg.Workload.Limits.CloudHTTPAttempts = 0
-	r := &fixtureReader{read: natFixture}
-	c, e := New(r, cfg)
-	if e != nil {
-		t.Fatal(e)
-	}
-	if _, e = c.Collect(context.Background(), domain.Selection{Kind: "gateway_policy"}); e == nil || r.calls != 0 {
-		t.Fatalf("zero refilled: %v calls%d", e, r.calls)
-	}
-	cfg.Workload = explicitWorkload()
-	c, e = New(r, cfg)
-	if e != nil || c.cfg.MaxAttempts != 300 || c.cfg.MaxPolicies != 2000 {
-		t.Fatalf("profile clamped to legacy: %v %+v", e, c)
-	}
-	legacy, e := New(r, natConfig())
-	if e != nil || !legacy.cfg.Workload.Legacy || legacy.cfg.Workload.ProfileRef != workload.LegacyProfileRef {
-		t.Fatal("legacy policy not explicit", e)
 	}
 }
 func TestExplicitCollectionWindowUsesProfileAndCallerDeadline(t *testing.T) {

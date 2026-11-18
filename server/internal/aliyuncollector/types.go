@@ -30,16 +30,6 @@ type Config struct {
 	GatewayID         string
 	GatewayRegion     string
 	PageSize          int
-	MaxAttempts       int
-	MaxPolicies       int
-}
-
-type RawArtifact struct {
-	Round     int               `json:"round"`
-	Operation string            `json:"operation"`
-	Query     map[string]string `json:"query"`
-	Body      json.RawMessage   `json:"body"`
-	SHA256    string            `json:"sha256"`
 }
 
 type Observation struct {
@@ -58,7 +48,7 @@ type Collection struct {
 	Observations []Observation `json:"observations"`
 	// Original provider bodies stay private. The caller may persist them only in
 	// its private raw store; they are intentionally excluded from normal JSON.
-	Artifacts []RawArtifact `json:"-"`
+	Artifacts []domain.CloudRawArtifact `json:"-"`
 }
 
 type Failure string

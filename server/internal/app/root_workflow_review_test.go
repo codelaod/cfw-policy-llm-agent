@@ -250,7 +250,7 @@ func TestRootWorkflowReviewBatchDoesNotDowngradeUnqualifiedLiveSnapshot(t *testi
 	for _, n := range []int{1, 5} {
 		t.Run(fmt.Sprintf("objects-%d", n), func(t *testing.T) {
 			s, c := conversationalCase(t)
-			s.Plans.Workloads = batchDialogProfile(t, 20)
+			s.Plans.Workloads = batchDialogProfile(t)
 			in, err := audit.SyntheticExample("internet-in")
 			if err != nil {
 				t.Fatal(err)
@@ -309,7 +309,7 @@ func TestRootWorkflowReviewBatchDoesNotDowngradeUnqualifiedLiveSnapshot(t *testi
 
 func TestRootWorkflowReviewBatchStopsAfterPermanentAccountMismatch(t *testing.T) {
 	s, cloud, c, physical := preparationIntegration(t)
-	s.Plans.Workloads = batchDialogProfile(t, 20)
+	s.Plans.Workloads = batchDialogProfile(t)
 	base := cloud.DiscoveryConfig
 	cloud.ResolveScope = func(boundary, direction string, rs []domain.Resource) (aliyuncollector.Config, error) {
 		if boundary != "internet" || direction != "in" {
@@ -384,7 +384,7 @@ func TestRootWorkflowReviewBatchStopsAfterPermanentAccountMismatch(t *testing.T)
 func TestRootWorkflowReviewAcceptedGroupBatchKeepsOriginalReceiptAndMembers(t *testing.T) {
 	s, c, _ := selectedGroupDialog(t, 5)
 	oldGroup := confirmDialogGroup(t, s, c)
-	s.Plans.Workloads = batchDialogProfile(t, 20)
+	s.Plans.Workloads = batchDialogProfile(t)
 	other, err := s.Store.CreateConversation(context.Background(), "独立组批量回执复核", "")
 	if err != nil {
 		t.Fatal(err)
@@ -430,7 +430,7 @@ func TestRootWorkflowReviewAcceptedGroupBatchKeepsOriginalReceiptAndMembers(t *t
 }
 func TestRootWorkflowReviewCancelChildCancelsRootAndPreventsLaterSegments(t *testing.T) {
 	s, c, _ := selectedGroupDialog(t, 5)
-	s.Plans.Workloads = batchDialogProfile(t, 20)
+	s.Plans.Workloads = batchDialogProfile(t)
 	offer := goalTurn(t, s, c.ID, "independent-cancel-batch", "按完整对象集分批审计")
 	if offer.Proposal == nil || offer.Proposal.PlanID == "" {
 		t.Fatal("no cancel fixture plan")
@@ -721,7 +721,7 @@ func TestRootWorkflowReviewTrustedGroupTraversesThreeCatalogPages(t *testing.T) 
 
 func TestRootWorkflowReviewQueuedBatchCancelPublishesOrderedTerminalWithoutStartingChildren(t *testing.T) {
 	s, c, _ := selectedGroupDialog(t, 5)
-	s.Plans.Workloads = batchDialogProfile(t, 20)
+	s.Plans.Workloads = batchDialogProfile(t)
 	offer := goalTurn(t, s, c.ID, "independent-queued-stop-offer", "按完整对象集分批审计")
 	accepted, err := s.Store.AcceptIntentProposal(context.Background(), c.ID, offer.Proposal.ID, "independent-queued-stop-accept", s.Plans.ConfigRevision, offer.Intent.Revision)
 	if err != nil || accepted.Job.Status != "queued" {

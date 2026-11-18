@@ -38,7 +38,7 @@ func cloudCase(t *testing.T, kind string) (*Store, Job, domain.Input, CloudConte
 		t.Fatal(err)
 	}
 	prepared := domain.Input{Scope: in.Scope, Selection: in.Selection, Baseline: in.Baseline}
-	p, err := s.SavePlan(context.Background(), ExecutionPlan{Kind: kind, ConversationID: conversation.ID, ConversationRevision: conversation.Revision, DataSourceID: "aliyun-explicit", PolicyScopeRef: in.Scope.Ref, Mode: kind, ConfigRevision: "cloud-config-v1", BudgetRef: "cloud-budget", PreparedInput: prepared, EffectCeiling: EffectCeiling{AllowCloudReads: true, CloudHTTPAttempts: 6}})
+	p, err := s.SavePlan(context.Background(), ExecutionPlan{Kind: kind, ConversationID: conversation.ID, ConversationRevision: conversation.Revision, DataSourceID: "aliyun-explicit", PolicyScopeRef: in.Scope.Ref, Mode: kind, ConfigRevision: "cloud-config-v1", PreparedInput: prepared, EffectCeiling: EffectCeiling{AllowCloudReads: true}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,7 @@ func cloudCase(t *testing.T, kind string) (*Store, Job, domain.Input, CloudConte
 	observations := []CloudObservation{{Round: 1, Operation: "DescribeControlPolicy", Pages: 1, StartedAt: in.CollectedAt, FinishedAt: in.CollectedAt, EnumerationComplete: true, SemanticSHA256: strings.Repeat("a", 64)}}
 	rawBody := json.RawMessage(`{"synthetic_private_raw":"do-not-serialize"}`)
 	hash := sha256.Sum256(rawBody)
-	rawArtifacts, _ := json.Marshal([]CloudRawArtifact{{Round: 1, Operation: "DescribeControlPolicy", Query: map[string]string{"Direction": "in"}, Body: []byte(rawBody), SHA256: hex.EncodeToString(hash[:])}})
+	rawArtifacts, _ := json.Marshal([]domain.CloudRawArtifact{{Round: 1, Operation: "DescribeControlPolicy", Query: map[string]string{"Direction": "in"}, Body: []byte(rawBody), SHA256: hex.EncodeToString(hash[:])}})
 	content := CloudContent{JobID: job.ID, Kind: kind, ScopeRef: in.Scope.Ref, SourceRef: "aliyun-explicit", ConfigRevision: "cloud-config-v1", IdentityVerified: true, ProductReady: true, Observations: observations, Limitations: []string{}, RawArtifacts: rawArtifacts}
 	return s, job, in, content
 }
@@ -249,7 +249,7 @@ func TestE4PrivateCloudArtifactsPreserveExactWireAndRejectAmbiguousEnvelopes(t *
 				wire = []byte(`{"nested":{"SecurityToken":"synthetic-private-token"}}`)
 			}
 			hash := sha256.Sum256(wire)
-			artifacts := []CloudRawArtifact{{Round: 1, Operation: "DescribeControlPolicy", Query: map[string]string{"Direction": "in"}, Body: wire, SHA256: hex.EncodeToString(hash[:])}}
+			artifacts := []domain.CloudRawArtifact{{Round: 1, Operation: "DescribeControlPolicy", Query: map[string]string{"Direction": "in"}, Body: wire, SHA256: hex.EncodeToString(hash[:])}}
 			if scenario == "hash" {
 				artifacts[0].SHA256 = strings.Repeat("a", 64)
 			}
@@ -271,7 +271,7 @@ func TestE4PrivateCloudArtifactsPreserveExactWireAndRejectAmbiguousEnvelopes(t *
 			if err = s.db.Raw("SELECT raw_artifacts FROM job_cloud_results WHERE job_id=?", job.ID).Scan(&raw).Error; err != nil {
 				t.Fatal(err)
 			}
-			var saved []CloudRawArtifact
+			var saved []domain.CloudRawArtifact
 			if json.Unmarshal([]byte(raw), &saved) != nil || len(saved) != 1 || string(saved[0].Body) != string(wire) {
 				t.Fatal("provider wire bytes changed in persistence")
 			}

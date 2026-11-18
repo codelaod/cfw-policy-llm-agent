@@ -322,6 +322,8 @@ func ScoreModel(out RunOutcome, review *ModelReview) (ModelScore, error) {
 // Summaries never discard failed/absent-output runs. Counts remain separate
 // from scores, and a complete expected matrix is required to compute rates.
 type RunCounts struct {
+	ModelHTTPAttempts          int64          `json:"model_http_attempts"`
+	CloudHTTPAttempts          int64          `json:"cloud_http_attempts"`
 	Total                      int            `json:"total"`
 	TerminalStates             map[string]int `json:"terminal_states"`
 	OutputAbsent               int            `json:"output_absent"`
@@ -336,8 +338,6 @@ type RunCounts struct {
 	JournalInterruptedRuns     int            `json:"journal_interrupted_runs"`
 	UsageUnknownRuns           int            `json:"usage_unknown_runs"`
 	LedgerRecordedRuns         int            `json:"ledger_recorded_runs"`
-	ModelHTTPAttempts          int64          `json:"model_http_attempts_known"`
-	CloudHTTPAttempts          int64          `json:"cloud_http_attempts_known"`
 	UnknownUsageAttempts       int64          `json:"unknown_usage_attempts"`
 	KnownUsageResponses        int64          `json:"known_usage_responses"`
 	CompletedRate              Ratio          `json:"completed_rate"`

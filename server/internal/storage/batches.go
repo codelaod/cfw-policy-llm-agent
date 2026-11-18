@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"reflect"
+	"slices"
 	"strings"
 	"time"
 
@@ -348,7 +349,7 @@ func recordBatchAcceptance(tx *gorm.DB, p ExecutionPlan, job Job) error {
 	if p.Batch == nil {
 		return nil
 	}
-	if job.ParentJobID != "" || job.PlanID != p.ID || job.Kind != p.Kind || job.ConversationID != p.ConversationID || job.BudgetRef != p.BudgetRef || !reflect.DeepEqual(job.Workload, p.Workload) {
+	if job.ParentJobID != "" || job.PlanID != p.ID || job.Kind != p.Kind || job.ConversationID != p.ConversationID || !reflect.DeepEqual(job.Workload, p.Workload) {
 		return ErrInputInvalid
 	}
 	if e := validateBatchPlan(tx, p); e != nil {
@@ -550,7 +551,7 @@ func batchAuthority(tx *gorm.DB, job Job) (Job, error) {
 	if e != nil {
 		return parent, e
 	}
-	if parent.ParentJobID != "" || parent.ConversationID != job.ConversationID || parent.BudgetRef != job.BudgetRef || parent.Kind != "audit" || job.Kind != "audit" {
+	if parent.ParentJobID != "" || parent.ConversationID != job.ConversationID || parent.Kind != "audit" || job.Kind != "audit" {
 		return parent, ErrInputInvalid
 	}
 	var matches int64
@@ -575,7 +576,7 @@ func batchAuthority(tx *gorm.DB, job Job) (Job, error) {
 	if e != nil {
 		return parent, e
 	}
-	if p.Batch == nil || child.Batch != nil || child.DataSourceID != p.DataSourceID || child.ConfigRevision != p.ConfigRevision || child.PolicyScopeRef != p.PolicyScopeRef || child.BudgetRef != p.BudgetRef || child.Mode != p.Mode || child.ConsumedJobID != job.ID {
+	if p.Batch == nil || child.Batch != nil || child.DataSourceID != p.DataSourceID || child.ConfigRevision != p.ConfigRevision || child.PolicyScopeRef != p.PolicyScopeRef || child.Mode != p.Mode || child.ConsumedJobID != job.ID {
 		return parent, ErrInputInvalid
 	}
 	for _, a := range []struct{ child, parent string }{{job.RootDeadline, parent.RootDeadline}, {job.ExecutionDeadline, parent.ExecutionDeadline}} {
@@ -600,7 +601,7 @@ func batchAuthority(tx *gorm.DB, job Job) (Job, error) {
 	if !reflect.DeepEqual(expected.Preparation, child.Preparation) || !reflect.DeepEqual(expected.Heads, child.Heads) || !reflect.DeepEqual(expected.PreparedInput, child.PreparedInput) {
 		return parent, ErrInputInvalid
 	}
-	if child.Workload.ProfileRef != p.Workload.ProfileRef || child.Workload.Legacy != p.Workload.Legacy {
+	if child.Workload.ProfileRef != p.Workload.ProfileRef {
 		return parent, ErrInputInvalid
 	}
 	a, b := reflect.ValueOf(child.Workload.Limits), reflect.ValueOf(p.Workload.Limits)
@@ -609,48 +610,10 @@ func batchAuthority(tx *gorm.DB, job Job) (Job, error) {
 			return parent, ErrInputInvalid
 		}
 	}
-	if child.EffectCeiling.CloudHTTPAttempts > p.EffectCeiling.CloudHTTPAttempts || child.EffectCeiling.ModelHTTPAttempts > p.EffectCeiling.ModelHTTPAttempts || child.EffectCeiling.AllowCloudReads && !p.EffectCeiling.AllowCloudReads || child.EffectCeiling.AllowModelRequests && !p.EffectCeiling.AllowModelRequests {
+	if child.EffectCeiling.AllowCloudReads && !p.EffectCeiling.AllowCloudReads || child.EffectCeiling.AllowModelRequests && !p.EffectCeiling.AllowModelRequests {
 		return parent, ErrInputInvalid
 	}
 	return parent, nil
-}
-func millisSeconds(ms int64) int {
-	if ms <= 0 {
-		return 0
-	}
-	return int((ms + 999) / 1000)
-}
-func remainingBatchLimits(p ExecutionPlan, used BatchUsage, size int) (workload.Resolved, EffectCeiling, bool) {
-	result := p.Workload
-	l := &result.Limits
-	l.AssetsPerBatch = min(l.AssetsPerBatch, size)
-	l.ExecutionSeconds = max(0, l.ExecutionSeconds-millisSeconds(used.ExecutionMillis))
-	l.CollectionSeconds = max(0, l.CollectionSeconds-millisSeconds(used.Phases.CollectionMillis))
-	l.RulesSeconds = max(0, l.RulesSeconds-millisSeconds(used.Phases.RulesMillis))
-	l.ModelSeconds = max(0, l.ModelSeconds-millisSeconds(used.Phases.ModelMillis))
-	l.FinalizeSeconds = max(0, l.FinalizeSeconds-millisSeconds(used.Phases.FinalizeMillis))
-	l.CloudHTTPAttempts = max(0, min(l.CloudHTTPAttempts, p.EffectCeiling.CloudHTTPAttempts)-int(used.CloudAttempts))
-	l.ModelHTTPAttempts = max(0, min(l.ModelHTTPAttempts, p.EffectCeiling.ModelHTTPAttempts)-int(used.ModelAttempts))
-	l.ModelLogicalCalls = max(0, l.ModelLogicalCalls-int(used.ModelCalls))
-	l.ToolCalls = max(0, l.ToolCalls-int(used.ToolCalls))
-	l.ToolBatch = min(l.ToolBatch, l.ToolCalls)
-	l.ModelRequestSeconds = min(l.ModelRequestSeconds, l.ModelSeconds)
-	if l.ModelSeconds == 0 {
-		l.ModelRequestSeconds, l.ModelLogicalCalls, l.ModelHTTPAttempts, l.ToolCalls, l.ToolBatch = 0, 0, 0, 0, 0
-	}
-	effects := p.EffectCeiling
-	effects.CloudHTTPAttempts = l.CloudHTTPAttempts
-	effects.ModelHTTPAttempts = l.ModelHTTPAttempts
-	effects.AllowCloudReads = effects.AllowCloudReads && l.CloudHTTPAttempts > 0
-	effects.AllowModelRequests = effects.AllowModelRequests && l.ModelHTTPAttempts > 0 && l.ModelLogicalCalls > 0 && l.ModelSeconds > 0
-	enough := l.ExecutionSeconds > 0 && l.RulesSeconds > 0 && l.FinalizeSeconds > 0
-	if p.Preparation != nil {
-		enough = enough && effects.AllowCloudReads && l.CollectionSeconds > 0
-	}
-	if p.EffectCeiling.AllowModelRequests {
-		enough = enough && effects.AllowModelRequests && (p.Workload.Limits.ToolCalls == 0 || l.ToolCalls > 0)
-	}
-	return result, effects, enough && l.Validate("audit") == nil
 }
 
 // StartNextBatchSegment is a local transaction, not a queue/worker operation.
@@ -665,7 +628,7 @@ func (s *Store) StartNextBatchSegment(ctx context.Context, parentID string) (chi
 		if parent.ParentJobID != "" || parent.Status != "running" {
 			return ErrJobTerminal
 		}
-		row, request, e := readBatchRow(tx, parentID)
+		row, _, e := readBatchRow(tx, parentID)
 		if e != nil {
 			return e
 		}
@@ -715,25 +678,29 @@ func (s *Store) StartNextBatchSegment(ctx context.Context, parentID string) (chi
 		if e != nil {
 			return e
 		}
-		if !time.Now().UTC().Add(time.Second).Before(deadline) {
+		if !time.Now().Before(deadline) {
 			return stopBatch(tx, parent, "partial", "BATCH_DEADLINE_EXHAUSTED")
 		}
-		used, e := batchUsage(tx, parentID)
-		if e != nil {
-			return e
-		}
-		if used.UsageUnknown {
-			return stopBatch(tx, parent, "partial", "BATCH_USAGE_UNKNOWN")
-		}
-		limits, effects, enough := remainingBatchLimits(p, used, len(next.Resources))
-		if !enough {
-			return stopBatch(tx, parent, "partial", "BATCH_LIMIT_EXHAUSTED")
+		limits := p.Workload
+		limits.Limits.AssetsPerBatch = min(limits.Limits.AssetsPerBatch, len(next.Resources))
+		if p.EffectCeiling.AllowModelRequests {
+			used, e := batchUsage(tx, parentID)
+			if e != nil {
+				return e
+			}
+			if slices.Contains(used.UnknownReasons, "LOGICAL_USAGE_NOT_SAVED") {
+				return stopBatch(tx, parent, "partial", "BATCH_USAGE_UNKNOWN")
+			}
+			if used.ModelCalls >= int64(limits.Limits.MaxRounds) {
+				return stopBatch(tx, parent, "partial", "BATCH_LIMIT_EXHAUSTED")
+			}
+			limits.Limits.MaxRounds -= int(used.ModelCalls)
 		}
 		template, e := batchChildTemplate(p, next.Resources)
 		if e != nil {
 			return e
 		}
-		template.Workload, template.EffectCeiling = limits, effects
+		template.Workload = limits
 		if template.Preparation != nil {
 			if _, e = validatePreparationGrant(tx, template); e != nil {
 				return e
@@ -753,8 +720,8 @@ func (s *Store) StartNextBatchSegment(ctx context.Context, parentID string) (chi
 		if e = insertBatchChildPlan(tx, prepared); e != nil {
 			return e
 		}
-		child = Job{ID: childID, ParentJobID: parent.ID, ConversationID: parent.ConversationID, ClientRequestID: "batch_" + childID, RequestDigest: requestDigest([]any{parent.ID, next.Ordinal, row.RequestDigest}), Kind: "audit", PlanID: prepared.ID, Status: "running", CreatedAt: parent.CreatedAt, StartedAt: now(), QueueDeadline: parent.QueueDeadline, RootDeadline: deadline.Format(time.RFC3339Nano), ExecutionDeadline: deadline.Format(time.RFC3339Nano), BudgetRef: parent.BudgetRef, Workload: limits}
-		if e = tx.Exec("INSERT INTO e0_jobs(id,parent_job_id,conversation_id,client_request_id,request_digest,kind,plan_id,status,created_at,started_at,queue_deadline,root_deadline,execution_deadline,budget_ref) VALUES(?,?,?,?,?,?,?,'running',?,?,?,?,?,?)", child.ID, parent.ID, child.ConversationID, child.ClientRequestID, child.RequestDigest, child.Kind, child.PlanID, child.CreatedAt, child.StartedAt, child.QueueDeadline, child.RootDeadline, child.ExecutionDeadline, child.BudgetRef).Error; e != nil {
+		child = Job{ID: childID, ParentJobID: parent.ID, ConversationID: parent.ConversationID, ClientRequestID: "batch_" + childID, RequestDigest: requestDigest([]any{parent.ID, next.Ordinal, row.RequestDigest}), Kind: "audit", PlanID: prepared.ID, Status: "running", CreatedAt: parent.CreatedAt, StartedAt: now(), QueueDeadline: parent.QueueDeadline, RootDeadline: deadline.Format(time.RFC3339Nano), ExecutionDeadline: deadline.Format(time.RFC3339Nano), Workload: limits}
+		if e = tx.Exec("INSERT INTO e0_jobs(id,parent_job_id,conversation_id,client_request_id,request_digest,kind,plan_id,status,created_at,started_at,queue_deadline,root_deadline,execution_deadline) VALUES(?,?,?,?,?,?,?,'running',?,?,?,?,?)", child.ID, parent.ID, child.ConversationID, child.ClientRequestID, child.RequestDigest, child.Kind, child.PlanID, child.CreatedAt, child.StartedAt, child.QueueDeadline, child.RootDeadline, child.ExecutionDeadline).Error; e != nil {
 			return e
 		}
 		var parentTurn ConversationTurn
@@ -790,7 +757,6 @@ func (s *Store) StartNextBatchSegment(ctx context.Context, parentID string) (chi
 			return e
 		}
 		found = true
-		_ = request
 		return nil
 	})
 	return
@@ -814,7 +780,7 @@ func insertBatchChildPlan(tx *gorm.DB, p ExecutionPlan) error {
 	if p.SnapshotID != "" {
 		snap = p.SnapshotID
 	}
-	return tx.Exec("INSERT INTO execution_plans(id,kind,conversation_id,data_source_id,policy_scope_ref,snapshot_id,mode,conversation_revision,created_at,expires_at,config_revision,budget_ref,body,prepared_json,heads_json,consumed_job_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", p.ID, p.Kind, p.ConversationID, p.DataSourceID, p.PolicyScopeRef, snap, p.Mode, p.ConversationRevision, p.CreatedAt, p.ExpiresAt, p.ConfigRevision, p.BudgetRef, p.Body, p.PreparedJSON, p.HeadsJSON, p.ConsumedJobID).Error
+	return tx.Exec("INSERT INTO execution_plans(id,kind,conversation_id,data_source_id,policy_scope_ref,snapshot_id,mode,conversation_revision,created_at,expires_at,config_revision,body,prepared_json,heads_json,consumed_job_id) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", p.ID, p.Kind, p.ConversationID, p.DataSourceID, p.PolicyScopeRef, snap, p.Mode, p.ConversationRevision, p.CreatedAt, p.ExpiresAt, p.ConfigRevision, p.Body, p.PreparedJSON, p.HeadsJSON, p.ConsumedJobID).Error
 }
 
 func deriveBatchPhases(tx *gorm.DB, job Job, p ExecutionPlan) (BatchPhaseUsage, int64, error) {
@@ -951,8 +917,12 @@ func refreshBatchSegment(tx *gorm.DB, parent *Job, ordinal int) (BatchSegment, e
 	}
 	if segment.PhaseSource == "" {
 		segment.Phases, segment.ExecutionMillis, e = deriveBatchPhases(tx, child, p)
-		if e != nil {
+		timingUnknown := errors.Is(e, ErrInputInvalid)
+		if e != nil && !timingUnknown {
 			return *segment, e
+		}
+		if timingUnknown {
+			segment.Phases = BatchPhaseUsage{}
 		}
 		segment.PhaseSource = "persisted_stage_windows"
 		var stages []struct{ Stage string }
@@ -967,7 +937,7 @@ func refreshBatchSegment(tx *gorm.DB, parent *Job, ordinal int) (BatchSegment, e
 		if e = tx.Raw("SELECT COALESCE(sum(json_extract(body,'$.model_calls')),0) FROM job_agent_results WHERE job_id=?", child.ID).Scan(&modelCalls).Error; e != nil {
 			return *segment, e
 		}
-		if segment.AuditRef != "" && !known["rules_started"] || segment.ReportRef != "" && !known["report_building"] || modelCalls > 0 && !known["agent_started"] {
+		if timingUnknown || segment.AuditRef != "" && !known["rules_started"] || segment.ReportRef != "" && !known["report_building"] || modelCalls > 0 && !known["agent_started"] {
 			segment.PhaseSource = "unknown"
 		}
 	}

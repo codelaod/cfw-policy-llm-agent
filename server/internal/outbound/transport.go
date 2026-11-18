@@ -20,7 +20,6 @@ import (
 	"time"
 
 	"cfw-policy-llm-agent/server/internal/domain"
-	"cfw-policy-llm-agent/server/internal/workload"
 )
 
 type Failure string
@@ -70,7 +69,6 @@ type Route struct {
 	Actions []string
 }
 type Source struct {
-	Ceiling           *workload.AttemptCeiling
 	Ref               string
 	Class             string
 	Origin            string
@@ -122,27 +120,12 @@ var readonlyCloudActions = map[string]bool{
 }
 
 func NewManager(ledger Ledger, config Config) (*Manager, error) {
-	if ledger == nil || !safeAlias(config.Revision) || len(config.Sources) == 0 || len(config.Sources) > 16 {
+	if ledger == nil || !safeAlias(config.Revision) || len(config.Sources) == 0 {
 		return nil, Failure("OUTBOUND_CONFIGURATION_INVALID")
 	}
 	ctx, stop := context.WithCancel(context.Background())
 	m := &Manager{ledger: ledger, revision: config.Revision, sources: map[string]source{}, cloud: make(chan struct{}, 2), model: make(chan struct{}, 3), tasks: map[string]*taskGate{}, ctx: ctx, stop: stop}
 	for _, item := range config.Sources {
-		if item.Ceiling != nil {
-			value := *item.Ceiling
-			if value.Validate() != nil {
-				return nil, Failure("OUTBOUND_CONFIGURATION_INVALID")
-			}
-			if value.ApplicationAttempts != nil {
-				v := *value.ApplicationAttempts
-				value.ApplicationAttempts = &v
-			}
-			if value.SessionAttempts != nil {
-				v := *value.SessionAttempts
-				value.SessionAttempts = &v
-			}
-			item.Ceiling = &value
-		}
 
 		u, err := url.Parse(item.Origin)
 		if err != nil || len(item.Origin) > 2048 || !safeAlias(item.Ref) || item.Class != "cloud" && item.Class != "credential" && item.Class != "model" || u.Host == "" || u.User != nil || u.RawQuery != "" || u.Fragment != "" || u.Opaque != "" || u.Path != "" && u.Path != "/" || len(item.Routes) == 0 || len(item.Routes) > 16 {
@@ -158,7 +141,7 @@ func NewManager(ledger Ledger, config Config) (*Manager, error) {
 			}
 		}
 		if item.Timeout == 0 {
-			item.Timeout, _ = workload.Seconds(workload.Default("audit").ModelRequestSeconds)
+			item.Timeout = 30 * time.Second
 		}
 		if item.Timeout <= 0 {
 			return nil, Failure("OUTBOUND_CONFIGURATION_INVALID")
@@ -464,18 +447,7 @@ func (g *guard) RoundTrip(req *http.Request) (response *http.Response, err error
 	if g.manager.blocked.Load() {
 		return nil, Failure("ATTEMPT_RECORD_FAILED")
 	}
-	var attemptID string
-	if g.source.Ceiling != nil {
-		ledger, ok := g.manager.ledger.(interface {
-			ReserveAttemptWithCeiling(context.Context, string, string, string, string, workload.AttemptCeiling) (string, error)
-		})
-		if !ok {
-			return nil, Failure("ADMISSION_UNAVAILABLE")
-		}
-		attemptID, err = ledger.ReserveAttemptWithCeiling(ctx, g.jobID, g.source.Class, g.source.Ref, g.manager.revision, *g.source.Ceiling)
-	} else {
-		attemptID, err = g.manager.ledger.ReserveAttempt(ctx, g.jobID, g.source.Class, g.source.Ref, g.manager.revision)
-	}
+	attemptID, err := g.manager.ledger.ReserveAttempt(ctx, g.jobID, g.source.Class, g.source.Ref, g.manager.revision)
 	if err != nil {
 		code := ErrorCode(err)
 		if code == "UPSTREAM_FAILURE" {
@@ -485,8 +457,7 @@ func (g *guard) RoundTrip(req *http.Request) (response *http.Response, err error
 	}
 	// Reservation may wait on the durable store while another attempt fails
 	// to record. Recheck every gate after the wait and before physical send.
-	// A reserved-but-unsent attempt stays conservatively charged; it is not
-	// refunded or silently reassigned after admission has closed.
+	// A reserved-but-unsent record remains unknown; no cumulative quota is charged.
 	if g.manager.blocked.Load() {
 		return nil, Failure("ATTEMPT_RECORD_FAILED")
 	}

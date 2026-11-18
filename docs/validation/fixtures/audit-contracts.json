@@ -6,27 +6,19 @@
   "source_kind": "synthetic",
   "formal_business_implementation": false,
   "semantics_evaluated": false,
-  "description": "人工设计契约示例；静态校验仅核对结构、引用、范围和预算，不执行审计规则或接口。limits保留历史未校准提案／当前硬值示例，不代表2026-10-29统一WorkloadProfile目标或供应商SLA。",
+  "description": "人工设计契约示例。静态校验核对结构、引用、范围与任务保护，不执行审计规则或接口。limits中的默认值用于工程保护，真实时延和吞吐另行测量。",
   "limits": {
     "queue_seconds": 120,
     "execution_seconds": 240,
     "total_seconds": 360,
-    "phases_seconds": {
-      "collection": 90,
-      "rules": 20,
-      "model": 120,
-      "finalize": 10
-    },
-    "cloud_http_attempts": 100,
-    "model_http_attempts": 6,
-    "model_tool_calls": 12,
     "model_single_call_seconds": 30,
-    "assets_per_task": 50,
     "policies_per_partition": 1000,
     "nat_gateways_per_task": 1,
     "query_cells": 50000,
     "plan_ttl_seconds": 300,
-    "collection_sweeps_max": 2
+    "collection_sweeps_max": 2,
+    "agent_max_rounds": 6,
+    "assets_per_batch": 50
   },
   "policy_scopes": [
     {
@@ -378,22 +370,14 @@
         "queue_seconds": 120,
         "execution_seconds": 240,
         "total_seconds": 360,
-        "phases_seconds": {
-          "collection": 90,
-          "rules": 20,
-          "model": 120,
-          "finalize": 10
-        },
-        "cloud_http_attempts": 0,
-        "model_http_attempts": 0,
-        "model_tool_calls": 0,
         "model_single_call_seconds": 30,
-        "assets_per_task": 50,
         "policies_per_partition": 1000,
         "nat_gateways_per_task": 1,
         "query_cells": 50000,
         "plan_ttl_seconds": 300,
-        "collection_sweeps_max": 2
+        "collection_sweeps_max": 2,
+        "agent_max_rounds": 6,
+        "assets_per_batch": 50
       },
       "is_executed": false,
       "kind": "audit",
@@ -414,22 +398,14 @@
         "queue_seconds": 120,
         "execution_seconds": 240,
         "total_seconds": 360,
-        "phases_seconds": {
-          "collection": 90,
-          "rules": 20,
-          "model": 120,
-          "finalize": 10
-        },
-        "cloud_http_attempts": 100,
-        "model_http_attempts": 6,
-        "model_tool_calls": 12,
         "model_single_call_seconds": 30,
-        "assets_per_task": 50,
         "policies_per_partition": 1000,
         "nat_gateways_per_task": 1,
         "query_cells": 50000,
         "plan_ttl_seconds": 300,
-        "collection_sweeps_max": 2
+        "collection_sweeps_max": 2,
+        "agent_max_rounds": 6,
+        "assets_per_batch": 50
       },
       "is_executed": false,
       "notice": "设计示例：可能刷新；这里只表示拟议计划上限，不是本轮付费或真实调用授权",
@@ -641,7 +617,7 @@
         "initial_information_ref": "brief_demo",
         "tools_ref": "tools_demo",
         "projection_ref": "projection_demo",
-        "budget_ref": "budget_demo"
+        "execution_settings_ref": "execution_demo"
       },
       {
         "id": "agent_tool_selection",
@@ -653,7 +629,7 @@
         "initial_information_ref": "brief_demo",
         "tools_ref": "tools_demo",
         "projection_ref": "projection_demo",
-        "budget_ref": "budget_demo"
+        "execution_settings_ref": "execution_demo"
       }
     ],
     "separate_output_metrics": [

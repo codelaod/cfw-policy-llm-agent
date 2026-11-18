@@ -3312,9 +3312,6 @@
                 "identity_verified": {
                     "type": "boolean"
                 },
-                "max_http_attempts": {
-                    "type": "integer"
-                },
                 "scopes": {
                     "type": "array",
                     "items": {
@@ -3605,9 +3602,6 @@
             "properties": {
                 "batch": {
                     "$ref": "#/definitions/storage.BatchSpec"
-                },
-                "budget_ref": {
-                    "type": "string"
                 },
                 "consumed_job_id": {
                     "type": "string"
@@ -6363,12 +6357,6 @@
                 },
                 "allow_model_requests": {
                     "type": "boolean"
-                },
-                "cloud_http_attempts": {
-                    "type": "integer"
-                },
-                "model_http_attempts": {
-                    "type": "integer"
                 }
             }
         },
@@ -6476,9 +6464,6 @@
         "storage.Job": {
             "type": "object",
             "properties": {
-                "budget_ref": {
-                    "type": "string"
-                },
                 "conversation_id": {
                     "type": "string"
                 },
@@ -7107,16 +7092,7 @@
                 "assets_per_batch": {
                     "type": "integer"
                 },
-                "cloud_http_attempts": {
-                    "type": "integer"
-                },
-                "collection_seconds": {
-                    "type": "integer"
-                },
                 "execution_seconds": {
-                    "type": "integer"
-                },
-                "finalize_seconds": {
                     "type": "integer"
                 },
                 "max_policies": {
@@ -7125,28 +7101,10 @@
                 "max_query_cells": {
                     "type": "integer"
                 },
-                "model_http_attempts": {
-                    "type": "integer"
-                },
-                "model_logical_calls": {
-                    "type": "integer"
-                },
-                "model_request_seconds": {
-                    "type": "integer"
-                },
-                "model_seconds": {
+                "max_rounds": {
                     "type": "integer"
                 },
                 "queue_seconds": {
-                    "type": "integer"
-                },
-                "rules_seconds": {
-                    "type": "integer"
-                },
-                "tool_batch": {
-                    "type": "integer"
-                },
-                "tool_calls": {
                     "type": "integer"
                 }
             }
@@ -7154,9 +7112,6 @@
         "workload.Resolved": {
             "type": "object",
             "properties": {
-                "legacy": {
-                    "type": "boolean"
-                },
                 "limits": {
                     "$ref": "#/definitions/workload.Limits"
                 },

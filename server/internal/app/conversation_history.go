@@ -265,9 +265,6 @@ func (s *IntentService) historyProposal(ctx context.Context, c storage.Conversat
 	if e != nil {
 		return "", nil, e
 	}
-	if resolved.Limits.ModelHTTPAttempts == 0 || resolved.Limits.ModelLogicalCalls == 0 {
-		return reply + "\n当前模型请求额度不可用，已保留规则证据解释。", nil, nil
-	}
 	selected, e := s.reportResources(ctx, a)
 	if e != nil {
 		return "", nil, e
@@ -281,9 +278,9 @@ func (s *IntentService) historyProposal(ctx context.Context, c storage.Conversat
 	in.Boundary, in.Direction = a.Input.Scope.Boundary, a.Input.Scope.Direction
 	in.ContextReportID = r.ID
 	in.Status = "ready_for_confirmation"
-	effects := storage.EffectCeiling{AllowModelRequests: true, ModelHTTPAttempts: resolved.Limits.ModelHTTPAttempts}
+	effects := storage.EffectCeiling{AllowModelRequests: true}
 	req, _ := json.Marshal(struct{ Text, ReportID string }{text, r.ID})
-	p := &storage.ExecutionPlan{Kind: "assistant_turn", Workload: resolved, ConversationID: c.ID, PolicyScopeRef: a.Input.Scope.Ref, SnapshotID: a.SnapshotID, DataSourceID: "local-offline", Mode: "assistant", Request: req, ContextReportID: r.ID, EvaluationAt: a.Input.EvaluationAt, PreparedInput: a.Input, Heads: []storage.AssetHeadVersion{}, ConfigRevision: s.Plans.ConfigRevision, BudgetRef: s.Plans.BudgetRef, EffectCeiling: effects}
+	p := &storage.ExecutionPlan{Kind: "assistant_turn", Workload: resolved, ConversationID: c.ID, PolicyScopeRef: a.Input.Scope.Ref, SnapshotID: a.SnapshotID, DataSourceID: "local-offline", Mode: "assistant", Request: req, ContextReportID: r.ID, EvaluationAt: a.Input.EvaluationAt, PreparedInput: a.Input, Heads: []storage.AssetHeadVersion{}, ConfigRevision: s.Plans.ConfigRevision, EffectCeiling: effects}
 	in.Proposal = &domain.ActionProposal{Summary: "使用这份固定报告的原证据，接受后由受限模型解释依据、影响与缺项。", Gaps: []string{}, Warnings: []string{"固定报告解释始终零云读取，不把旧时点结论当当前状态。", "模型失败仍可查看原规则发现及证据。"}, Effects: domain.ProposalEffects{AllowModelRequests: true}, Status: "ready"}
 	return reply + "\n已准备固定报告的模型解释计划，请核对原报告与模型效果后接受。", p, nil
 }

@@ -27,7 +27,7 @@ func TestConfiguredCloudCatalogAndOptionsAreProtectedLocalReads(t *testing.T) {
 		t.Fatal(err)
 	}
 	plans := app.NewPlanService(store)
-	plans.Cloud = &app.CloudService{Store: store, SourceRef: "explicit-cloud", ConfigRevision: plans.ConfigRevision, Configured: true, Ready: true, MaxHTTPAttempts: 20, Scopes: map[string]aliyuncollector.Config{in.Scope.Ref: {Scope: in.Scope, AssetRegions: map[string]string{"i-allowed": "cn-hangzhou"}}}, NewReader: func(context.Context, string) (app.CloudReader, error) {
+	plans.Cloud = &app.CloudService{Store: store, SourceRef: "explicit-cloud", ConfigRevision: plans.ConfigRevision, Configured: true, Ready: true, Scopes: map[string]aliyuncollector.Config{in.Scope.Ref: {Scope: in.Scope, AssetRegions: map[string]string{"i-allowed": "cn-hangzhou"}}}, NewReader: func(context.Context, string) (app.CloudReader, error) {
 		t.Fatal("read-only catalog initialized a remote reader")
 		return nil, nil
 	}}

@@ -23,7 +23,7 @@ func (j startOnlyJournal) Begin(ctx context.Context, s RunStart) (*RunRecord, bo
 func (j startOnlyJournal) End(context.Context, RunRecord) error { return ErrJournal }
 
 func TestJournalRestartRetainsInterruptedRunWithoutAutomaticRequest(t *testing.T) {
-	f := newEvaluationFixture(t, "success", nil)
+	f := newEvaluationFixture(t, "success")
 	a := f.accepted(t, FixedModel, "interrupted-run")
 	f.runner.binding.Journal = startOnlyJournal{base: f.journal}
 	if _, e := f.runner.Run(context.Background(), f.protocol, f.caseData, a); !errors.Is(e, ErrJournal) {
@@ -125,7 +125,7 @@ func (j endFailedJournal) Begin(ctx context.Context, s RunStart) (*RunRecord, bo
 }
 func (j endFailedJournal) End(context.Context, RunRecord) error { return ErrJournal }
 func TestSerialRunnerStopsAfterJournalEndFailure(t *testing.T) {
-	f := newEvaluationFixture(t, "success", nil)
+	f := newEvaluationFixture(t, "success")
 	assignments := []Assignment{f.accepted(t, FixedModel, "run-first"), f.accepted(t, AgentSelection, "run-second")}
 	f.runner.binding.Journal = endFailedJournal{base: f.journal}
 	results, e := f.runner.RunSerial(context.Background(), f.protocol, []FrozenCase{f.caseData}, assignments)
@@ -137,7 +137,7 @@ func TestSerialRunnerStopsAfterJournalEndFailure(t *testing.T) {
 func TestCancellationAndDeadlinePreserveActualAttemptsAndRuleOutput(t *testing.T) {
 	for _, kind := range []string{"cancel", "deadline"} {
 		t.Run(kind, func(t *testing.T) {
-			f := newEvaluationFixture(t, "cancel", nil)
+			f := newEvaluationFixture(t, "cancel")
 			a := f.accepted(t, FixedModel, "stop-run")
 			ctx, cancel := context.WithCancel(context.Background())
 			if kind == "deadline" {

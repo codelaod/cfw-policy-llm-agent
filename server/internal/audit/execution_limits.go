@@ -13,12 +13,12 @@ type ExecutionLimits struct {
 }
 type executionLimitKey struct{}
 
-func LegacyExecutionLimits() ExecutionLimits {
+func DefaultExecutionLimits() ExecutionLimits {
 	return ExecutionLimits{MaxAssets: 50, MaxPolicies: 1000, MaxQueryCells: MaxQueryCells, Timeout: 20 * time.Second}
 }
 
 // WithExecutionLimits binds one validated server-owned protection policy. Zero
-// values are not replaced with defaults. Legacy callers alone use legacy limits.
+// values are not replaced with defaults. Callers without a policy use the default computation protection.
 func WithExecutionLimits(ctx context.Context, limits ExecutionLimits) (context.Context, error) {
 	if limits.MaxAssets < 1 || limits.MaxPolicies < 1 || limits.MaxQueryCells < 1 || limits.Timeout <= 0 {
 		return ctx, ErrInput
@@ -29,7 +29,7 @@ func executionLimits(ctx context.Context) ExecutionLimits {
 	if v, ok := ctx.Value(executionLimitKey{}).(ExecutionLimits); ok {
 		return v
 	}
-	return LegacyExecutionLimits()
+	return DefaultExecutionLimits()
 }
 
 type queryLimitKey struct{}

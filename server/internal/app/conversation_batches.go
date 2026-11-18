@@ -65,18 +65,17 @@ func (s *IntentService) prepareBatchResources(ctx context.Context, c storage.Con
 	effects := storage.EffectCeiling{}
 	gaps := []string{}
 	if in.Mode == "rules_and_agent" {
-		if s.Plans.ModelReady && resolved.Limits.ModelHTTPAttempts > 0 {
+		if s.Plans.ModelReady {
 			effects.AllowModelRequests = true
-			effects.ModelHTTPAttempts = resolved.Limits.ModelHTTPAttempts
 		} else {
 			gaps = append(gaps, "MODEL_NOT_AVAILABLE")
 		}
 	}
-	p := &storage.ExecutionPlan{Batch: &storage.BatchSpec{Resources: resources, Size: resolved.Limits.AssetsPerBatch}, ResourceGroupVersionID: in.ResourceGroupVersionID, Workload: resolved, Kind: "audit", ConversationID: c.ID, Mode: in.Mode, ConfigRevision: s.Plans.ConfigRevision, BudgetRef: s.Plans.BudgetRef, EffectCeiling: effects}
+	p := &storage.ExecutionPlan{Batch: &storage.BatchSpec{Resources: resources, Size: resolved.Limits.AssetsPerBatch}, ResourceGroupVersionID: in.ResourceGroupVersionID, Workload: resolved, Kind: "audit", ConversationID: c.ID, Mode: in.Mode, ConfigRevision: s.Plans.ConfigRevision, EffectCeiling: effects}
 	if live {
-		if !cloud.Ready || resolved.Limits.CloudHTTPAttempts <= 0 {
+		if !cloud.Ready {
 			in.Status = "needs_data"
-			return "当前不能为完整集合准备所有批次。请恢复连接／额度，或收窄到已有合格固定资料的对象。", nil, nil
+			return "当前不能为完整集合准备所有批次。请检查云连接，或选择已有合格固定资料的对象。", nil, nil
 		}
 		cfg, _, e := cloud.preparationConfig(in.Boundary, in.Direction, selected)
 		if e != nil {
@@ -100,7 +99,6 @@ func (s *IntentService) prepareBatchResources(ctx context.Context, c storage.Con
 		p.PolicyScopeRef = cfg.Scope.Ref
 		p.PreparedInput = domain.Input{Scope: cfg.Scope, Baseline: audit.ProjectBaseline()}
 		p.EffectCeiling.AllowCloudReads = true
-		p.EffectCeiling.CloudHTTPAttempts = resolved.Limits.CloudHTTPAttempts
 		p.Preparation = &storage.PreparationSpec{SourceRef: cloud.SourceRef, ConfigRevision: p.ConfigRevision, Query: domain.ResourceQuery{ResourceIDs: ids, Regions: regions, ResourceType: "ecs"}, Selected: resources, Boundary: in.Boundary, Direction: in.Direction, DataPolicy: in.DataPolicy.Mode, FreshAfter: in.DataPolicy.FreshAfter, AllowMultiple: true, ResultLimit: len(resources)}
 	} else {
 		if in.DataPolicy.Mode == "force_refresh" {
@@ -182,6 +180,6 @@ func (s *IntentService) prepareBatchResources(ctx context.Context, c storage.Con
 	}
 	count := (len(resources) + p.Batch.Size - 1) / p.Batch.Size
 	in.Status = "ready_for_confirmation"
-	in.Proposal = &domain.ActionProposal{Summary: fmt.Sprintf("完整选择%d个ECS，在同一%s/%s分区内串行处理%d批，每批最多%d个。", len(resources), in.Boundary, in.Direction, count, p.Batch.Size), Gaps: gaps, Warnings: []string{sourceWarning, "全部批段共用这次接受的总期限、模型／云额度及一个会话活动位，不按批复制额度。", "各批段保留独立时点、固定输入与报告；父请求明确列出已有审计证据、失败与尚未覆盖对象，不合成一个采集时点。", "任一阶段耗尽或不可恢复失败时停止新增批段，已有报告仍可查看。"}, Effects: domain.ProposalEffects{AllowCloudReads: p.EffectCeiling.AllowCloudReads, AllowModelRequests: p.EffectCeiling.AllowModelRequests}, Status: "ready"}
+	in.Proposal = &domain.ActionProposal{Summary: fmt.Sprintf("完整选择%d个ECS，在同一%s/%s分区内串行处理%d批，每批最多%d个。", len(resources), in.Boundary, in.Direction, count, p.Batch.Size), Gaps: gaps, Warnings: []string{sourceWarning, "所有批次共用本次任务的截止时间、Agent轮数上限和一个会话活动位。", "每批保留独立时点、固定输入和报告，任务汇总已覆盖、失败和未处理对象。", "任务超时、Agent轮数用完或发生不可恢复的错误时，停止开启新批次。已有报告仍可查看。"}, Effects: domain.ProposalEffects{AllowCloudReads: p.EffectCeiling.AllowCloudReads, AllowModelRequests: p.EffectCeiling.AllowModelRequests}, Status: "ready"}
 	return "已准备完整范围的串行分批计划，请核对所有对象、批数、资料与总效果后接受。接受一次后自动推进，不需要逐批点击。", p, nil
 }

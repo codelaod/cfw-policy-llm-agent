@@ -111,14 +111,14 @@ func (r *Runner) validateJob(ctx context.Context, p Protocol, c FrozenCase, a As
 	if expected.EvaluationAt == "" {
 		expected.EvaluationAt = c.input.EvaluationAt
 	}
-	if e != nil || j.Kind != "audit" || j.ParentJobID != "" || plan.Kind != "audit" || plan.Batch != nil || plan.Preparation != nil || plan.ResourceGroupVersionID != "" || plan.ConsumedJobID != j.ID || plan.ConversationID != j.ConversationID || plan.RecheckOfJobID != "" || plan.ConfigRevision != r.binding.RuntimeRevision || plan.BudgetRef != r.binding.BudgetRef || j.BudgetRef != r.binding.BudgetRef || !equalJSON(plan.Workload, p.Workload) || !equalJSON(j.Workload, p.Workload) || plan.EffectCeiling.AllowCloudReads || plan.EffectCeiling.CloudHTTPAttempts != 0 || !equalJSON(expected, c.input) || plan.PolicyScopeRef != c.input.Scope.Ref || plan.EvaluationAt != "" && plan.EvaluationAt != c.input.EvaluationAt {
+	if e != nil || j.Kind != "audit" || j.ParentJobID != "" || plan.Kind != "audit" || plan.Batch != nil || plan.Preparation != nil || plan.ResourceGroupVersionID != "" || plan.ConsumedJobID != j.ID || plan.ConversationID != j.ConversationID || plan.RecheckOfJobID != "" || plan.ConfigRevision != r.binding.RuntimeRevision || !equalJSON(plan.Workload, p.Workload) || !equalJSON(j.Workload, p.Workload) || plan.EffectCeiling.AllowCloudReads || !equalJSON(expected, c.input) || plan.PolicyScopeRef != c.input.Scope.Ref || plan.EvaluationAt != "" && plan.EvaluationAt != c.input.EvaluationAt {
 		return j, plan, ErrBinding
 	}
 	if a.Arm == RulesOnly {
-		if plan.Mode != "rules_only" || plan.EffectCeiling.AllowModelRequests || plan.EffectCeiling.ModelHTTPAttempts != 0 {
+		if plan.Mode != "rules_only" || plan.EffectCeiling.AllowModelRequests {
 			return j, plan, ErrBinding
 		}
-	} else if plan.Mode != "rules_and_agent" || !plan.EffectCeiling.AllowModelRequests || plan.EffectCeiling.ModelHTTPAttempts != p.Workload.Limits.ModelHTTPAttempts {
+	} else if plan.Mode != "rules_and_agent" || !plan.EffectCeiling.AllowModelRequests {
 		return j, plan, ErrBinding
 	}
 	return j, plan, nil
@@ -176,7 +176,7 @@ func (r *Runner) Run(ctx context.Context, p Protocol, c FrozenCase, a Assignment
 		out.Record.FinishedAt = time.Now().UTC().Format(time.RFC3339Nano)
 		usageCtx, stop := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer stop()
-		if usage, usageErr := r.binding.Store.BudgetUsage(usageCtx, r.binding.BudgetRef, "", job.ID); usageErr == nil {
+		if usage, usageErr := r.binding.Store.AttemptUsage(usageCtx, "", job.ID); usageErr == nil {
 			out.Record.Usage = Usage{Status: "ledger_recorded", Attempts: &usage}
 		}
 		if e := r.binding.Journal.End(usageCtx, out.Record); e != nil {
@@ -235,8 +235,8 @@ func (r *Runner) Run(ctx context.Context, p Protocol, c FrozenCase, a Assignment
 	}
 	finalAt := time.Now()
 	finalCtx, finalStop := runCtx, func() {}
-	if p.Workload.Limits.FinalizeSeconds > 0 {
-		finalCtx, finalStop = context.WithTimeout(runCtx, time.Duration(p.Workload.Limits.FinalizeSeconds)*time.Second)
+	if true {
+		finalCtx, finalStop = context.WithTimeout(runCtx, 5*time.Second)
 	}
 	defer finalStop()
 	e = r.finalize(finalCtx, p, c, job, auditRecord, agent, &out.Record)
@@ -366,7 +366,7 @@ func (r *Runner) finalize(ctx context.Context, p Protocol, c FrozenCase, job sto
 	var content []byte
 	if agent != nil {
 		var usage *report.AgentUsage
-		if u, ue := r.binding.Store.BudgetUsage(ctx, job.BudgetRef, "", job.ID); ue == nil {
+		if u, ue := r.binding.Store.AttemptUsage(ctx, "", job.ID); ue == nil {
 			usage = &report.AgentUsage{PhysicalAttempts: u.ModelAttempts, KnownUsageResponses: u.KnownUsageResponses, UnknownUsageAttempts: u.UnknownUsageAttempts, ReportedTokens: u.ReportedTokens, UsageTotalsOverflow: u.UsageTotalsOverflow}
 		}
 		a := agent.Content
@@ -415,15 +415,15 @@ func storageFailureCode(code string) string {
 	switch code {
 	case "MODEL_CALL_LIMIT":
 		return "AGENT_MODEL_LIMIT"
-	case "TOOL_CALL_LIMIT", "TOOL_BATCH_LIMIT", "FIXED_PIPELINE_SELECTION_LIMIT":
-		return "AGENT_TOOL_LIMIT"
+	case "FIXED_PIPELINE_SELECTION_LIMIT":
+		return "AGENT_CONTEXT_REJECTED"
 	case "INVALID_FINAL", "FINAL_VALIDATION_FAILED", "MODEL_OUTPUT_INVALID", "FIXED_MODEL_TOOL_SELECTION_DENIED":
 		return "AGENT_OUTPUT_INVALID"
 	case "MODEL_TIMEOUT", "TASK_DEADLINE":
 		return "REQUEST_DEADLINE_EXCEEDED"
 	case "CANCELLED":
 		return "REQUEST_CANCELLED"
-	case "QUERY_REFERENCE_DENIED", "QUERY_OUTPUT_TOO_LARGE", "QUERY_TOOL_UNKNOWN", "QUERY_INPUT_INVALID", "MODEL_NOT_CONFIGURED", "MODEL_CONFIGURATION_INVALID", "MODEL_INITIALIZATION_FAILED", "MODEL_REQUEST_FAILED", "MODEL_PROTOCOL_INVALID", "MODEL_ADAPTER_FAILED", "MODEL_OUTPUT_FILTERED", "MODEL_OUTPUT_TRUNCATED", "MODEL_REQUEST_INVALID", "MODEL_REQUEST_TOO_LARGE", "MODEL_RESPONSE_READ_FAILED", "MODEL_RESPONSE_TOO_LARGE", "REQUEST_CANCELLED", "REQUEST_DEADLINE_EXCEEDED", "ATTEMPT_LIMIT", "EXECUTION_CLOSED", "BUDGET_NOT_CONFIGURED", "BUDGET_EXPIRED", "EFFECT_DENIED", "CONFIGURATION_STALE", "ATTEMPT_RECORD_FAILED", "ADMISSION_UNAVAILABLE", "OUTBOUND_STOPPING", "DESTINATION_REFUSED", "UPSTREAM_TRANSPORT", "UPSTREAM_HTTP_ERROR", "UPSTREAM_READ", "UPSTREAM_RESPONSE_TOO_LARGE", "UPSTREAM_ENCODING_UNSUPPORTED", "UPSTREAM_PROTOCOL", "REDIRECT_REFUSED":
+	case "QUERY_REFERENCE_DENIED", "QUERY_OUTPUT_TOO_LARGE", "QUERY_TOOL_UNKNOWN", "QUERY_INPUT_INVALID", "MODEL_NOT_CONFIGURED", "MODEL_CONFIGURATION_INVALID", "MODEL_INITIALIZATION_FAILED", "MODEL_REQUEST_FAILED", "MODEL_PROTOCOL_INVALID", "MODEL_ADAPTER_FAILED", "MODEL_OUTPUT_FILTERED", "MODEL_OUTPUT_TRUNCATED", "MODEL_REQUEST_INVALID", "MODEL_REQUEST_TOO_LARGE", "MODEL_RESPONSE_READ_FAILED", "MODEL_RESPONSE_TOO_LARGE", "REQUEST_CANCELLED", "REQUEST_DEADLINE_EXCEEDED", "EXECUTION_CLOSED", "EFFECT_DENIED", "CONFIGURATION_STALE", "ATTEMPT_RECORD_FAILED", "ADMISSION_UNAVAILABLE", "OUTBOUND_STOPPING", "DESTINATION_REFUSED", "UPSTREAM_TRANSPORT", "UPSTREAM_HTTP_ERROR", "UPSTREAM_READ", "UPSTREAM_RESPONSE_TOO_LARGE", "UPSTREAM_ENCODING_UNSUPPORTED", "UPSTREAM_PROTOCOL", "REDIRECT_REFUSED":
 		return code
 	default:
 		return "AGENT_EXECUTION_FAILED"

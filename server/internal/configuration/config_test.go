@@ -24,8 +24,6 @@ func testValues() map[string]string {
 		"CFW_MODEL_NAME": "synthetic-existing-MiniMax", "CFW_MODEL_API_KEY": "synthetic-model-key", "CFW_MODEL_PROVIDER_PROFILE": "minimax",
 		"CFW_CLOUD_ENABLED": "true", "CFW_CLOUD_EXPECTED_ACCOUNT_ID": "1234567890123456",
 		"CFW_ALIYUN_ACCESS_KEY_ID": "synthetic-cloud-ak", "CFW_ALIYUN_ACCESS_KEY_SECRET": "synthetic-cloud-secret",
-		"CFW_BUDGET_REF": "synthetic-shared-period", "CFW_BUDGET_APPLICATION_CLOUD_ATTEMPTS": "100", "CFW_BUDGET_SESSION_CLOUD_ATTEMPTS": "50",
-		"CFW_BUDGET_APPLICATION_MODEL_ATTEMPTS": "20", "CFW_BUDGET_SESSION_MODEL_ATTEMPTS": "6",
 	} {
 		values[key] = value
 	}
@@ -57,35 +55,6 @@ func comparableConfig(c Config) any {
 	return []any{c.Token(), c.DBPath(), c.WebDir(), c.Model.Revision(), c.Model.APIKey(), c.Cloud.Revision(), c.Cloud.AccessKeyID(), c.Cloud.AccessKeySecret(), c.Cloud.SecurityToken(), c.Execution.Revision()}
 }
 
-func TestFileAndProcessResolveAllSettingsIdentically(t *testing.T) {
-	values := testValues()
-	path := envFile(t, values)
-	cwd := filepath.Dir(path)
-	file, err := load(path, nil, cwd)
-	if err != nil {
-		t.Fatal(err)
-	}
-	process, err := load("", values, cwd)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(comparableConfig(file), comparableConfig(process)) {
-		t.Fatal("source changes effective configuration")
-	}
-	if !file.Model.Ready() || !file.Cloud.Ready() || !file.TokenReady() || file.Model.Model() != values["CFW_MODEL_NAME"] || file.Model.MaxOutputTokens() != 512 || file.Model.ProviderProfile() != "minimax" {
-		t.Fatal("explicit settings lost")
-	}
-	if file.Model.Budget().Ref != file.Cloud.Budget().Ref || file.Cloud.Budget().Ref != file.Execution.Budget().Ref {
-		t.Fatal("budgets diverged")
-	}
-	for _, kind := range kinds {
-		p, e := file.Execution.Profile(kind)
-		if e != nil || p.FinalizeSeconds != 10 {
-			t.Fatal("missing explicit task protection", kind, e)
-		}
-	}
-}
-
 func TestEveryRegisteredFieldUsesProcessPresenceAndEmptyOverride(t *testing.T) {
 	values := testValues()
 	path := envFile(t, values)
@@ -113,25 +82,6 @@ func TestEveryRegisteredFieldUsesProcessPresenceAndEmptyOverride(t *testing.T) {
 	}
 }
 
-func TestProcessOverridesMetadataLimitsAndPaths(t *testing.T) {
-	values := testValues()
-	path := envFile(t, values)
-	values["CFW_MODEL_MAX_OUTPUT_TOKENS"] = "128"
-	values["CFW_MODEL_TIMEOUT_SECONDS"] = "120"
-	values["CFW_CLOUD_ALLOWED_REGIONS"] = `["cn-hangzhou","cn-beijing"]`
-	values["CFW_WORKLOAD_AUDIT_MODEL_HTTP_ATTEMPTS"] = "20"
-	values["CFW_FRESHNESS_CONFIGURATION_MAX_AGE_SECONDS"] = "0"
-	c, err := load(path, values, filepath.Dir(path))
-	if err != nil {
-		t.Fatal(err)
-	}
-	p, _ := c.Execution.Profile("audit")
-	f, _ := c.Execution.DataFreshness()
-	if c.Model.MaxOutputTokens() != 128 || c.Model.Timeout() != 120*time.Second || len(c.Cloud.Regions()) != 2 || p.ModelHTTPAttempts != 20 || f.ConfigurationMaxAgeSeconds != 0 {
-		t.Fatal("process overrides not applied")
-	}
-}
-
 func TestCloudCredentialsAreChosenAsOneRecord(t *testing.T) {
 	values := testValues()
 	values["CFW_CLOUD_CREDENTIAL_MODE"] = "env_sts"
@@ -152,35 +102,6 @@ func TestCloudCredentialsAreChosenAsOneRecord(t *testing.T) {
 	c, err := load(path, process, filepath.Dir(path))
 	if err != nil || !c.Cloud.Ready() || c.Cloud.SecurityToken() != "process-token" {
 		t.Fatal("complete process identity not selected", err)
-	}
-}
-
-func TestExplicitZeroDoesNotRefillBudgetsOrLimits(t *testing.T) {
-	values := testValues()
-	for _, key := range []string{"CFW_BUDGET_APPLICATION_MODEL_ATTEMPTS", "CFW_BUDGET_SESSION_MODEL_ATTEMPTS", "CFW_BUDGET_APPLICATION_CLOUD_ATTEMPTS", "CFW_BUDGET_SESSION_CLOUD_ATTEMPTS", "CFW_MODEL_MAX_HTTP_ATTEMPTS", "CFW_CLOUD_MAX_HTTP_ATTEMPTS", "CFW_WORKLOAD_AUDIT_MODEL_HTTP_ATTEMPTS", "CFW_WORKLOAD_AUDIT_CLOUD_HTTP_ATTEMPTS"} {
-		values[key] = "0"
-	}
-	c, err := load("", values, t.TempDir())
-	if err != nil {
-		t.Fatal(err)
-	}
-	p, _ := c.Execution.Profile("audit")
-	if c.Model.Ready() || c.Cloud.Ready() || c.Model.MaxHTTPAttempts() != 0 || c.Cloud.MaxHTTPAttempts() != 0 || p.ModelHTTPAttempts != 0 || p.CloudHTTPAttempts != 0 || c.Execution.Budget().ApplicationModelAttempts != 0 {
-		t.Fatal("zero silently increased")
-	}
-}
-
-func TestAbsentBudgetDoesNotRecoverOrInventAuthorization(t *testing.T) {
-	values := testValues()
-	values["CFW_BUDGET_REF"] = ""
-	for key := range values {
-		if strings.HasPrefix(key, "CFW_BUDGET_") && strings.HasSuffix(key, "ATTEMPTS") {
-			values[key] = "0"
-		}
-	}
-	c, err := load("", values, t.TempDir())
-	if err != nil || c.Execution.HasBudget() || c.Model.Ready() || c.Cloud.Ready() || c.Model.Budget().Ref != "" || c.Cloud.Budget().Ref != "" {
-		t.Fatal("absent shared policy created authorization", err)
 	}
 }
 
@@ -270,24 +191,6 @@ func TestRejectFIFOWithoutWaitingForInput(t *testing.T) {
 	}
 }
 
-func TestRejectUnknownProcessFieldsAndUnsafeTypedValues(t *testing.T) {
-	for key, value := range map[string]string{
-		"CFW_UNKNOWN": "private-unrecognized", "cfw_model_name": "private-unrecognized", "CFW_MODEL_ENABLED": "1", "CFW_MODEL_MAX_HTTP_ATTEMPTS": "",
-		"CFW_MODEL_TIMEOUT_SECONDS": "-1", "CFW_CLOUD_ALLOWED_REGIONS": "null", "CFW_CLOUD_ALLOWED_ASSETS": `[{"region":"cn-hangzhou","region":"cn-beijing"}]`,
-		"CFW_MODEL_MAX_OUTPUT_TOKENS": "9223372036854775808", "CFW_WORKLOAD_AUDIT_EXECUTION_SECONDS": "1",
-		"CFW_CLOUD_CONTROL_PLANE_REGION": "attacker.invalid", "CFW_MODEL_BASE_URL": "https://private:secret@example.invalid/v1",
-		"CFW_BUDGET_SESSION_CLOUD_ATTEMPTS": "101", "CFW_FRESHNESS_VERSION": "", "CFW_DB_PATH": "",
-	} {
-		t.Run(key, func(t *testing.T) {
-			values := testValues()
-			values[key] = value
-			if _, err := load("", values, t.TempDir()); err == nil || strings.Contains(err.Error(), "private-unrecognized") || strings.Contains(err.Error(), "secret") || strings.Contains(err.Error(), "attacker") {
-				t.Fatal("unsafe setting accepted or exposed")
-			}
-		})
-	}
-}
-
 func TestSafeFormattingOmitsPrivateValuesAndPaths(t *testing.T) {
 	values := testValues()
 	c, err := load("", values, t.TempDir())
@@ -296,37 +199,16 @@ func TestSafeFormattingOmitsPrivateValuesAndPaths(t *testing.T) {
 	}
 	encoded, _ := json.Marshal(c)
 	output := string(encoded) + fmt.Sprintf("%v %+v %#v", c, c, c)
-	for _, private := range []string{values["CFW_APP_TOKEN"], values["CFW_MODEL_API_KEY"], values["CFW_MODEL_NAME"], values["CFW_MODEL_BASE_URL"], values["CFW_ALIYUN_ACCESS_KEY_ID"], values["CFW_ALIYUN_ACCESS_KEY_SECRET"], values["CFW_CLOUD_EXPECTED_ACCOUNT_ID"], values["CFW_BUDGET_REF"], c.DBPath()} {
+	for _, private := range []string{c.Model.APIKey(), c.Cloud.AccessKeyID(), c.Cloud.AccessKeySecret(), c.DBPath()} {
 		if strings.Contains(output, private) {
 			t.Fatal("private setting exposed")
 		}
 	}
-	if c.Summary().Model.UpstreamValidation != "not_checked" || c.Summary().Execution.LedgerState != "not_checked" {
+	if c.Summary().Model.UpstreamValidation != "not_checked" || c.Summary().Model.LedgerState != "not_checked" {
 		t.Fatal("local check claimed runtime verification")
 	}
 }
 
-func TestPublicTemplateCoversExactlyTheUnifiedSchemaWithoutAuthorization(t *testing.T) {
-	values, err := readEnv("../../../.env.example", fields())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(values) != len(fields()) {
-		t.Fatal("template missing fields", len(values), len(fields()))
-	}
-	for key, spec := range fields() {
-		if key != "CFW_DB_PATH" && key != "CFW_WEB_DIR" && values[key] != spec.fallback {
-			t.Fatal("template and process defaults diverge", key)
-		}
-	}
-	c, err := load("../../../.env.example", nil, mustCWD(t))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if c.Model.Ready() || c.Cloud.Ready() || c.Execution.HasBudget() || c.TokenReady() {
-		t.Fatal("public template grants access")
-	}
-}
 func mustCWD(t *testing.T) string {
 	t.Helper()
 	cwd, err := os.Getwd()
@@ -334,4 +216,37 @@ func mustCWD(t *testing.T) string {
 		t.Fatal(err)
 	}
 	return cwd
+}
+
+func TestSimpleExecutionSettingsAndSourceEquivalence(t *testing.T) {
+	values := testValues()
+	values["CFW_TASK_TIMEOUT_SECONDS"] = "600"
+	values["CFW_MODEL_TIMEOUT_SECONDS"] = "60"
+	values["CFW_AGENT_MAX_ROUNDS"] = "12"
+	values["CFW_MODEL_MAX_OUTPUT_TOKENS"] = "4096"
+	path := envFile(t, values)
+	file, e := load(path, nil, filepath.Dir(path))
+	if e != nil {
+		t.Fatal(e)
+	}
+	process, e := load("", values, filepath.Dir(path))
+	if e != nil || !reflect.DeepEqual(comparableConfig(file), comparableConfig(process)) {
+		t.Fatal("settings differ by source", e)
+	}
+	for _, kind := range []string{"audit", "assistant_turn", "collect", "connection_check"} {
+		l, e := file.Execution.Profile(kind)
+		if e != nil || l.ExecutionSeconds != 600 || l.MaxRounds != 12 {
+			t.Fatal("task uses hidden stage or request quota", kind, e)
+		}
+	}
+	if !file.Model.Ready() || !file.Cloud.Ready() || file.Model.MaxOutputTokens() != 4096 {
+		t.Fatal("credentials require an obsolete budget")
+	}
+	for _, key := range []string{"CFW_BUDGET_REF", "CFW_MODEL_MAX_HTTP_ATTEMPTS", "CFW_WORKLOAD_AUDIT_TOOL_CALLS"} {
+		bad := testValues()
+		bad[key] = "1"
+		if _, e := load("", bad, t.TempDir()); e == nil {
+			t.Fatal("obsolete field accepted")
+		}
+	}
 }

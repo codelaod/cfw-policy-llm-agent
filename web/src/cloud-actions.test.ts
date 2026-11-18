@@ -10,7 +10,7 @@ import * as state from './workspace-state.ts'
 import { cloudConversationFixture, cloudOptionsFixture } from './test-fixtures/cloud.ts'
 import type { ExecutionPlan, PlanRequest } from './workspace-types.ts'
 
-const plan = (): ExecutionPlan => ({ id: 'plan-cloud', expires_at: '2099-01-01T00:00:00Z', effect_ceiling: { allow_cloud_reads: true, cloud_http_attempts: 40, allow_model_requests: false, model_http_attempts: 0 }, warnings: [], gaps: [] })
+const plan = (): ExecutionPlan => ({ id: 'plan-cloud', expires_at: '2099-01-01T00:00:00Z', effect_ceiling: { allow_cloud_reads: true, allow_model_requests: false }, warnings: [], gaps: [] })
 async function setup(previewPlan: (request: PlanRequest) => Promise<ExecutionPlan> = async () => plan(), optionsValue = cloudOptionsFixture()) {
   const filename = new URL('./CloudCollection.vue', import.meta.url)
   const { descriptor } = parse(await readFile(filename, 'utf8'), { filename: filename.pathname })
@@ -54,8 +54,8 @@ test('a conversation revision change invalidates an in-flight cloud preview', as
 })
 
 test('a preview that broadens model effects cannot become an accepted cloud plan', async () => {
-  const subject = await setup(async () => ({ ...plan(), effect_ceiling: { allow_cloud_reads: true, cloud_http_attempts: 40, allow_model_requests: true, model_http_attempts: 1 } }))
-  try { await subject.select(); await subject.view.preview(); assert.equal(subject.view.plan.preview, null); assert.match(subject.view.error.value, /调用上限/); await subject.view.start(); assert.deepEqual(subject.starts, []) }
+  const subject = await setup(async () => ({ ...plan(), effect_ceiling: { allow_cloud_reads: true, allow_model_requests: true } }))
+  try { await subject.select(); await subject.view.preview(); assert.equal(subject.view.plan.preview, null); assert.match(subject.view.error.value, /权限/); await subject.view.start(); assert.deepEqual(subject.starts, []) }
   finally { subject.dispose() }
 })
 
@@ -65,13 +65,13 @@ test('switching the local source discards a late preview without leaking an old-
   try { await subject.select(); const pending = subject.view.preview(); subject.view.sourceID.value = ''; await Vue.nextTick(); release(plan()); await pending; assert.equal(subject.view.plan.preview, null); assert.equal(subject.view.error.value, '') }
   finally { subject.dispose() }
 })
-test('an identity-only preview accepts its explicit server HTTP ceiling above legacy six without starting work',async()=>{
- const options=cloudOptionsFixture();options.max_http_attempts=250
- const subject=await setup(async()=>({...plan(),effect_ceiling:{allow_cloud_reads:true,allow_model_requests:false,cloud_http_attempts:200,model_http_attempts:0}}),options)
+test('an identity-only preview accepts explicit read effects without starting work',async()=>{
+ const options=cloudOptionsFixture();
+ const subject=await setup(async()=>({...plan(),effect_ceiling:{allow_cloud_reads:true,allow_model_requests:false}}),options)
  try{await subject.select();subject.view.kind.value='connection_check';await subject.view.preview();assert.equal(subject.view.plan.preview?.id,'plan-cloud');assert.deepEqual(subject.starts,[])}finally{subject.dispose()}
 })
 test('an empty configured asset directory can still preview the explicit identity-only selection',async()=>{
  const options=cloudOptionsFixture();options.scopes[0]!.assets=[];let captured:PlanRequest|undefined
- const subject=await setup(async request=>{captured=request;return {...plan(),effect_ceiling:{allow_cloud_reads:true,allow_model_requests:false,cloud_http_attempts:1,model_http_attempts:0}}},options)
+ const subject=await setup(async request=>{captured=request;return {...plan(),effect_ceiling:{allow_cloud_reads:true,allow_model_requests:false}}},options)
  try{await subject.select();subject.view.selected.value=[];subject.view.kind.value='connection_check';assert.equal(subject.view.canPreview.value,true);await subject.view.preview();assert.deepEqual(captured?.selection,{kind:'identity_only',asset_ids:[]});assert.equal(subject.view.plan.preview?.id,'plan-cloud');assert.deepEqual(subject.starts,[])}finally{subject.dispose()}
 })

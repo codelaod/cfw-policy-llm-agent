@@ -116,7 +116,7 @@ func (s *IntentService) prepareProposal(ctx context.Context, c storage.Conversat
 		}
 		scope = cfg.Scope
 	}
-	if !cloud.Ready || resolved.Limits.CloudHTTPAttempts <= 0 {
+	if !cloud.Ready {
 		// A blocked adapter still permits a qualified local product; no new effect
 		// is introduced when its existing snapshot already meets current policy.
 		if len(resources) > 0 && in.DataPolicy.Mode == "prefer_fresh" {
@@ -135,12 +135,11 @@ func (s *IntentService) prepareProposal(ctx context.Context, c storage.Conversat
 		in.Proposal = &domain.ActionProposal{Summary: "需要新资料，但当前连接或云请求授权不可用。", Gaps: []string{"CLOUD_READ_BLOCKED"}, Warnings: []string{"旧资料不会被当作刷新成功。"}, Status: "blocked"}
 		return "已保留目标；所需资料不合格或缺失，当前不能刷新。请在连接恢复后重试，或明确选择历史快照分析。", nil, nil
 	}
-	effects := storage.EffectCeiling{AllowCloudReads: true, CloudHTTPAttempts: resolved.Limits.CloudHTTPAttempts}
+	effects := storage.EffectCeiling{AllowCloudReads: true}
 	gaps := []string{}
 	if in.Mode == "rules_and_agent" {
-		if s.Plans.ModelReady && resolved.Limits.ModelHTTPAttempts > 0 {
+		if s.Plans.ModelReady {
 			effects.AllowModelRequests = true
-			effects.ModelHTTPAttempts = resolved.Limits.ModelHTTPAttempts
 		} else {
 			gaps = append(gaps, "MODEL_NOT_AVAILABLE")
 		}
@@ -151,10 +150,10 @@ func (s *IntentService) prepareProposal(ctx context.Context, c storage.Conversat
 		Query                      domain.ResourceQuery
 		DataPolicy                 domain.IntentDataPolicy
 	}{"audit", c.ID, in.Mode, q, in.DataPolicy})
-	p := &storage.ExecutionPlan{ResourceGroupVersionID: in.ResourceGroupVersionID, Workload: resolved, Preparation: spec, Kind: "audit", RecheckOfJobID: in.RecheckOfJobID, ConversationID: c.ID, DataSourceID: cloud.SourceRef, PolicyScopeRef: scope.Ref, Mode: in.Mode, Request: request, EffectCeiling: effects, PreparedInput: domain.Input{Scope: scope, Baseline: audit.ProjectBaseline()}, ConfigRevision: s.Plans.ConfigRevision, BudgetRef: s.Plans.BudgetRef}
+	p := &storage.ExecutionPlan{ResourceGroupVersionID: in.ResourceGroupVersionID, Workload: resolved, Preparation: spec, Kind: "audit", RecheckOfJobID: in.RecheckOfJobID, ConversationID: c.ID, DataSourceID: cloud.SourceRef, PolicyScopeRef: scope.Ref, Mode: in.Mode, Request: request, EffectCeiling: effects, PreparedInput: domain.Input{Scope: scope, Baseline: audit.ProjectBaseline()}, ConfigRevision: s.Plans.ConfigRevision}
 	in.Status = "ready_for_confirmation"
 	summary := fmt.Sprintf("在%d个明确地域内定位%s，准备%s/%s资料并审计。", len(regions), q.ResourceType, in.Boundary, in.Direction)
-	in.Proposal = &domain.ActionProposal{Summary: summary, Gaps: gaps, Warnings: []string{"接受后才可能进行只读目录查询／采集；歧义或结果未穷尽时停止并请你澄清。", "采集与审计属于同一任务，共用原请求预算和期限。", "配置允许不证明实际监听或端到端可达。"}, RequiresDiscovery: len(selected) == 0, Effects: domain.ProposalEffects{AllowCloudReads: true, AllowModelRequests: effects.AllowModelRequests}, Status: "ready"}
+	in.Proposal = &domain.ActionProposal{Summary: summary, Gaps: gaps, Warnings: []string{"接受后才可能进行只读目录查询／采集；歧义或结果未穷尽时停止并请你澄清。", "采集与审计属于同一任务，共用任务截止时间。", "配置允许不证明实际监听或端到端可达。"}, RequiresDiscovery: len(selected) == 0, Effects: domain.ProposalEffects{AllowCloudReads: true, AllowModelRequests: effects.AllowModelRequests}, Status: "ready"}
 	return "请核对本次对象条件、地域、边界、资料策略与模型模式。开始后会自动检查资料资格，必要时只读获取所需资料；不会要求你后台逐台预配。", p, nil
 }
 
@@ -166,16 +165,15 @@ func (s *IntentService) fixedResourcePlan(ctx context.Context, c storage.Convers
 	effects := storage.EffectCeiling{}
 	gaps := []string{}
 	if in.Mode == "rules_and_agent" {
-		if s.Plans.ModelReady && resolved.Limits.ModelHTTPAttempts > 0 {
+		if s.Plans.ModelReady {
 			effects.AllowModelRequests = true
-			effects.ModelHTTPAttempts = resolved.Limits.ModelHTTPAttempts
 		} else {
 			gaps = append(gaps, "MODEL_NOT_AVAILABLE")
 		}
 	}
 	request := PlanRequest{Kind: "audit", RecheckOfJobID: in.RecheckOfJobID, ConversationID: c.ID, DataSourceID: "local-offline", PolicyScopeRef: prepared.Scope.Ref, Selection: PlanSelection{Kind: selection.Kind, AssetIDs: selection.AssetIDs}, DataPolicy: DataPolicy{Mode: "pinned_snapshot", SnapshotID: snapshot}, Mode: in.Mode, BaselineVersionID: audit.ProjectBaseline().Version}
 	raw, _ := json.Marshal(request)
-	p := &storage.ExecutionPlan{ResourceGroupVersionID: in.ResourceGroupVersionID, Workload: resolved, Kind: "audit", RecheckOfJobID: in.RecheckOfJobID, ConversationID: c.ID, DataSourceID: "local-offline", PolicyScopeRef: prepared.Scope.Ref, SnapshotID: snapshot, Mode: in.Mode, Request: raw, EffectCeiling: effects, PreparedInput: prepared, Heads: heads, ConfigRevision: s.Plans.ConfigRevision, BudgetRef: s.Plans.BudgetRef}
+	p := &storage.ExecutionPlan{ResourceGroupVersionID: in.ResourceGroupVersionID, Workload: resolved, Kind: "audit", RecheckOfJobID: in.RecheckOfJobID, ConversationID: c.ID, DataSourceID: "local-offline", PolicyScopeRef: prepared.Scope.Ref, SnapshotID: snapshot, Mode: in.Mode, Request: raw, EffectCeiling: effects, PreparedInput: prepared, Heads: heads, ConfigRevision: s.Plans.ConfigRevision}
 	in.Status = "ready_for_confirmation"
 	in.Proposal = &domain.ActionProposal{Summary: "已有资料通过当前时效与来源检查；使用固定输入执行审计。", Gaps: gaps, Warnings: []string{"复用保留原始采集时点，不是本次重新采集。", "当前云连接不可刷新，开始前仍请核对资料时点。"}, Effects: domain.ProposalEffects{AllowModelRequests: effects.AllowModelRequests}, Status: "ready"}
 	return "所选对象已有合格资料，本次不产生云请求。请核对原始资料时点与模型模式后开始。", p, nil

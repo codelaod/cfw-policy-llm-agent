@@ -72,8 +72,14 @@ func TestMissingNATModeIsNotImplicitZero(t *testing.T) {
 }
 func TestFirstRoundBudgetRetainsPartialGatewayAndPrivateArtifacts(t *testing.T) {
 	cfg := natConfig()
-	cfg.MaxAttempts = 1
-	r := &fixtureReader{read: natFixture}
+	n := 0
+	r := &fixtureReader{read: func(op string, q map[string]string) (json.RawMessage, error) {
+		n++
+		if n > 1 {
+			return nil, Failure("CLOUD_THROTTLED")
+		}
+		return natFixture(op, q)
+	}}
 	c, _ := New(r, cfg)
 	out, e := c.Collect(context.Background(), domain.Selection{Kind: "gateway_policy"})
 	if e != nil {

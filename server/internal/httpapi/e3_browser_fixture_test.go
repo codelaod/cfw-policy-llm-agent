@@ -241,14 +241,9 @@ func startE3BrowserFixture(t *testing.T, privateDir string) *e3BrowserFixture {
 	}
 	fixture.plans = app.NewPlanService(fixture.store)
 	fixture.plans.ConfigRevision = "e3-browser-fixture-v1"
-	fixture.plans.BudgetRef = "e3-browser-period-" + rand.Text()
 	fixture.plans.ModelReady = true
 	fixture.plans.ModelConfigured = true
 	fixture.plans.ModelMode = "local_protocol_fixture"
-	fixture.plans.ModelHTTPAttempts = 6
-	if err = fixture.store.ConfigureBudgetPolicy(context.Background(), storage.BudgetPolicy{Ref: fixture.plans.BudgetRef, ApplicationModelAttempts: 80, SessionModelAttempts: 80, ExpiresAt: time.Now().Add(25 * time.Minute).UTC().Format(time.RFC3339Nano)}); err != nil {
-		t.Fatal("fixture budget setup failed")
-	}
 	fixture.upstream = httptest.NewServer(http.HandlerFunc(e3FixtureModel))
 	fixture.manager, err = outbound.NewManager(fixture.store, outbound.Config{Revision: fixture.plans.ConfigRevision, Sources: []outbound.Source{{Ref: "configured-model", Class: "model", Origin: fixture.upstream.URL, AllowLoopbackHTTP: true, MaxResponseBytes: modelprotocol.MaxResponseBytes, Routes: []outbound.Route{{Method: "POST", Path: "/v1/chat/completions"}}}}})
 	if err != nil {
@@ -453,7 +448,7 @@ func TestE3BrowserFixtureSmoke(t *testing.T) {
 					t.Fatal("NAT fixture did not follow the earlier tool's association reference", names)
 				}
 			}
-			usage, err := fixture.store.BudgetUsage(context.Background(), fixture.plans.BudgetRef, "", job.ID)
+			usage, err := fixture.store.AttemptUsage(context.Background(), "", job.ID)
 			if err != nil || usage.ModelAttempts != int64(scenario.calls) || (usage.ReportedTokens == nil) != scenario.unknownUsage {
 				t.Fatal("fixture usage was not recorded from its HTTP response", err)
 			}

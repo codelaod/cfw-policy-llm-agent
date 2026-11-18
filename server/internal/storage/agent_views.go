@@ -93,7 +93,7 @@ func (s *Store) ReadJobWorkspace(ctx context.Context, id string) (view JobWorksp
 			view.ReportPublished = true
 			view.ReportRef = publication.ReportRef
 		}
-		view.AttemptUsage, e = budgetUsage(tx, view.Job.BudgetRef, "", id)
+		view.AttemptUsage, e = attemptUsage(tx, "", id)
 		return e
 	})
 	return

@@ -1,34 +1,18 @@
 package aliyuncollector
 
 import (
-	"cfw-policy-llm-agent/server/internal/workload"
 	"sort"
 	"strings"
+
+	"cfw-policy-llm-agent/server/internal/workload"
 )
 
-// Workload is already resolved against configuration and authorization ceilings.
-// Deprecated numeric fields are used only by the explicit legacy compatibility path.
 func resolveConfig(cfg Config) (Config, error) {
-	if cfg.Workload.ProfileRef == "" {
-		if cfg.Workload != (workload.Resolved{}) {
-			return cfg, Failure("COLLECTOR_CONFIGURATION_INVALID")
-		}
-		l := workload.Default("collect")
-		if cfg.MaxAttempts != 0 {
-			l.CloudHTTPAttempts = cfg.MaxAttempts
-		}
-		if cfg.MaxPolicies != 0 {
-			l.MaxPolicies = cfg.MaxPolicies
-		}
-		if l.CloudHTTPAttempts < 1 || l.CloudHTTPAttempts > 100 || l.MaxPolicies < 1 || l.MaxPolicies > 1000 {
-			return cfg, Failure("COLLECTOR_CONFIGURATION_INVALID")
-		}
-		cfg.Workload = workload.Resolved{ProfileRef: workload.LegacyProfileRef, Legacy: true, Limits: l}
-	} else if !alias(cfg.Workload.ProfileRef) || (cfg.Workload.Limits.Validate("collect") != nil && cfg.Workload.Limits.Validate("audit") != nil) {
+	var err error
+	cfg.Workload, err = workload.Normalize("collect", cfg.Workload)
+	if err != nil {
 		return cfg, Failure("COLLECTOR_CONFIGURATION_INVALID")
 	}
-	cfg.MaxAttempts = cfg.Workload.Limits.CloudHTTPAttempts
-	cfg.MaxPolicies = cfg.Workload.Limits.MaxPolicies
 	if cfg.PageSize == 0 {
 		cfg.PageSize = 50
 	}

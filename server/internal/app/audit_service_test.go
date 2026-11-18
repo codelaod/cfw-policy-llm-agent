@@ -249,20 +249,63 @@ func TestRepeatedRequiredDeclarationsRemainPersistable(t *testing.T) {
 	}
 }
 
-func TestCancellationWhileSavingKeepsComputedFacts(t *testing.T){
-	store,err:=storage.Open(filepath.Join(t.TempDir(),"save-cancel.sqlite"),true);if err!=nil{t.Fatal(err)};defer store.Close();service:=NewAuditService(store)
-	data,_:=json.Marshal(serviceCase());snapshot,err:=service.Import(context.Background(),data);if err!=nil{t.Fatal(err)}
-	writer,err:=store.SQL.Conn(context.Background());if err!=nil{t.Fatal(err)};defer writer.Close()
-	if _,err=writer.ExecContext(context.Background(),"BEGIN IMMEDIATE");err!=nil{t.Fatal(err)};defer writer.ExecContext(context.Background(),"ROLLBACK")
-	computed:=make(chan struct{})
-	service.rules=func(ctx context.Context,in domain.Input)(domain.Result,error){result,err:=audit.Run(ctx,in);close(computed);return result,err}
-	ctx,cancel:=context.WithCancel(context.Background());defer cancel()
-	type outcome struct{record storage.AuditRecord;err error};done:=make(chan outcome,1)
-	go func(){record,err:=service.RunRules(ctx,snapshot.ID);done<-outcome{record,err}}()
-	select{case <-computed:case <-time.After(time.Second):t.Fatal("rules did not finish independently of writer")}
-	deadline:=time.Now().Add(time.Second)
-	for store.SQL.Stats().InUse<2{if time.Now().After(deadline){t.Fatal("save did not enter SQLite wait")};time.Sleep(time.Millisecond)}
+func TestCancellationWhileSavingKeepsComputedFacts(t *testing.T) {
+	store, err := storage.Open(filepath.Join(t.TempDir(), "save-cancel.sqlite"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer store.Close()
+	service := NewAuditService(store)
+	data, _ := json.Marshal(serviceCase())
+	snapshot, err := service.Import(context.Background(), data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	writer, err := store.SQL.Conn(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer writer.Close()
+	if _, err = writer.ExecContext(context.Background(), "BEGIN IMMEDIATE"); err != nil {
+		t.Fatal(err)
+	}
+	defer writer.ExecContext(context.Background(), "ROLLBACK")
+	computed := make(chan struct{})
+	service.rules = func(ctx context.Context, in domain.Input) (domain.Result, error) {
+		result, err := audit.Run(ctx, in)
+		close(computed)
+		return result, err
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	type outcome struct {
+		record storage.AuditRecord
+		err    error
+	}
+	done := make(chan outcome, 1)
+	go func() { record, err := service.RunRules(ctx, snapshot.ID); done <- outcome{record, err} }()
+	select {
+	case <-computed:
+	case <-time.After(time.Second):
+		t.Fatal("rules did not finish independently of writer")
+	}
+	deadline := time.Now().Add(time.Second)
+	for store.SQL.Stats().InUse < 2 {
+		if time.Now().After(deadline) {
+			t.Fatal("save did not enter SQLite wait")
+		}
+		time.Sleep(time.Millisecond)
+	}
 	cancel()
-	if _,err=writer.ExecContext(context.Background(),"COMMIT");err!=nil{t.Fatal(err)}
-	select{case value:=<-done:if !errors.Is(value.err,context.Canceled)||value.record.ID==""{t.Fatalf("computed facts lost or cancelled operation returned success: id=%s err=%v",value.record.ID,value.err)};case <-time.After(2*time.Second):t.Fatal("save did not finish after write lock released")}
+	if _, err = writer.ExecContext(context.Background(), "COMMIT"); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case value := <-done:
+		if !errors.Is(value.err, context.Canceled) || value.record.ID == "" {
+			t.Fatalf("computed facts lost or cancelled operation returned success: id=%s err=%v", value.record.ID, value.err)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("save did not finish after write lock released")
+	}
 }

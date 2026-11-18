@@ -10,6 +10,8 @@
 
 同日完成全部外部配置统一及旧入口清理：一份`.env.local`或同名环境变量，Go699项、launcher8项、实验离线回归、vet及后端构建通过；具体范围见[配置窗口](docs/validation/evidence/conversation-implementation-local.md#全部外部配置统一与清理2026-11-17)。
 
+2026-11-18精简任务执行保护。应用／会话累计额度和增额命令已删除，四类任务共用总超时、排队时间和Agent轮数，实际请求与用量继续记录。Go全量、Web 192项、前后端构建及Swagger对账通过。详见[本机证据](docs/validation/evidence/conversation-implementation-local.md#任务执行保护精简2026-11-18)。
+
 ## 文档入口
 
 完整分类与阅读顺序见 **[项目文档导航](docs/README.md)**。
@@ -61,6 +63,6 @@ npm test
 npm run build
 ```
 
-本机启动、business schema 5显式迁移和应用口令见[后端说明](server/README.md)。所有外部设置统一为显式`--env-file`或同名进程环境，填写[一份模板](.env.example)即可；原分散JSON入口已删除。应用、模型、阿里云、共享预算、数据时效与四类执行保护共用优先级／校验／脱敏检查；进程存在值（含空）优先，云凭据整组选择。启动、检查、预览零外呼，云／模型共用持久账本，0与更严限制保留；真实调用、整改和正式评价按原权限／预算执行。
+本机启动、business schema 6的显式初始化和应用口令见[后端说明](server/README.md)。旧版库保留原数据，schema 6使用新的私库路径。外部设置统一为显式`--env-file`或同名进程环境，配置项见[模板](.env.example)。
 
 许可证：[Apache License 2.0](LICENSE)。

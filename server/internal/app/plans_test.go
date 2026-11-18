@@ -35,7 +35,7 @@ func TestPlanPreviewFreezesLocalInputsWithoutStartingExecution(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if preview.ID == "" || preview.EffectCeiling.CloudHTTPAttempts != 0 || preview.EffectCeiling.ModelHTTPAttempts != 0 || preview.PreparedInput.SourceKind != "synthetic" {
+	if preview.ID == "" || preview.PreparedInput.SourceKind != "synthetic" {
 		t.Fatal("preview changed effects or provenance")
 	}
 	jobs, err := store.ListJobs(context.Background(), conversation.ID, 0, 100)
@@ -94,7 +94,7 @@ func TestUnconfiguredAgentAuditKeepsRulesAndHasNoModelAllowance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if plan.EffectCeiling.AllowModelRequests || plan.EffectCeiling.ModelHTTPAttempts != 0 || len(plan.Gaps) == 0 {
+	if plan.EffectCeiling.AllowModelRequests || len(plan.Gaps) == 0 {
 		t.Fatal("unconfigured model preview promised authorized requests")
 	}
 }
@@ -148,36 +148,5 @@ func TestPlanUsesExplicitCurrentBusinessVersions(t *testing.T) {
 	encoded, _ := json.Marshal(latest)
 	if string(encoded) == "" {
 		t.Fatal("missing public preview")
-	}
-}
-
-func TestE3PrivateModelAttemptLimitIsFrozenInEveryAcceptedIntent(t *testing.T) {
-	for _, limit := range []int{1, 3, 6} {
-		t.Run(string(rune('0'+limit)), func(t *testing.T) {
-			store, service, snapshot, conversation, request := planCase(t)
-			service.ModelReady = true
-			service.ModelHTTPAttempts = limit
-			request.Mode = "rules_and_agent"
-			preview, err := service.Preview(context.Background(), request)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if preview.EffectCeiling.ModelHTTPAttempts != limit {
-				t.Fatal("audit expanded configured physical-request allowance")
-			}
-			engine := New(store, nil)
-			defer engine.Stop()
-			job, _, _, err := service.StartAssistant(context.Background(), engine, conversation.ID, AssistantRequest{ClientMessageID: "e3-capped-turn", PolicyScopeRef: snapshot.ScopeRef, SnapshotID: snapshot.ID, Text: "解释固定资料", ModelUseAccepted: true})
-			if err != nil {
-				t.Fatal(err)
-			}
-			plan, err := store.GetPlan(context.Background(), job.PlanID)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if plan.EffectCeiling.ModelHTTPAttempts != min(limit, 4) {
-				t.Fatal("assistant expanded its or the configured allowance")
-			}
-		})
 	}
 }

@@ -9,6 +9,7 @@ import (
 
 	"cfw-policy-llm-agent/server/internal/audit"
 	"cfw-policy-llm-agent/server/internal/domain"
+	"cfw-policy-llm-agent/server/internal/workload"
 )
 
 func TestSelectionAndScopeRejectedBeforeRead(t *testing.T) {
@@ -30,6 +31,27 @@ func TestSelectionAndScopeRejectedBeforeRead(t *testing.T) {
 		t.Fatal("gateway allowlist ignored")
 	}
 }
+
+func TestRetainedCloudEvidenceStopsBeforeExceedingStorageSize(t *testing.T) {
+	body := json.RawMessage(`{"Policys":[],"TotalCount":"0"}`)
+	query := map[string]string{"Direction": "in", "PageSize": "50"}
+	const operation = "DescribeControlPolicy"
+	entry, err := json.Marshal(domain.CloudRawArtifact{Round: 1, Operation: operation, Query: query, Body: body, SHA256: hash(body)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := run{
+		collector: &Collector{reader: &fixtureReader{read: func(string, map[string]string) (json.RawMessage, error) { return body, nil }}},
+		ctx:       context.Background(), rawArtifactBytes: domain.MaxCloudEvidenceBytes - len(entry) - 3,
+	}
+	if _, err = r.read(1, operation, query); err != nil {
+		t.Fatal("a response within the available evidence size was rejected", err)
+	}
+	if _, err = r.read(1, operation, query); err != Failure("COLLECTION_RAW_LIMIT") || len(r.artifacts) != 1 {
+		t.Fatal("oversized evidence was retained or lost its controlled error", len(r.artifacts), err)
+	}
+}
+
 func TestTwoRoundsCompareConfigurationButIgnoreHitStatistics(t *testing.T) {
 	for _, change := range []bool{false, true} {
 		t.Run(map[bool]string{false: "only statistics", true: "actual config"}[change], func(t *testing.T) {
@@ -196,11 +218,17 @@ func TestWrongAccountGatewayAndMalformedJSONRejectInput(t *testing.T) {
 }
 func TestSecondReadBudgetAndCancellationDoNotRestartCollection(t *testing.T) {
 	cfg := natConfig()
-	cfg.MaxAttempts = 3
-	r := &fixtureReader{read: natFixture}
+	n := 0
+	r := &fixtureReader{read: func(op string, q map[string]string) (json.RawMessage, error) {
+		n++
+		if n > 3 {
+			return nil, Failure("CLOUD_THROTTLED")
+		}
+		return natFixture(op, q)
+	}}
 	c, _ := New(r, cfg)
 	out, e := c.Collect(context.Background(), domain.Selection{Kind: "gateway_policy"})
-	if e != nil || r.calls != 3 || out.Input.Completeness.EnumerationComplete || out.Input.Completeness.ObservationConsistency != "unverified" {
+	if e != nil || r.calls != 4 || out.Input.Completeness.EnumerationComplete || out.Input.Completeness.ObservationConsistency != "unverified" {
 		t.Fatalf("budget was reset or second failure lost: calls%d %v %+v", r.calls, e, out.Input.Completeness)
 	}
 	ctx, cancel := context.WithCancel(context.Background())
@@ -219,7 +247,8 @@ func TestSecondReadBudgetAndCancellationDoNotRestartCollection(t *testing.T) {
 }
 func TestPolicyLimitPreservesPartialAndNoTrustedPath(t *testing.T) {
 	cfg := natConfig()
-	cfg.MaxPolicies = 1
+	cfg.Workload = workload.Resolved{ProfileRef: workload.DefaultProfileRef, Limits: workload.Default("collect")}
+	cfg.Workload.Limits.MaxPolicies = 1
 	r := &fixtureReader{read: func(op string, q map[string]string) (json.RawMessage, error) {
 		b, e := natFixture(op, q)
 		if op == "DescribeNatFirewallControlPolicy" {

@@ -24,7 +24,7 @@ func TestDiscoverOnlyReadsBoundedMetadataAndPreservesScope(t *testing.T) {
 		}
 		return json.Marshal(map[string]any{"NextToken": "", "Instances": map[string]any{"Instance": []any{instanceRow("i-one"), instanceRow("i-two")}}})
 	}}
-	out, e := Discover(context.Background(), r, discoveryConfig(), Selector{Region: "cn-hangzhou", Type: "ecs", Name: "web-*", Tags: map[string]string{"app": "payments"}, MaxPages: 2, MaxObjects: 50})
+	out, e := Discover(context.Background(), r, discoveryConfig(), Selector{Region: "cn-hangzhou", Type: "ecs", Name: "web-*", Tags: map[string]string{"app": "payments"}, MaxObjects: 50})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -48,7 +48,7 @@ func TestDiscoverDoesNotNeedConfiguredGatewayAndNeverUsesProxyIDAsGatewayID(t *t
 		}
 		return json.RawMessage(`{"TotalCount":1,"NatFirewallList":[{"NatGatewayId":"ngw-public","NatGatewayName":"gateway-native","ProxyName":"nat-prod","ProxyId":"proxy-different","RegionId":"cn-hangzhou","AliUid":"1234567890123456"}]}`), nil
 	}}
-	out, e := Discover(context.Background(), r, discoveryConfig(), Selector{Region: "cn-hangzhou", Type: "nat_gateway", Name: "nat-prod", MaxPages: 2, MaxObjects: 20})
+	out, e := Discover(context.Background(), r, discoveryConfig(), Selector{Region: "cn-hangzhou", Type: "nat_gateway", Name: "nat-prod", MaxObjects: 20})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -63,7 +63,7 @@ func TestDiscoverPartialCursorDoesNotLosePageRemainderOrAcceptAnotherSelector(t 
 		}
 		return json.Marshal(map[string]any{"NextToken": "", "Instances": map[string]any{"Instance": []any{instanceRow("i-one"), instanceRow("i-two"), instanceRow("i-three")}}})
 	}}
-	s := Selector{Region: "cn-hangzhou", Type: "ecs", MaxPages: 2, MaxObjects: 1}
+	s := Selector{Region: "cn-hangzhou", Type: "ecs", MaxObjects: 1}
 	first, e := Discover(context.Background(), r, discoveryConfig(), s)
 	if e != nil || len(first.Resources) != 1 || first.Coverage.Complete || first.NextCursor == "" {
 		t.Fatalf("truncation lost: %v %+v", e, first)
@@ -96,7 +96,7 @@ func TestDiscoveryUnknownTokenAndForeignIdentityAreNotCompleteEmpty(t *testing.T
 				}
 				return json.Marshal(body)
 			}}
-			out, e := Discover(context.Background(), r, discoveryConfig(), Selector{Region: "cn-hangzhou", Type: "ecs", MaxPages: 1, MaxObjects: 20})
+			out, e := Discover(context.Background(), r, discoveryConfig(), Selector{Region: "cn-hangzhou", Type: "ecs", MaxObjects: 20})
 			if mode == "missing-token" {
 				if e != nil || out.Coverage.Complete || len(out.Resources) != 1 {
 					t.Fatalf("unknown token treated empty/complete %v %+v", e, out)
@@ -107,8 +107,8 @@ func TestDiscoveryUnknownTokenAndForeignIdentityAreNotCompleteEmpty(t *testing.T
 		})
 	}
 }
-func TestDiscoveryScopeZeroProfileAndInvalidSelectorStopBeforeRead(t *testing.T) {
-	for _, s := range []Selector{{Type: "ecs", MaxPages: 1, MaxObjects: 10}, {Region: "cn-beijing", Type: "ecs", MaxPages: 1, MaxObjects: 10}, {Region: "cn-hangzhou", Type: "vpc", MaxPages: 1, MaxObjects: 10}, {Region: "cn-hangzhou", Type: "ecs", MaxPages: 0, MaxObjects: 10}} {
+func TestDiscoveryInvalidSelectorStopsBeforeRead(t *testing.T) {
+	for _, s := range []Selector{{Type: "ecs", MaxObjects: 10}, {Region: "cn-beijing", Type: "ecs", MaxObjects: 10}, {Region: "cn-hangzhou", Type: "vpc", MaxObjects: 10}} {
 		r := &fixtureReader{read: func(string, map[string]string) (json.RawMessage, error) {
 			t.Fatal("invalid discovery reached provider")
 			return nil, nil
@@ -117,19 +117,13 @@ func TestDiscoveryScopeZeroProfileAndInvalidSelectorStopBeforeRead(t *testing.T)
 			t.Fatalf("selector accepted %+v", s)
 		}
 	}
-	cfg := discoveryConfig()
-	cfg.Workload.Limits.CloudHTTPAttempts = 0
-	r := &fixtureReader{read: func(string, map[string]string) (json.RawMessage, error) { return nil, fmt.Errorf("should not reach") }}
-	if _, e := Discover(context.Background(), r, cfg, Selector{Region: "cn-hangzhou", Type: "ecs", MaxPages: 1, MaxObjects: 10}); e == nil || r.calls != 0 {
-		t.Fatal("explicit zero refilled")
-	}
 }
 
 func TestMissingFilterMetadataPreservesSeenIdentityWithoutCompleteEmpty(t *testing.T) {
 	r := &fixtureReader{read: func(string, map[string]string) (json.RawMessage, error) {
 		return json.RawMessage(`{"NextToken":"","Instances":{"Instance":[{"InstanceId":"i-seen","RegionId":"cn-hangzhou"}]}}`), nil
 	}}
-	out, e := Discover(context.Background(), r, discoveryConfig(), Selector{Region: "cn-hangzhou", Type: "ecs", Name: "web-*", Tags: map[string]string{"app": "payments"}, MaxPages: 1, MaxObjects: 20})
+	out, e := Discover(context.Background(), r, discoveryConfig(), Selector{Region: "cn-hangzhou", Type: "ecs", Name: "web-*", Tags: map[string]string{"app": "payments"}, MaxObjects: 20})
 	if e != nil || len(out.Resources) != 1 || out.Coverage.Complete || len(out.Resources[0].Tags) != 0 {
 		t.Fatalf("missing predicate became absence/full coverage: %v %+v", e, out.Coverage)
 	}
@@ -141,7 +135,7 @@ func TestDiscoveryLongTokenCycleDoesNotBecomeExhausted(t *testing.T) {
 		next := []string{"a", "b", "a"}[(calls-1)%3]
 		return json.Marshal(map[string]any{"NextToken": next, "Instances": map[string]any{"Instance": []any{instanceRow(fmt.Sprintf("i-%d", calls))}}})
 	}}
-	out, e := Discover(context.Background(), r, discoveryConfig(), Selector{Region: "cn-hangzhou", Type: "ecs", MaxPages: 6, MaxObjects: 20})
+	out, e := Discover(context.Background(), r, discoveryConfig(), Selector{Region: "cn-hangzhou", Type: "ecs", MaxObjects: 20})
 	if e != nil || out.Coverage.Complete || out.Exhausted || calls != 3 {
 		t.Fatalf("token cycle accepted as complete: %v calls%d %+v", e, calls, out.Coverage)
 	}
@@ -157,7 +151,10 @@ func TestDiscoveryECSTotalCountMismatchStaysIncompleteAcrossContinuation(t *test
 				}
 				return json.Marshal(map[string]any{"TotalCount": 3, "NextToken": next, "Instances": map[string]any{"Instance": []any{instanceRow(id)}}})
 			}}
-			s := Selector{Region: "cn-hangzhou", Type: "ecs", MaxPages: 1, MaxObjects: 20}
+			s := Selector{Region: "cn-hangzhou", Type: "ecs", MaxObjects: 20}
+			if continued {
+				s.MaxObjects = 1
+			}
 			out, e := Discover(context.Background(), r, discoveryConfig(), s)
 			if e != nil {
 				t.Fatal(e)
@@ -180,7 +177,7 @@ func TestDiscoveryMalformedNameCannotProduceCompleteEmptyMatch(t *testing.T) {
 	r := &fixtureReader{read: func(string, map[string]string) (json.RawMessage, error) {
 		return json.RawMessage(`{"NextToken":"","Instances":{"Instance":[{"InstanceId":"i-seen","InstanceName":123,"RegionId":"cn-hangzhou"}]}}`), nil
 	}}
-	out, e := Discover(context.Background(), r, discoveryConfig(), Selector{Region: "cn-hangzhou", Type: "ecs", Name: "web-*", MaxPages: 1, MaxObjects: 20})
+	out, e := Discover(context.Background(), r, discoveryConfig(), Selector{Region: "cn-hangzhou", Type: "ecs", Name: "web-*", MaxObjects: 20})
 	if e != nil || len(out.Resources) != 1 || out.Coverage.Complete || !strings.Contains(strings.Join(out.Coverage.Limitations, ","), "RESOURCE_FILTER_UNVERIFIED") {
 		t.Fatalf("malformed name became complete empty match: %v %+v", e, out)
 	}
@@ -194,7 +191,7 @@ func TestDiscoveryCountSurvivesPageRemainderWithoutDoubleCounting(t *testing.T) 
 		}
 		return json.Marshal(map[string]any{"TotalCount": 3, "NextToken": next, "Instances": map[string]any{"Instance": rows}})
 	}}
-	s := Selector{Region: "cn-hangzhou", Type: "ecs", MaxPages: 1, MaxObjects: 1}
+	s := Selector{Region: "cn-hangzhou", Type: "ecs", MaxObjects: 1}
 	var ids []string
 	for i := 0; i < 3; i++ {
 		out, e := Discover(context.Background(), r, discoveryConfig(), s)
@@ -223,7 +220,7 @@ func TestDiscoveryPairedGatewayRegionAndCursorBindingsRemainNarrow(t *testing.T)
 		}
 		return json.Marshal(map[string]any{"TotalCount": 1, "NatFirewallList": []any{map[string]string{"NatGatewayId": q["NatGatewayId"], "RegionId": "cn-hangzhou", "ProxyName": "firewall"}}})
 	}}
-	s := Selector{Region: "cn-hangzhou", Type: "nat_gateway", MaxPages: 3, MaxObjects: 1}
+	s := Selector{Region: "cn-hangzhou", Type: "nat_gateway", MaxObjects: 1}
 	first, err := Discover(context.Background(), r, cfg, s)
 	if err != nil || len(first.Resources) != 1 || first.NextCursor == "" {
 		t.Fatalf("bounded paired enumeration failed: %v %+v", err, first)

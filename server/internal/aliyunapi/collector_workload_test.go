@@ -74,7 +74,7 @@ func TestTwentyAssetSignedCollectorUsesSixtyOneSharedPhysicalAttempts(t *testing
 		t.Fatal(e)
 	}
 	limits := workload.Default("collect")
-	cfg := aliyuncollector.Config{Scope: domain.Scope{Ref: "scope-public-in", Provider: "aliyun", AccountRef: "account-public", ControlPlaneRef: "control-public", IPFamily: "ipv4", Boundary: "internet", Direction: "in", PolicySetRef: "set-public"}, ExpectedAccountID: "1234567890123456", AssetRegions: map[string]string{}, AllowedRegions: []string{"cn-hangzhou"}, Workload: workload.Resolved{ProfileRef: workload.LegacyProfileRef, Legacy: true, Limits: limits}}
+	cfg := aliyuncollector.Config{Scope: domain.Scope{Ref: "scope-public-in", Provider: "aliyun", AccountRef: "account-public", ControlPlaneRef: "control-public", IPFamily: "ipv4", Boundary: "internet", Direction: "in", PolicySetRef: "set-public"}, ExpectedAccountID: "1234567890123456", AssetRegions: map[string]string{}, AllowedRegions: []string{"cn-hangzhou"}, Workload: workload.Resolved{ProfileRef: workload.DefaultProfileRef, Limits: limits}}
 	ids := []string{}
 	for i := 1; i <= 20; i++ {
 		id := fmt.Sprintf("i-public-%d", i)

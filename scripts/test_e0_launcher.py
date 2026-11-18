@@ -58,7 +58,7 @@ class LauncherArgumentsTest(unittest.TestCase):
 
 
     def test_explicit_relative_paths_are_based_on_caller_directory(self):
-        for flag in ["--env-file", "--budget-change", "-env-file", "-budget-change"]:
+        for flag in ["--env-file", "-env-file"]:
             for joined in [False, True]:
                 with self.subTest(flag=flag, joined=joined):
                     value = "data/private path/selected file"
@@ -72,7 +72,7 @@ class LauncherArgumentsTest(unittest.TestCase):
 
     def test_absolute_paths_empty_values_and_non_path_arguments_remain_exact(self):
         absolute = str(self.directory / "private path/selected.json")
-        arguments = ["--env-file", absolute, "--budget-change=" + absolute, "--env-file", "", "--env-file=", "--unknown-option=relative/text", "--", "--env-file", "literal/after-terminator"]
+        arguments = ["--env-file", absolute, "--env-file", "", "--env-file=", "--unknown-option=relative/text", "--", "--env-file", "literal/after-terminator"]
         result = self.launch("server", *arguments)
         self.assertEqual(result.returncode, 0, result.stderr)
         recorded = json.loads(self.capture.read_text(encoding="utf-8"))

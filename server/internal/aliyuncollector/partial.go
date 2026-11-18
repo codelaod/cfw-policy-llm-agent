@@ -89,7 +89,7 @@ func (r *run) firstPartialInput(started string, selection domain.Selection, firs
 	}
 	version := hash([]byte(started + strings.Join(first.fingerprints, "\x00")))
 	input := domain.Input{SchemaVersion: 1, SnapshotVersion: "live-" + version[:32], ProfileVersion: "unconfirmed-v1", IntentVersion: "unconfirmed-v1", NormalizerVersion: audit.NormalizerVersion, KernelVersion: audit.KernelVersion, SourceKind: "live_readonly", EvaluationAt: time.Now().UTC().Format(time.RFC3339Nano), CollectedAt: started, Scope: cfg.Scope, Semantics: domain.Semantics{ProfileID: profile, Version: audit.ProviderSemanticsVersion, DefaultAction: "unknown", SourceRef: "T-06"}, Completeness: domain.Completeness{Declared: true, EnumerationComplete: false, ObservationConsistency: "unverified", KnownGaps: unique(gaps)}, Protection: protection, Selection: selection, Assets: first.assets, GatewayMetadata: first.gateway, Policies: first.policies, AddressRefs: first.addresses, PortRefs: first.ports, Baseline: audit.ProjectBaseline()}
-	validationContext, err := audit.WithInputObjectLimits(r.ctx, cfg.Workload.Limits.AssetsPerBatch, cfg.MaxPolicies)
+	validationContext, err := audit.WithInputObjectLimits(r.ctx, cfg.Workload.Limits.AssetsPerBatch, cfg.Workload.Limits.MaxPolicies)
 	if err != nil || audit.ValidateContext(validationContext, input) != nil {
 		return domain.Input{}, false
 	}

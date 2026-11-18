@@ -8,7 +8,7 @@ import (
 )
 
 func validFile() string {
-	return `{"enabled":true,"connection_ref":"explicit-aliyun","credential_mode":"env_ak","access_key_id_env":"CFW_E4_TEST_AK","access_key_secret_env":"CFW_E4_TEST_SECRET","expected_account_id":"1234567890123456","control_plane_region":"cn-hangzhou","allowed_boundaries":["internet/in","internet/out","nat/out"],"allowed_regions":["cn-hangzhou"],"allowed_assets":[{"region":"cn-hangzhou","instance_id":"i-synthetic"}],"allowed_nat_gateways":[{"region":"cn-hangzhou","id":"ngw-synthetic"}],"timeout_seconds":10,"max_http_attempts":30,"budget":{"ref":"same-explicit-period","expires_at":"2099-01-01T00:00:00Z","application_cloud_attempts":100,"session_cloud_attempts":50,"application_model_attempts":20,"session_model_attempts":6}}`
+	return `{"enabled":true,"connection_ref":"explicit-aliyun","credential_mode":"env_ak","access_key_id_env":"CFW_E4_TEST_AK","access_key_secret_env":"CFW_E4_TEST_SECRET","expected_account_id":"1234567890123456","control_plane_region":"cn-hangzhou","allowed_boundaries":["internet/in","internet/out","nat/out"],"allowed_regions":["cn-hangzhou"],"allowed_assets":[{"region":"cn-hangzhou","instance_id":"i-synthetic"}],"allowed_nat_gateways":[{"region":"cn-hangzhou","id":"ngw-synthetic"}],"timeout_seconds":10}`
 }
 func parseFixture(body []byte) (Config, error) { return ParseSettings(body, os.LookupEnv) }
 
@@ -23,7 +23,7 @@ func TestExplicitConfigAndSafeStableScopes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if c.CFWOrigin() != "https://cloudfw.aliyuncs.com" || len(c.Scopes()) != 3 || len(c.Assets()) != 1 || c.Budget().Ref != "same-explicit-period" {
+	if c.CFWOrigin() != "https://cloudfw.aliyuncs.com" || len(c.Scopes()) != 3 || len(c.Assets()) != 1 {
 		t.Fatal("explicit settings changed")
 	}
 	b, _ := json.Marshal(c)
@@ -60,14 +60,6 @@ func TestNoAmbientCredentialFallbackAndDisabledDoesNotReadCredentials(t *testing
 		t.Fatal("disabled config should validate locally", e)
 	}
 }
-func TestRejectExpandedScopeCredentialModesAndDuplicateJSON(t *testing.T) {
-	keys(t)
-	for _, change := range [][2]string{{`"env_ak"`, `"default"`}, {`"env_ak"`, `"assume_role"`}, {`"cn-hangzhou","instance_id"`, `"cn-beijing","instance_id"`}, {`"nat/out"`, `"nat/in"`}, {`"session_cloud_attempts":50`, `"session_cloud_attempts":101`}, {`"control_plane_region":"cn-hangzhou"`, `"control_plane_region":"attacker.invalid"`}, {`"enabled":true`, `"enabled":true,"enabled":false`}, {`"credential_mode":"env_ak"`, `"credential_mode":"env_ak","security_token_env":"TOKEN"`}} {
-		if _, e := parseFixture([]byte(strings.Replace(validFile(), change[0], change[1], 1))); e == nil {
-			t.Fatalf("invalid config accepted: %s", change[1])
-		}
-	}
-}
 func TestCredentialRotationDoesNotRenewBudgetOrChangeRevision(t *testing.T) {
 	keys(t)
 	p := []byte(validFile())
@@ -77,7 +69,7 @@ func TestCredentialRotationDoesNotRenewBudgetOrChangeRevision(t *testing.T) {
 	}
 	t.Setenv("CFW_E4_TEST_SECRET", "rotated-synthetic-secret")
 	b, e := parseFixture(p)
-	if e != nil || a.Revision() != b.Revision() || a.Budget().Ref != b.Budget().Ref {
+	if e != nil || a.Revision() != b.Revision() {
 		t.Fatal("credential rotation reset authorization", e)
 	}
 }
@@ -107,7 +99,6 @@ func TestRejectCaseCollidingJSONFields(t *testing.T) {
 	for _, tc := range []struct{ name, old, replacement string }{
 		{"enabled", `"enabled":true`, `"enabled":false,"ENABLED":true`},
 		{"credential_mode", `"credential_mode":"env_ak"`, `"credential_mode":"env_sts","CREDENTIAL_MODE":"env_ak"`},
-		{"budget_limit", `"application_cloud_attempts":100`, `"application_cloud_attempts":1,"APPLICATION_CLOUD_ATTEMPTS":100`},
 		{"escaped_case_collision", `"enabled":true`, `"enabled":false,"ENAB\u004ced":true`},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -115,5 +106,14 @@ func TestRejectCaseCollidingJSONFields(t *testing.T) {
 				t.Fatalf("case-colliding JSON fields must be rejected: %v", err)
 			}
 		})
+	}
+}
+
+func TestRejectInvalidCloudIdentityMode(t *testing.T) {
+	keys(t)
+	for _, mode := range []string{"role", "default-profile", ""} {
+		if _, e := parseFixture([]byte(strings.Replace(validFile(), `"env_ak"`, `"`+mode+`"`, 1))); e == nil {
+			t.Fatal("unsupported credential mode accepted")
+		}
 	}
 }

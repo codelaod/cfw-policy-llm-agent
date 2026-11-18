@@ -21,12 +21,11 @@ func e3AgentResultCase(t *testing.T, kind string) (*Store, Job, AgentContent) {
 		t.Fatal(err)
 	}
 	initial.Kind, initial.Mode = kind, "rules_and_agent"
-	initial.EffectCeiling = EffectCeiling{AllowModelRequests: true, ModelHTTPAttempts: 6}
+	initial.EffectCeiling = EffectCeiling{AllowModelRequests: true}
 	var job Job
 	var err error
 	if kind == "assistant_turn" {
 		initial.Mode = "assistant"
-		initial.EffectCeiling.ModelHTTPAttempts = 4
 		job, _, _, err = store.EnqueueAssistant(ctx, initial, MessageInput{ClientMessageID: "e3-assistant-message", Role: "user", Origin: "user", PublicText: "解释固定资料", PolicyScopeRef: initial.PolicyScopeRef})
 	} else {
 		var plan ExecutionPlan
@@ -124,7 +123,7 @@ func TestE3AgentResultStoresImmutableBoundContentWithoutChangingRules(t *testing
 }
 
 func TestE3AgentResultRejectsForeignOrUnlicensedContent(t *testing.T) {
-	for _, scenario := range []string{"job", "snapshot", "scope", "source", "basis", "rule", "binding", "failure-binding", "effect", "unsealed", "cancelled", "model-limit", "tool-limit", "assistant-model-limit", "assistant-tool-limit", "context-overstated", "fake-zero-model", "unknown-error", "oversized-output", "oversized-body"} {
+	for _, scenario := range []string{"job", "snapshot", "scope", "source", "basis", "rule", "binding", "failure-binding", "effect", "unsealed", "cancelled", "model-limit", "assistant-model-limit", "context-overstated", "fake-zero-model", "unknown-error", "oversized-output", "oversized-body"} {
 		t.Run(scenario, func(t *testing.T) {
 			ctx := context.Background()
 			kind := "audit"
@@ -174,7 +173,7 @@ func TestE3AgentResultRejectsForeignOrUnlicensedContent(t *testing.T) {
 			case "tool-limit":
 				content.ToolCalls = 13
 			case "assistant-model-limit":
-				content.ModelCalls = 5
+				content.ModelCalls = 7
 			case "assistant-tool-limit":
 				content.ToolCalls = 9
 			case "context-overstated":

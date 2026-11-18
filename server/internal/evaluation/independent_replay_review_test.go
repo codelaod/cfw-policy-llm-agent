@@ -6,7 +6,7 @@ import (
 )
 
 func TestIndependentCompletedReplayDoesNotRequireModelFactory(t *testing.T) {
-	f := newEvaluationFixture(t, "success", nil)
+	f := newEvaluationFixture(t, "success")
 	a := f.accepted(t, FixedModel, "independent-offline-replay")
 	first, err := f.runner.Run(context.Background(), f.protocol, f.caseData, a)
 	if err != nil || first.Record.Status != "completed" {

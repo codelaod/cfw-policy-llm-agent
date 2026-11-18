@@ -35,19 +35,19 @@ type callRecord struct {
 	completed, started            bool
 }
 type state struct {
-	mu                                   sync.Mutex
-	ctx                                  context.Context
-	cancel                               context.CancelFunc
-	query                                Query
-	sink                                 Sink
-	cfg                                  Config
-	maxModels, maxTools, maxBatch        int
-	modelCalls, toolCalls, reservedTools int
-	infos                                []*schema.ToolInfo
-	tools                                map[string]bool
-	calls                                map[string]*callRecord
-	failure                              string
-	final                                string
+	mu                    sync.Mutex
+	ctx                   context.Context
+	cancel                context.CancelFunc
+	query                 Query
+	sink                  Sink
+	cfg                   Config
+	maxModels             int
+	modelCalls, toolCalls int
+	infos                 []*schema.ToolInfo
+	tools                 map[string]bool
+	calls                 map[string]*callRecord
+	failure               string
+	final                 string
 }
 
 func (s *state) fail(code string) error {
@@ -119,37 +119,6 @@ func (s *state) snapshot() Outcome {
 	defer s.mu.Unlock()
 	return Outcome{ModelCalls: s.modelCalls, ToolCalls: s.toolCalls, UsageKnown: false, ErrorCode: s.failure}
 }
-func bounds(kind string, cfg Config) (models, tools, batch int, timeout, stage time.Duration, err error) {
-	if kind != "audit" && kind != "assistant_turn" {
-		err = Controlled("INVALID_TASK")
-		return
-	}
-	resolved, e := workload.Normalize(kind, cfg.Workload)
-	if e != nil || cfg.MaxModelCalls < 0 || cfg.MaxToolCalls < 0 || cfg.ModelTimeout < 0 {
-		err = Controlled("INVALID_LIMITS")
-		return
-	}
-	limits := resolved.Limits
-	models, tools, batch = limits.ModelLogicalCalls, limits.ToolCalls, limits.ToolBatch
-	if cfg.MaxModelCalls > 0 && cfg.MaxModelCalls < models {
-		models = cfg.MaxModelCalls
-	}
-	if cfg.MaxToolCalls > 0 && cfg.MaxToolCalls < tools {
-		tools = cfg.MaxToolCalls
-	}
-	if batch > tools {
-		batch = tools
-	}
-	timeout, _ = workload.Seconds(limits.ModelRequestSeconds)
-	stage, _ = workload.Seconds(limits.ModelSeconds)
-	if cfg.ModelTimeout > 0 && cfg.ModelTimeout < timeout {
-		timeout = cfg.ModelTimeout
-	}
-	if models == 0 || limits.ModelHTTPAttempts == 0 || timeout <= 0 || stage <= 0 {
-		err = Controlled("MODEL_CALL_LIMIT")
-	}
-	return
-}
 
 // Run creates a fresh model, tool closure set, ChatModelAgent and Runner. It
 // exposes only validated final JSON and counters; wire history stays transient.
@@ -168,7 +137,7 @@ func Run(ctx context.Context, task Task, cfg Config, sink Sink) (out Outcome, er
 			}
 		}
 	}()
-	models, tools, batch, timeout, stage, e := bounds(task.Kind, cfg)
+	models, timeout, stage, e := bounds(task.Kind, cfg)
 	if e != nil {
 		return Outcome{ErrorCode: e.(*Error).Code}, e
 	}
@@ -187,7 +156,7 @@ func Run(ctx context.Context, task Task, cfg Config, sink Sink) (out Outcome, er
 	cfg.ModelTimeout = timeout
 	cfg.SensitiveValues = append([]string(nil), cfg.SensitiveValues...)
 	cfg.FinalSchema = append(json.RawMessage(nil), cfg.FinalSchema...)
-	run = &state{ctx: runCtx, cancel: cancel, query: task.Queries, sink: sink, cfg: cfg, maxModels: models, maxTools: tools, maxBatch: batch, tools: map[string]bool{}, calls: map[string]*callRecord{}}
+	run = &state{ctx: runCtx, cancel: cancel, query: task.Queries, sink: sink, cfg: cfg, maxModels: models, tools: map[string]bool{}, calls: map[string]*callRecord{}}
 	fail := func(code string) (Outcome, error) {
 		run.mu.Lock()
 		e := run.fail(code)
@@ -394,18 +363,12 @@ func (m *guardModel) Generate(ctx context.Context, input []*schema.Message, opts
 		s.final = result.Content
 	} else {
 		// Local evidence queries cannot produce a final model answer. Do not
-		// spend the last logical turn's tool budget with no answer turn left.
+		// start tool queries when no model round remains for the answer.
 		if s.modelCalls >= s.maxModels {
 			return nil, s.fail("MODEL_CALL_LIMIT")
 		}
 		if reason != "tool_calls" {
 			return nil, s.fail("MODEL_PROTOCOL_ERROR")
-		}
-		if len(result.ToolCalls) > s.maxBatch {
-			return nil, s.fail("TOOL_BATCH_LIMIT")
-		}
-		if s.reservedTools+len(result.ToolCalls) > s.maxTools {
-			return nil, s.fail("TOOL_CALL_LIMIT")
 		}
 		batch := map[string]bool{}
 		for _, call := range result.ToolCalls {
@@ -426,7 +389,6 @@ func (m *guardModel) Generate(ctx context.Context, input []*schema.Message, opts
 		for _, call := range result.ToolCalls {
 			s.calls[call.ID] = &callRecord{name: call.Function.Name, args: call.Function.Arguments, assistant: assistantSignature(result)}
 		}
-		s.reservedTools += len(result.ToolCalls)
 	}
 	var safe *schema.Message
 	if json.Unmarshal(raw, &safe) != nil {
@@ -693,4 +655,23 @@ func (s *state) persist(ctx context.Context, event Event) (err error) {
 		return s.fail(code)
 	}
 	return nil
+}
+
+func bounds(kind string, cfg Config) (models int, timeout, stage time.Duration, err error) {
+	if kind != "audit" && kind != "assistant_turn" {
+		err = Controlled("INVALID_TASK")
+		return
+	}
+	r, e := workload.Normalize(kind, cfg.Workload)
+	if e != nil || cfg.ModelTimeout < 0 {
+		err = Controlled("INVALID_LIMITS")
+		return
+	}
+	models = r.Limits.MaxRounds
+	timeout = cfg.ModelTimeout
+	if timeout == 0 {
+		timeout = 30 * time.Second
+	}
+	stage, _ = workload.Seconds(r.Limits.ExecutionSeconds)
+	return
 }

@@ -34,7 +34,6 @@ type CloudService struct {
 	ConfigRevision  string
 	Configured      bool
 	Ready           bool
-	MaxHTTPAttempts int
 	SensitiveValues []string
 	Scopes          map[string]aliyuncollector.Config
 	NewReader       func(context.Context, string) (CloudReader, error)
@@ -54,7 +53,6 @@ type CollectionOptions struct {
 	Configured       bool              `json:"configured"`
 	Available        bool              `json:"available"`
 	IdentityVerified bool              `json:"identity_verified"`
-	MaxHTTPAttempts  int               `json:"max_http_attempts"`
 	Scopes           []CollectionScope `json:"scopes"`
 }
 
@@ -65,7 +63,7 @@ func (s *CloudService) Options() CollectionOptions {
 	if s == nil {
 		return out
 	}
-	out.SourceRef, out.Configured, out.Available, out.MaxHTTPAttempts = s.SourceRef, s.Configured, s.Ready, s.MaxHTTPAttempts
+	out.SourceRef, out.Configured, out.Available = s.SourceRef, s.Configured, s.Ready
 	refs := make([]string, 0, len(s.Scopes))
 	for ref := range s.Scopes {
 		refs = append(refs, ref)
@@ -123,7 +121,7 @@ func (s *PlanService) previewCloud(ctx context.Context, req PlanRequest) (PlanPr
 	if cloud == nil || !cloud.Ready || cloud.NewReader == nil || req.DataSourceID != cloud.SourceRef {
 		return PlanPreview{}, ErrSourceNotConfigured
 	}
-	if cloud.Store != s.Store || cloud.ConfigRevision != s.ConfigRevision || cloud.MaxHTTPAttempts < 1 {
+	if cloud.Store != s.Store || cloud.ConfigRevision != s.ConfigRevision {
 		return PlanPreview{}, storage.ErrInputInvalid
 	}
 	if req.Mode != "rules_only" || req.DataPolicy.Mode != "force_refresh" || req.DataPolicy.SnapshotID != "" || req.DataPolicy.FreshAfter != "" || req.DataPolicy.AllowStaleFallback || req.EvaluationAt != "" || req.RecheckOfJobID != "" || req.DisclosurePolicyID != "" || len(req.ProfileVersionIDs) != 0 || len(req.IntentVersionIDs) != 0 || req.BaselineVersionID != audit.ProjectBaseline().Version {
@@ -151,16 +149,12 @@ func (s *PlanService) previewCloud(ctx context.Context, req PlanRequest) (PlanPr
 	if err != nil {
 		return PlanPreview{}, err
 	}
-	limit := resolved.Limits.CloudHTTPAttempts
-	if limit <= 0 {
-		return PlanPreview{}, ErrSourceNotConfigured
-	}
 	body, err := json.Marshal(req)
 	if err != nil {
 		return PlanPreview{}, storage.ErrInputInvalid
 	}
 	prepared := domain.Input{Scope: cfg.Scope, Selection: selection, Baseline: audit.ProjectBaseline()}
-	p, err := s.Store.SavePlan(ctx, storage.ExecutionPlan{Workload: resolved, Kind: req.Kind, ConversationID: conversation.ID, DataSourceID: cloud.SourceRef, PolicyScopeRef: cfg.Scope.Ref, Mode: "rules_only", ConversationRevision: conversation.Revision, Request: body, EffectCeiling: storage.EffectCeiling{AllowCloudReads: true, CloudHTTPAttempts: limit}, PreparedInput: prepared, ConfigRevision: s.ConfigRevision, BudgetRef: s.BudgetRef})
+	p, err := s.Store.SavePlan(ctx, storage.ExecutionPlan{Workload: resolved, Kind: req.Kind, ConversationID: conversation.ID, DataSourceID: cloud.SourceRef, PolicyScopeRef: cfg.Scope.Ref, Mode: "rules_only", ConversationRevision: conversation.Revision, Request: body, EffectCeiling: storage.EffectCeiling{AllowCloudReads: true}, PreparedInput: prepared, ConfigRevision: s.ConfigRevision})
 	warnings := []string{"仅对显式配置的账号与所选对象执行只读请求，云端策略仍由人工修改。", "配置目录尚未核验身份或产品权限；本次任务才执行身份核对。"}
 	if req.Kind == "connection_check" {
 		warnings = append(warnings, "本次仅验证调用身份；产品字段、权限与完整性须由采集任务另行验证。")
@@ -190,7 +184,7 @@ func (s *CloudService) Run(ctx context.Context, job storage.Job) error {
 		return ctx.Err()
 	}
 	p, err := s.Store.GetPlan(ctx, job.PlanID)
-	if err != nil || p.ConsumedJobID != job.ID || p.BudgetRef != job.BudgetRef || p.Kind != job.Kind || (job.Kind != "collect" && job.Kind != "connection_check") || p.ConversationID != job.ConversationID || p.DataSourceID != s.SourceRef || p.ConfigRevision != s.ConfigRevision || !p.EffectCeiling.AllowCloudReads || p.EffectCeiling.AllowModelRequests || p.EffectCeiling.ModelHTTPAttempts != 0 || p.EffectCeiling.CloudHTTPAttempts < 1 || p.EffectCeiling.CloudHTTPAttempts > s.MaxHTTPAttempts {
+	if err != nil || p.ConsumedJobID != job.ID || p.Kind != job.Kind || (job.Kind != "collect" && job.Kind != "connection_check") || p.ConversationID != job.ConversationID || p.DataSourceID != s.SourceRef || p.ConfigRevision != s.ConfigRevision || !p.EffectCeiling.AllowCloudReads || p.EffectCeiling.AllowModelRequests {
 		return workflowFailure(ctx, "CLOUD_PLAN_INVALID", false)
 	}
 	var request PlanRequest
@@ -222,10 +216,6 @@ func (s *CloudService) Run(ctx context.Context, job storage.Job) error {
 		return nil
 	}
 	cfg.Workload = p.Workload
-	cfg.MaxAttempts = p.EffectCeiling.CloudHTTPAttempts - 1
-	if cfg.MaxAttempts < 1 {
-		return JobFailure{Code: "ATTEMPT_LIMIT"}
-	}
 	var collected aliyuncollector.Collection
 	if s.collect != nil {
 		collected, err = s.collect(ctx, reader, cfg, selection)
@@ -256,24 +246,16 @@ func (s *CloudService) Run(ctx context.Context, job storage.Job) error {
 			return workflowFailure(ctx, "CLOUD_RESPONSE_CONTAINS_CREDENTIAL", false)
 		}
 	}
-	content.ProductReady = true
+	content, err = cloudContent(job, p, collected)
+	if err != nil {
+		return err
+	}
 	content.Limitations = append(content.Limitations, collected.Input.Completeness.KnownGaps...)
 	if !collected.Input.Completeness.EnumerationComplete {
 		content.Limitations = append(content.Limitations, "COLLECTION_INCOMPLETE")
 	}
 	if collected.Input.Completeness.ObservationConsistency != "observed_stable" {
 		content.Limitations = append(content.Limitations, "CONFIGURATION_NOT_STABLE")
-	}
-	for _, observation := range collected.Observations {
-		content.Observations = append(content.Observations, storage.CloudObservation{Round: observation.Round, Operation: observation.Operation, Pages: observation.Pages, StartedAt: observation.StartedAt, FinishedAt: observation.FinishedAt, EnumerationComplete: observation.EnumerationComplete, SemanticSHA256: observation.SemanticSHA256})
-	}
-	artifacts := make([]storage.CloudRawArtifact, 0, len(collected.Artifacts))
-	for _, artifact := range collected.Artifacts {
-		artifacts = append(artifacts, storage.CloudRawArtifact{Round: artifact.Round, Operation: artifact.Operation, Query: artifact.Query, Body: []byte(artifact.Body), SHA256: artifact.SHA256})
-	}
-	content.RawArtifacts, err = json.Marshal(artifacts)
-	if err != nil || len(content.RawArtifacts) > 32<<20 {
-		return workflowFailure(ctx, "COLLECTION_RAW_LIMIT", false)
 	}
 	if _, err = s.Store.FinalizeCloud(ctx, job.ID, content, &collected.Input); err != nil {
 		return s.collectionPublicationFailure(ctx, job, p, cfg.Scope, collected, "CLOUD_RESULT_SAVE_FAILED")

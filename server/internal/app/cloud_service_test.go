@@ -58,9 +58,8 @@ func cloudPlanCase(t *testing.T) (*storage.Store, *PlanService, *CloudService, *
 		t.Fatal(err)
 	}
 	plans.ConfigRevision = "combined-cloud-config"
-	plans.BudgetRef = "shared-cloud-period"
 	reader := &cloudReaderFixture{}
-	cloud := &CloudService{Store: store, SourceRef: "configured-cloud", ConfigRevision: plans.ConfigRevision, Configured: true, Ready: true, MaxHTTPAttempts: 20, Scopes: map[string]aliyuncollector.Config{in.Scope.Ref: {Scope: in.Scope, AssetRegions: map[string]string{in.Selection.AssetIDs[0]: "cn-hangzhou"}, MaxAttempts: 20}}, NewReader: func(context.Context, string) (CloudReader, error) { return reader, nil }}
+	cloud := &CloudService{Store: store, SourceRef: "configured-cloud", ConfigRevision: plans.ConfigRevision, Configured: true, Ready: true, Scopes: map[string]aliyuncollector.Config{in.Scope.Ref: {Scope: in.Scope, AssetRegions: map[string]string{in.Selection.AssetIDs[0]: "cn-hangzhou"}}}, NewReader: func(context.Context, string) (CloudReader, error) { return reader, nil }}
 	cloud.collect = func(context.Context, CloudReader, aliyuncollector.Config, domain.Selection) (aliyuncollector.Collection, error) {
 		return aliyuncollector.Collection{Input: in, Observations: []aliyuncollector.Observation{{Round: 1, Operation: "DescribeControlPolicy", Pages: 1, StartedAt: in.CollectedAt, FinishedAt: in.CollectedAt, EnumerationComplete: true, SemanticSHA256: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}}, nil
 	}
@@ -82,7 +81,7 @@ func TestCloudPlanPreviewIsLocalAndFreezesOnlyExplicitCollectionIntent(t *testin
 	if err != nil {
 		t.Fatal(err)
 	}
-	if reader.verified != 0 || reader.reads != 0 || !p.EffectCeiling.AllowCloudReads || p.EffectCeiling.AllowModelRequests || p.EffectCeiling.CloudHTTPAttempts != 20 || p.SnapshotID != "" || !reflect.DeepEqual(p.PreparedInput.Scope, in.Scope) || !reflect.DeepEqual(p.PreparedInput.Selection, in.Selection) || len(p.PreparedInput.Assets) != 0 {
+	if reader.verified != 0 || reader.reads != 0 || !p.EffectCeiling.AllowCloudReads || p.EffectCeiling.AllowModelRequests || p.SnapshotID != "" || !reflect.DeepEqual(p.PreparedInput.Scope, in.Scope) || !reflect.DeepEqual(p.PreparedInput.Selection, in.Selection) || len(p.PreparedInput.Assets) != 0 {
 		t.Fatal("preview performed work or changed its frozen effects/scope")
 	}
 	jobs, err := store.ListJobs(context.Background(), request.ConversationID, 0, 100)

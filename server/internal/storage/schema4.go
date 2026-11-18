@@ -8,8 +8,7 @@ import (
 
 func checkCloudShape(db *gorm.DB) error {
 	for table, columns := range map[string][]string{
-		"budget_policies":          {"ref", "application_cloud_attempts", "application_model_attempts", "session_cloud_attempts", "session_model_attempts", "expires_at", "created_at"},
-		"outbound_attempts":        {"id", "job_id", "conversation_id", "budget_ref", "class", "bucket", "source_ref", "state", "error_code", "http_status", "duration_ms", "reserved_at", "finished_at", "usage_json"},
+		"outbound_attempts":        {"id", "job_id", "conversation_id", "class", "bucket", "source_ref", "state", "error_code", "http_status", "duration_ms", "reserved_at", "finished_at", "usage_json"},
 		"job_agent_results":        {"id", "job_id", "created_at", "body"},
 		"configured_scope_catalog": {"scope_ref", "source_ref", "config_revision", "body", "active"},
 		"job_cloud_results":        {"id", "job_id", "created_at", "source_ref", "config_revision", "body", "raw_artifacts", "request_digest"},
@@ -36,7 +35,7 @@ func migrateCloudSchema(tx *gorm.DB) error {
 	if err := tx.Raw("SELECT version FROM business_schema").Scan(&version).Error; err != nil {
 		return err
 	}
-	if version != 3 && version != 4 && version != 5 {
+	if version != 3 && version != 4 && version != BusinessSchemaVersion {
 		return errors.New("unsupported business schema for cloud migration")
 	}
 	for _, q := range []string{

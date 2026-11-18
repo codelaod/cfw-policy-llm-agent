@@ -66,7 +66,7 @@ func (s *Store) GetAuditDiscovery(ctx context.Context, jobID string) (*AuditDisc
 
 // SaveAuditDiscovery saves one whole bounded directory round. Identical replay
 // returns its original record; a different payload cannot overwrite that round.
-// The original plan/intent, sealed input, terminal state and budget are untouched.
+// The discovery record belongs to the accepted audit; sealing happens separately.
 func (s *Store) SaveAuditDiscovery(ctx context.Context, jobID string, resources []domain.Resource, coverages []domain.CatalogueCoverage, raw json.RawMessage, code string) (record AuditDiscoveryRecord, err error) {
 	if !attemptAlias(jobID) || code != "" && !cloudCode(code) {
 		return record, ErrInputInvalid
@@ -74,7 +74,7 @@ func (s *Store) SaveAuditDiscovery(ctx context.Context, jobID string, resources 
 	if len(raw) == 0 {
 		raw = json.RawMessage(`[]`)
 	}
-	if len(raw) > 32<<20 || !json.Valid(raw) {
+	if len(raw) > domain.MaxCloudEvidenceBytes || !json.Valid(raw) {
 		return record, ErrInputInvalid
 	}
 	if resources == nil {
@@ -127,7 +127,7 @@ func (s *Store) SaveAuditDiscovery(ctx context.Context, jobID string, resources 
 		if e != nil {
 			return e
 		}
-		if plan.ConsumedJobID != jobID || plan.ConversationID != job.ConversationID || plan.BudgetRef != job.BudgetRef || !reflect.DeepEqual(plan.Workload, job.Workload) {
+		if plan.ConsumedJobID != jobID || plan.ConversationID != job.ConversationID || !reflect.DeepEqual(plan.Workload, job.Workload) {
 			return ErrInputInvalid
 		}
 		var accepted preparedAcceptance
@@ -356,10 +356,10 @@ func discoveryIDAllowed(spec *PreparationSpec, grant ConnectionGrant, region, id
 }
 
 func validateDiscoveryRaw(raw json.RawMessage, plan ExecutionPlan, grant ConnectionGrant) (map[string]bool, error) {
-	var artifacts []CloudRawArtifact
+	var artifacts []domain.CloudRawArtifact
 	d := json.NewDecoder(strings.NewReader(string(raw)))
 	d.DisallowUnknownFields()
-	if d.Decode(&artifacts) != nil || artifacts == nil || len(artifacts) > plan.EffectCeiling.CloudHTTPAttempts {
+	if d.Decode(&artifacts) != nil || artifacts == nil {
 		return nil, ErrInputInvalid
 	}
 	var extra any
@@ -368,7 +368,7 @@ func validateDiscoveryRaw(raw json.RawMessage, plan ExecutionPlan, grant Connect
 	}
 	spec := plan.Preparation
 	regions := map[string]bool{}
-	probe := make([]CloudRawArtifact, len(artifacts))
+	probe := make([]domain.CloudRawArtifact, len(artifacts))
 	for i, artifact := range artifacts {
 		if artifact.Round != 0 {
 			return nil, ErrInputInvalid

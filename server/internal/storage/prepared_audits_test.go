@@ -71,7 +71,7 @@ func preparationCase(t *testing.T, fixture string, known bool) (*Store, Executio
 	if err != nil {
 		t.Fatal(err)
 	}
-	p := ExecutionPlan{Kind: "audit", ConversationID: conversation.ID, ConversationRevision: conversation.Revision, DataSourceID: grant.SourceRef, ConfigRevision: grant.ConfigRevision, PolicyScopeRef: scope.Ref, Mode: "rules_only", BudgetRef: "original-budget", PreparedInput: domain.Input{Scope: scope, Baseline: in.Baseline}, EffectCeiling: EffectCeiling{AllowCloudReads: true, CloudHTTPAttempts: 7}, Preparation: &PreparationSpec{SourceRef: grant.SourceRef, ConfigRevision: grant.ConfigRevision, Query: query, Selected: selected, Boundary: in.Scope.Boundary, Direction: in.Scope.Direction, DataPolicy: "prefer_fresh", ResultLimit: 1}}
+	p := ExecutionPlan{Kind: "audit", ConversationID: conversation.ID, ConversationRevision: conversation.Revision, DataSourceID: grant.SourceRef, ConfigRevision: grant.ConfigRevision, PolicyScopeRef: scope.Ref, Mode: "rules_only", PreparedInput: domain.Input{Scope: scope, Baseline: in.Baseline}, EffectCeiling: EffectCeiling{AllowCloudReads: true}, Preparation: &PreparationSpec{SourceRef: grant.SourceRef, ConfigRevision: grant.ConfigRevision, Query: query, Selected: selected, Boundary: in.Scope.Boundary, Direction: in.Scope.Direction, DataPolicy: "prefer_fresh", ResultLimit: 1}}
 	content := CloudContent{Kind: "audit", ScopeRef: in.Scope.Ref, SourceRef: grant.SourceRef, ConfigRevision: grant.ConfigRevision, IdentityVerified: true, ProductReady: true, Observations: []CloudObservation{{Round: 1, Operation: "DescribeControlPolicy", Pages: 1, StartedAt: in.CollectedAt, FinishedAt: in.CollectedAt, EnumerationComplete: true, SemanticSHA256: strings.Repeat("a", 64)}, {Round: 2, Operation: "DescribeControlPolicy", Pages: 1, StartedAt: in.CollectedAt, FinishedAt: in.CollectedAt, EnumerationComplete: true, SemanticSHA256: strings.Repeat("a", 64)}}}
 	return s, p, in, content
 }
@@ -115,7 +115,7 @@ func TestPreparedAuditOwnProductIsAtomicNonterminalAndBoundOnce(t *testing.T) {
 				t.Fatal("saving data unexpectedly sealed input", err)
 			}
 			current, err := s.Get(ctx, job.ID)
-			if err != nil || current.Status != "running" || current.BudgetRef != p.BudgetRef {
+			if err != nil || current.Status != "running" {
 				t.Fatal("preparation ended task or replaced budget", current, err)
 			}
 			var jobs, budgets int64

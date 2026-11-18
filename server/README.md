@@ -4,7 +4,7 @@ Go／Gin／Eino单进程，纯Go SQLite WAL与普通连接池；Vue／Vite构建
 
 ## 统一配置与运行
 
-所有外部设置只走一份[配置模板](../.env.example)：应用口令／数据库／静态目录、模型、阿里云连接、共享预算、数据时效及四类任务执行保护。使用同名进程环境变量时无需配置文件；使用文件时由`--env-file`显式选择，不自动查找dotenv、机器profile或实验私配。旧模型／云／执行JSON入口及对应模板已删除。
+所有外部设置只走一份[配置模板](../.env.example)：应用口令／数据库／静态目录、模型、阿里云连接、任务保护与数据时效。使用同名进程环境变量时无需配置文件；使用文件时由`--env-file`显式选择，不自动查找dotenv、机器profile或实验私配。旧模型／云／执行JSON入口及对应模板已删除。
 
 从仓库根目录准备本地文件：
 
@@ -21,13 +21,12 @@ bash scripts/e0.sh server --env-file .env.local
 | 配置组 | 填写位置／形式 |
 | --- | --- |
 | 应用 | `CFW_APP_TOKEN`至少16字符；`CFW_DB_PATH`为私库路径；`CFW_WEB_DIR`为空或构建目录 |
-| 模型 | `CFW_MODEL_ENABLED`、`BASE_URL`、`API_KEY`、`NAME`、`API_STYLE`、`PROVIDER_PROFILE`、`TIMEOUT_SECONDS`、`MAX_HTTP_ATTEMPTS`、`MAX_OUTPUT_TOKENS`（后八项均加`CFW_MODEL_`前缀） |
+| 模型 | `CFW_MODEL_ENABLED`、`BASE_URL`、`API_KEY`、`NAME`、`API_STYLE`、`PROVIDER_PROFILE`、`TIMEOUT_SECONDS`、`MAX_OUTPUT_TOKENS`（后七项均加`CFW_MODEL_`前缀） |
 | 阿里云 | `CFW_CLOUD_*`选择账号、地域、边界、静态凭据模式和限制；`CFW_ALIYUN_*`填写密钥整组。地域／边界／可选对象使用模板中的JSON数组 |
-| 共享预算 | `CFW_BUDGET_REF`、可选到期、应用／会话云和模型累计物理尝试；没有ref且次数全0表示未配置，明确0禁止请求 |
-| 数据时效 | `CFW_FRESHNESS_*`版本及配置／元数据最大复用时长，0不复用；还检查来源、完整性及引用等资格 |
-| 执行保护 | `CFW_WORKLOAD_PROFILE_REF`；`CFW_WORKLOAD_<AUDIT/ASSISTANT_TURN/COLLECT/CONNECTION_CHECK>_<字段>`，完整字段及默认值均在同一模板 |
+| 数据时效 | `CFW_FRESHNESS_*`配置配置／元数据最大复用时长，0不复用；还检查来源、完整性及引用等资格 |
+| 执行保护 | `CFW_TASK_TIMEOUT_SECONDS`、`CFW_QUEUE_TIMEOUT_SECONDS`、`CFW_AGENT_MAX_ROUNDS` |
 
-只有`--env-file`是配置来源参数。`--migrate`、`--config-check`和`--budget-change`是互斥操作；`--budget-change`仍使用一份明确的管理员变更JSON追加持久授权修订，它是操作请求，不是第二套启动配置。脚本也可运行`test`、`build`、`api`。
+只有`--env-file`是配置来源参数。`--migrate`和`--config-check`是互斥的本地操作。脚本也可运行`test`、`build`、`api`。
 
 ### 来源、优先级与检查
 
@@ -37,9 +36,9 @@ bash scripts/e0.sh server --env-file .env.local
 
 文件内相对路径以该文件目录解析。直接运行Go或二进制时，进程相对路径以运行目录解析，默认私库为`../data/private/e0.sqlite`（从server目录运行）；`e0.sh`先将显式文件参数及进程的DB／Web相对路径按脚本调用者目录转绝对路径，再切入server。等号、空格路径和空值均保留。
 
-启动、配置检查及计划预览零DNS／HTTP；配置检查不开数据库、不启动工作器。摘要区分本地结构、凭据、授权、账本未检查和上游未验证；填写／enabled／ready不代表身份与真实协议已验证，也不触发调用。模型和云均可禁用并逐项填写，离线规则和历史可用。启用后缺密钥保持blocked；缺URL／模型名／期望账号属配置错误。provider profile只有openai-compatible／minimax；实际可执行非流式chat_completions，已知responses登记为不支持，不静默降级。
+启动、配置检查及计划预览零DNS／HTTP；配置检查不开数据库、不启动工作器。摘要区分本地结构、凭据、账本未检查和上游未验证；填写／enabled／ready不代表身份与真实协议已验证，也不触发调用。模型和云均可禁用并逐项填写，离线规则和历史可用。启用后缺密钥保持blocked；缺URL／模型名／期望账号属配置错误。provider profile只有openai-compatible／minimax；实际可执行非流式chat_completions，已知responses登记为不支持，不静默降级。
 
-当前business schema为5。旧库先停止服务并备份，再显式migrate；正常启动不AutoMigrate、不修复非完整库。纯Go／CGO_ENABLED=0，Go版本要求见go.mod；本次本机验证工具链见阶段证据。
+当前business schema为6。未上线项目不兼容旧schema；旧库保持原样，选择新私库路径后显式migrate；正常启动不AutoMigrate、不修复非完整库。纯Go／CGO_ENABLED=0，Go版本要求见go.mod；本次本机验证工具链见阶段证据。
 
 ### 云连接、目录与本次对象
 
@@ -49,21 +48,21 @@ bash scripts/e0.sh server --env-file .env.local
 
 首轮非fatal失败在身份齐备时保存明确partial输入及已得ACL／SG；fatal、取消或不足只保存安全观察与受控原因。独立collect／pinned历史入口仍保留。
 
-### 执行保护与持久授权
+### 执行保护与调用记录
 
-四类完整profile由统一配置生成，计划、Store、Engine、Runner、Collector和HTTP共用；独立逻辑模型次数、物理尝试、单次和阶段时限、工具／批量、对象与计算保护逐层取严。默认工程值尚待真实校准，不是厂商SLA或调用授权。数据复用保持原时点，force_refresh／人工变更不偷用旧资料，历史解释零云。
+任务仅配置总超时、排队时间和Agent最大轮数，适配器另有单请求超时；采集、规则、Agent与串行批次共用任务截止。保留有限SDK重试、取消、输入／响应大小及对象／计算保护。物理请求、token、耗时和错误持久记录；历史累计量不阻断后续任务。
 
-云和模型共用一个Manager、application-root持久授权和attempt账本。共享初始预算只有一处配置，不再分别在云／模型JSON填额度。普通启动只初始化或收紧，已用量不会因改密钥、换ref、重启或新会话重置。增加额度／续期须停止持库锁的服务，使用`--budget-change`显式追加同ref修订，保留base CAS／change_id幂等和旧attempt。当前任务仍需明确接受，发送前预记每个物理尝试，包含重试；未知送达仍计已用。
+没有应用／会话累计额度、预算ref／到期、增额修订或管理员增额命令。模型输出token是回复长度，仅校验正整数，本地不设1024上限。配置存在不触发外呼；真实调用仍按用户明确范围执行。
 
 ## 对话、业务与结果
 
 无快照可建会话并保存目标；候选／澄清／提议／接受持久，旧目标变化使旧计划失效。固定历史的解释沿原报告时点，模型历史引导先绑定原报告／快照并预填，发送仅生成零云解释计划，再接受才允许模型；人工改后强刷新审计并关联旧报告，不回写旧结论。业务草稿／对话／表单共用，角色、允许、必要访问与例外分别预览确认；可信归属绑定有限成员及版本，可跨页取齐。自然确认绑定已核对的目标版本，原计划消费、用户消息和回执同事务保存；旧请求重放不回退新目标。
 
-超过单批时保留完整有限集合，明确预览后由一个父任务串行推进内部批段，共用原总期限、阶段和调用额度，不按批复制授权。每批有独立输入、时点、审计及报告；父结果只列实际覆盖、失败和未处理，不造合并报告。资料导入受5MiB／10000资产等结构保护，与单批执行上限分开，原始来源不变。
+超过单批时保留完整有限集合，明确预览后由一个父任务串行推进内部批段，共用任务截止时间和Agent轮数，不按批复制授权。每批有独立输入、时点、审计及报告；父结果只列实际覆盖、失败和未处理，不造合并报告。资料导入受5MiB／10000资产等结构保护，与单批执行上限分开，原始来源不变。
 
-同稿业务冲突通过只读current-base核对当前值，明确选择后以revision＋heads双CAS rebase；原稿ID和对话绑定保留，旧preview作废、不确认业务，原提交标识可恢复。新增rebase回执属schema5必要结构，旧库须显式迁移，正常启动不补表。
+同稿业务冲突通过只读current-base核对当前值，明确选择后以revision＋heads双CAS rebase；原稿ID和对话绑定保留，旧preview作废、不确认业务，原提交标识可恢复。新增rebase回执属schema6必要结构，旧版库选择新私库路径初始化；非完整schema6库须显式修复，正常启动不补表。
 
-单进程3个不同会话并行，同会话一个未结束任务，第四个排队。SSE＋轮询只观察持久seq，提交后发送、断线不取消、重连不重放请求或返还额度。服务重启把旧运行标中断，不自动恢复云／模型调用。事务不跨网络等待。
+单进程3个不同会话并行，同会话一个未结束任务，第四个排队。SSE＋轮询只观察持久seq，提交后发送、断线不取消、重连不重放请求或触发新请求。服务重启把旧运行标中断，不自动恢复云／模型调用。事务不跨网络等待。
 
 固定九工具只读sealed输入／原规则结果，metadata／SG有来源、时点、别名与缺口；角色和端口不证明监听、可达或业务授权。最多20条／24KiB获准公开历史，排除跨范围和未解析目标池，不保存原始reasoning或孤立旧工具wire。原始规则结果不被模型覆盖，报告JSON／Markdown使用受控公共投影及实际workload，保留unknown usage与失败阶段。
 

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"testing"
-	"time"
 
 	"cfw-policy-llm-agent/server/internal/domain"
 	"gorm.io/gorm"
@@ -15,9 +14,6 @@ func TestE3JobWorkspaceReadsAllAuthoritativePartsInOneTransaction(t *testing.T) 
 	store, job, content := e3AgentResultCase(t, "audit")
 	plan, err := store.GetPlan(ctx, job.PlanID)
 	if err != nil {
-		t.Fatal(err)
-	}
-	if err = store.ConfigureBudgetPolicy(ctx, BudgetPolicy{Ref: plan.BudgetRef, ApplicationModelAttempts: 6, SessionModelAttempts: 6, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano)}); err != nil {
 		t.Fatal(err)
 	}
 	id, err := store.ReserveAttempt(ctx, job.ID, "model", "configured-model", plan.ConfigRevision)

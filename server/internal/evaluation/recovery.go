@@ -55,7 +55,7 @@ func (r *Runner) reconcile(ctx context.Context, p Protocol, c FrozenCase, origin
 	}
 	if view.AgentResult != nil {
 		a := view.AgentResult
-		if view.Audit == nil || record.Arm == RulesOnly || a.JobID != record.JobID || a.Content.JobID != record.JobID || !equalJSON(a.Content.Manifest, c.rules.Manifest) || a.Content.ModelCalls < 0 || a.Content.ModelCalls > p.Workload.Limits.ModelLogicalCalls || a.Content.ToolCalls < 0 || a.Content.ToolCalls > p.Workload.Limits.ToolCalls {
+		if view.Audit == nil || record.Arm == RulesOnly || a.JobID != record.JobID || a.Content.JobID != record.JobID || !equalJSON(a.Content.Manifest, c.rules.Manifest) || a.Content.ModelCalls < 0 || a.Content.ModelCalls > p.Workload.Limits.MaxRounds || a.Content.ToolCalls < 0 {
 			out.Record.Replayed = true
 			return out, ErrBinding
 		}

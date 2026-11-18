@@ -8,6 +8,8 @@
 
 2026-11-17随后按用户要求将全部外部设置收敛为一份显式dotenv／同名进程环境，删除旧分散JSON与实验私配入口；本轮Go699项、launcher8项、实验离线测试、vet及后端构建通过，具体范围见[统一配置与清理](validation/evidence/conversation-implementation-local.md#全部外部配置统一与清理2026-11-17)。
 
+2026-11-18移除历史用量准入和重复额度，去留与运行契约见[任务时限与执行保护](design/session-and-execution.md#6-任务时限与执行保护)。schema 6、原型、接口及代码回归见[本机精简记录](validation/evidence/conversation-implementation-local.md#任务执行保护精简2026-11-18)。
+
 ## 1. 推荐阅读
 
 1. [项目定位](project/overview.md)与[项目决策](project/decisions.md)：范围、批准状态和已选路线。
@@ -37,7 +39,7 @@
 | [architecture](design/architecture.md) | 模块、部署、数据流、3会话、普通SQLite WAL与性能目标 |
 | [data-and-api](design/data-and-api.md) | 身份／版本、事务、任务、接口、审阅／报告、Swag生成保留 |
 | [audit-and-agent](design/audit-and-agent.md) | 三值规则、证据、受限工具、模型能力与建议校验 |
-| [session-and-execution](design/session-and-execution.md) | 连续会话、时效策略、排队／预算、恢复与并发 |
+| [session-and-execution](design/session-and-execution.md) | 连续会话、时效策略、排队／任务时限、恢复与并发 |
 | [credentials-and-permissions](design/credentials-and-permissions.md) | 应用／云／模型凭据、显式身份、外呼准入与范围 |
 | [guidance-and-entrypoints](design/guidance-and-entrypoints.md) | 五视图、情境下一步、Web及后续终端入口语义 |
 | [aliyun-collector](design/aliyun-collector.md) | 互联网入向／有限出向／NAT分区、只读API、分页与完整性 |

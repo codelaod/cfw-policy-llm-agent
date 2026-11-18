@@ -5,14 +5,14 @@ import (
 	"gorm.io/gorm"
 )
 
-const BusinessSchemaVersion = 5
+const BusinessSchemaVersion = 6
 
 func checkAdmissionShape(db *gorm.DB) error {
 	var shape int
-	if err := db.Raw(`SELECT (SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('budget_policies','outbound_attempts','job_agent_results')) + (SELECT count(*) FROM pragma_table_info('outbound_attempts') WHERE name='usage_json')`).Scan(&shape).Error; err != nil {
+	if err := db.Raw(`SELECT (SELECT count(*) FROM sqlite_master WHERE type='table' AND name IN ('outbound_attempts','job_agent_results')) + (SELECT count(*) FROM pragma_table_info('outbound_attempts') WHERE name='usage_json')`).Scan(&shape).Error; err != nil {
 		return err
 	}
-	if shape != 4 {
+	if shape != 3 {
 		return errors.New("admission schema is incomplete; explicit migration required")
 	}
 	if err := checkCloudShape(db); err != nil {
@@ -29,7 +29,7 @@ func migrateAdmissionSchema(tx *gorm.DB) error {
 	if version != 2 && version != 3 && version != 4 && version != BusinessSchemaVersion {
 		return errors.New("unsupported business schema for admission migration")
 	}
-	if err := migrateBudgets(tx); err != nil {
+	if err := migrateAttempts(tx); err != nil {
 		return err
 	}
 	if err := migrateAgentResults(tx); err != nil {

@@ -41,10 +41,6 @@ func protocolCase(t *testing.T, handler http.HandlerFunc, maximum ...time.Durati
 	plans := app.NewPlanService(store)
 	plans.ModelReady = true
 	plans.ConfigRevision = "protocol-fixture-v1"
-	plans.BudgetRef = "protocol-fixture-budget"
-	if err = store.ConfigureBudgetPolicy(ctx, storage.BudgetPolicy{Ref: plans.BudgetRef, ApplicationModelAttempts: 10, SessionModelAttempts: 10, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano)}); err != nil {
-		t.Fatal(err)
-	}
 	p, err := plans.Preview(ctx, app.PlanRequest{Kind: "audit", ConversationID: conv.ID, DataSourceID: "local-offline", PolicyScopeRef: snapshot.ScopeRef, Selection: app.PlanSelection{Kind: "assets", AssetIDs: snapshot.Input.Selection.AssetIDs}, DataPolicy: app.DataPolicy{Mode: "pinned_snapshot", SnapshotID: snapshot.ID}, BaselineVersionID: "B2-v1", Mode: "rules_and_agent"})
 	if err != nil {
 		t.Fatal(err)
@@ -117,7 +113,7 @@ func TestE3ModelAdapterIsLazyAndPreservesNonStreamingAssistantContinuity(t *test
 	if err != nil {
 		t.Fatal(err)
 	}
-	usage, err := store.BudgetUsage(context.Background(), job.BudgetRef, "", job.ID)
+	usage, err := store.AttemptUsage(context.Background(), "", job.ID)
 	if err != nil || usage.ModelAttempts != 0 || calls.Load() != 0 {
 		t.Fatal("construction sent a request or reserved budget")
 	}
@@ -132,7 +128,7 @@ func TestE3ModelAdapterIsLazyAndPreservesNonStreamingAssistantContinuity(t *test
 	if err != nil || invalid.Load() {
 		t.Fatal("nonstreaming protocol or tool correlation changed", err)
 	}
-	usage, err = store.BudgetUsage(context.Background(), job.BudgetRef, "", job.ID)
+	usage, err = store.AttemptUsage(context.Background(), "", job.ID)
 	if err != nil || usage.ModelAttempts != 2 {
 		t.Fatal("physical request accounting differs from HTTP")
 	}
@@ -165,7 +161,7 @@ func TestE3ModelAdapterBlocksCredentialReflectionAndModelOverrideBeforeHTTP(t *t
 			t.Fatal("request changed configured model authority")
 		}
 	}
-	usage, err := store.BudgetUsage(context.Background(), job.BudgetRef, "", job.ID)
+	usage, err := store.AttemptUsage(context.Background(), "", job.ID)
 	if err != nil || calls.Load() != 0 || usage.ModelAttempts != 0 {
 		t.Fatal("invalid request reached network admission")
 	}
@@ -213,7 +209,7 @@ func TestE3ModelAdapterRejectsPrivateErrorBodyTruncationAndOversizedInput(t *tes
 	if _, err = m.Generate(context.Background(), []*schema.Message{schema.UserMessage(strings.Repeat("x", 129<<10))}); err == nil {
 		t.Fatal("oversized request accepted")
 	}
-	usage, _ := store.BudgetUsage(context.Background(), job.BudgetRef, "", job.ID)
+	usage, _ := store.AttemptUsage(context.Background(), "", job.ID)
 	if usage.ModelAttempts != 0 {
 		t.Fatal("oversized request consumed an external attempt")
 	}

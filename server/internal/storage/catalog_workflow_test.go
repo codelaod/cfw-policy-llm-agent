@@ -103,7 +103,7 @@ func TestWorkflowSchemaMigrationIsExplicitAndChecksAllStructures(t *testing.T) {
 	}
 	var v int
 	s.db.Raw("SELECT version FROM business_schema").Scan(&v)
-	if v != 5 {
+	if v != BusinessSchemaVersion {
 		t.Fatal(v)
 	}
 }

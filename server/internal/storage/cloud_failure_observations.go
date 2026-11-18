@@ -53,7 +53,7 @@ func (s *Store) SaveCloudFailureObservations(ctx context.Context, jobID string, 
 		if e != nil {
 			return e
 		}
-		if p.Kind != kind || p.ConsumedJobID != jobID || p.ConversationID != job.ConversationID || p.BudgetRef != job.BudgetRef || p.DataSourceID != content.SourceRef || p.ConfigRevision != content.ConfigRevision || !p.EffectCeiling.AllowCloudReads || p.EffectCeiling.CloudHTTPAttempts < 1 {
+		if p.Kind != kind || p.ConsumedJobID != jobID || p.ConversationID != job.ConversationID || p.DataSourceID != content.SourceRef || p.ConfigRevision != content.ConfigRevision || !p.EffectCeiling.AllowCloudReads {
 			return ErrInputInvalid
 		}
 		if kind == "audit" {

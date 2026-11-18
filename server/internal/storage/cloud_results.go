@@ -26,16 +26,6 @@ type CloudObservation struct {
 	SemanticSHA256      string `json:"semantic_sha256"`
 }
 
-// CloudRawArtifact is a private persistence envelope. Body uses []byte so JSON
-// stores base64 and preserves the exact provider bytes and their SHA256.
-type CloudRawArtifact struct {
-	Round     int               `json:"round"`
-	Operation string            `json:"operation"`
-	Query     map[string]string `json:"query"`
-	Body      []byte            `json:"body"`
-	SHA256    string            `json:"sha256"`
-}
-
 // CloudContent is a controlled product projection. RawArtifacts are private
 // provider artifacts, kept in a separate column and never read by public views.
 // IdentityVerified records a successful check; no caller-identity response,
@@ -139,7 +129,7 @@ func privateCloudArtifacts(raw json.RawMessage) bool {
 	if !uniqueCloudJSON(raw) {
 		return false
 	}
-	var artifacts []CloudRawArtifact
+	var artifacts []domain.CloudRawArtifact
 	d := json.NewDecoder(strings.NewReader(string(raw)))
 	d.DisallowUnknownFields()
 	if d.Decode(&artifacts) != nil || artifacts == nil || len(artifacts) > workload.MaxCounter {
@@ -235,11 +225,11 @@ func normalizeCloud(content CloudContent) (CloudContent, error) {
 	if len(content.RawArtifacts) == 0 {
 		content.RawArtifacts = json.RawMessage(`[]`)
 	}
-	if !json.Valid(content.RawArtifacts) || len(content.RawArtifacts) > 32<<20 || !privateCloudArtifacts(content.RawArtifacts) {
+	if !json.Valid(content.RawArtifacts) || len(content.RawArtifacts) > domain.MaxCloudEvidenceBytes || !privateCloudArtifacts(content.RawArtifacts) {
 		return CloudContent{}, ErrInputInvalid
 	}
 	if content.Kind == "connection_check" {
-		var artifacts []CloudRawArtifact
+		var artifacts []domain.CloudRawArtifact
 		if json.Unmarshal(content.RawArtifacts, &artifacts) != nil || len(artifacts) != 0 {
 			return CloudContent{}, ErrInputInvalid
 		}
@@ -358,7 +348,7 @@ func (s *Store) FinalizeCloud(ctx context.Context, jobID string, content CloudCo
 		if e != nil {
 			return e
 		}
-		if plan.ConsumedJobID != job.ID || plan.Kind != job.Kind || plan.ConversationID != job.ConversationID || plan.DataSourceID != content.SourceRef || plan.ConfigRevision != content.ConfigRevision || plan.PolicyScopeRef != content.ScopeRef || plan.PreparedInput.Scope.Ref != content.ScopeRef || plan.SnapshotID != "" || !plan.EffectCeiling.AllowCloudReads || plan.EffectCeiling.CloudHTTPAttempts < 1 || plan.EffectCeiling.AllowModelRequests {
+		if plan.ConsumedJobID != job.ID || plan.Kind != job.Kind || plan.ConversationID != job.ConversationID || plan.DataSourceID != content.SourceRef || plan.ConfigRevision != content.ConfigRevision || plan.PolicyScopeRef != content.ScopeRef || plan.PreparedInput.Scope.Ref != content.ScopeRef || plan.SnapshotID != "" || !plan.EffectCeiling.AllowCloudReads || plan.EffectCeiling.AllowModelRequests {
 			return ErrInputInvalid
 		}
 		if input != nil {

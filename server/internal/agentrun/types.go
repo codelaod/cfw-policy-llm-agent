@@ -36,8 +36,6 @@ type Task struct {
 type Config struct {
 	Workload        workload.Resolved
 	SensitiveValues []string
-	MaxModelCalls   int
-	MaxToolCalls    int
 	ModelTimeout    time.Duration
 	FinalSchema     json.RawMessage
 }

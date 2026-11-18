@@ -27,8 +27,8 @@ func agentError(code string) *Notice {
 		text = "模型上下文未满足当前范围或披露约束，模型补充未完成。"
 	case "AGENT_OUTPUT_INVALID", "MODEL_OUTPUT_INVALID", "MODEL_OUTPUT_FILTERED", "MODEL_OUTPUT_TRUNCATED", "MODEL_PROTOCOL_INVALID", "MODEL_TOOL_CALL_INVALID", "TOOL_CALL_ID_INVALID", "TOOL_ARGUMENT_INVALID", "TOOL_REFERENCE_DENIED", "QUERY_INPUT_INVALID", "QUERY_REFERENCE_DENIED", "QUERY_TOOL_UNKNOWN", "QUERY_OUTPUT_TOO_LARGE":
 		text = "模型或工具输出未通过受控结构、引用或范围校验；不将其作为已确认结论。"
-	case "AGENT_MODEL_LIMIT", "AGENT_TOOL_LIMIT", "MODEL_CALL_LIMIT", "TOOL_CALL_LIMIT", "ATTEMPT_LIMIT", "BUDGET_NOT_CONFIGURED", "BUDGET_EXPIRED", "EFFECT_DENIED", "CONFIGURATION_STALE", "EXECUTION_CLOSED":
-		text = "模型补充受执行准入、效果或预算边界限制，已有规则结果保留。"
+	case "AGENT_MODEL_LIMIT", "MODEL_CALL_LIMIT", "EFFECT_DENIED", "CONFIGURATION_STALE", "EXECUTION_CLOSED":
+		text = "模型补充止于本次执行的准入条件或轮数上限，已有规则结果可查看。"
 	case "REQUEST_CANCELLED":
 		text = "模型补充被取消，未完成部分不作为有效建议。"
 	case "REQUEST_DEADLINE_EXCEEDED":
@@ -104,9 +104,6 @@ func validateSupplement(ctx context.Context, input domain.Input, result domain.R
 	if _, e := agentquery.NewWithContext(ctx, input, &result); e != nil {
 		return ErrInvalidResult
 	}
-	if s.Usage != nil && s.Usage.PhysicalAttempts > int64(limits.ModelHTTPAttempts) {
-		return ErrInvalidResult
-	}
 	if e := ctx.Err(); e != nil {
 		return e
 	}
@@ -116,7 +113,7 @@ func validateSupplement(ctx context.Context, input domain.Input, result domain.R
 		}
 		return nil
 	}
-	if execution.Mode != "rules_and_agent" || !member(execution.ModelStage, "completed", "not_configured", "not_completed") || s.ModelCalls < 0 || s.ModelCalls > limits.ModelLogicalCalls || s.ToolCalls < 0 || s.ToolCalls > limits.ToolCalls || s.ToolCalls > 0 && s.ModelCalls == 0 {
+	if execution.Mode != "rules_and_agent" || !member(execution.ModelStage, "completed", "not_configured", "not_completed") || s.ModelCalls < 0 || s.ModelCalls > limits.MaxRounds || s.ToolCalls < 0 || s.ToolCalls > 0 && s.ModelCalls == 0 {
 		return ErrInvalidResult
 	}
 	if s.ToolCalls == 0 {

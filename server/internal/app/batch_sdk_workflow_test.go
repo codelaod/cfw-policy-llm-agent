@@ -17,40 +17,21 @@ import (
 	"cfw-policy-llm-agent/server/internal/modelconfig"
 	"cfw-policy-llm-agent/server/internal/outbound"
 	"cfw-policy-llm-agent/server/internal/storage"
-	"cfw-policy-llm-agent/server/internal/workload"
 )
 
 // This exercises the real application, SDK signing and persistent ledger with
 // artificial loopback responses. No provider account or performance claim.
-func batchSDKFixture(t *testing.T, attemptLimit ...int) (*IntentService, *CloudService, storage.Conversation, func() map[string]int) {
+func batchSDKFixture(t *testing.T) (*IntentService, *CloudService, storage.Conversation, func() map[string]int) {
 	t.Helper()
 	st, _, _, _, _ := planCase(t)
 	t.Setenv("BATCH_PUBLIC_AK", "synthetic-batch-access-key")
 	t.Setenv("BATCH_PUBLIC_SECRET", "synthetic-batch-access-secret")
-	raw := `{"enabled":true,"connection_ref":"public-batch-cloud","credential_mode":"env_ak","access_key_id_env":"BATCH_PUBLIC_AK","access_key_secret_env":"BATCH_PUBLIC_SECRET","expected_account_id":"1234567890123456","control_plane_region":"cn-hangzhou","allowed_boundaries":["internet/in"],"allowed_regions":["cn-hangzhou"],"allowed_assets":[],"allowed_nat_gateways":[],"timeout_seconds":10,"max_http_attempts":100,"budget":{"ref":"public-batch-period","application_cloud_attempts":1000,"session_cloud_attempts":500,"application_model_attempts":0,"session_model_attempts":0}}`
+	raw := `{"enabled":true,"connection_ref":"public-batch-cloud","credential_mode":"env_ak","access_key_id_env":"BATCH_PUBLIC_AK","access_key_secret_env":"BATCH_PUBLIC_SECRET","expected_account_id":"1234567890123456","control_plane_region":"cn-hangzhou","allowed_boundaries":["internet/in"],"allowed_regions":["cn-hangzhou"],"allowed_assets":[],"allowed_nat_gateways":[],"timeout_seconds":10}`
 	cfg, e := cloudconfig.ParseSettings([]byte(raw), os.LookupEnv)
 	if e != nil {
 		t.Fatal(e)
 	}
-	execution := batchDialogProfile(t, 20)
-	if len(attemptLimit) > 0 {
-		profiles := map[string]workload.Limits{}
-		for _, kind := range []string{"audit", "assistant_turn", "collect", "connection_check"} {
-			limits, err := execution.Profile(kind)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if kind == "audit" {
-				limits.CloudHTTPAttempts = attemptLimit[0]
-			}
-			profiles[kind] = limits
-		}
-		encoded, _ := json.Marshal(map[string]any{"schema_version": 1, "profile_ref": "public-batch-total-cap", "profiles": profiles})
-		execution, e = workload.ParseSettings(encoded)
-		if e != nil {
-			t.Fatal(e)
-		}
-	}
+	execution := batchDialogProfile(t)
 	runtime, e := NewRuntimeWithExecution(st, modelconfig.Config{}, cfg, execution)
 	if e != nil {
 		t.Fatal(e)
@@ -171,7 +152,7 @@ func TestUnlistedIDsPrepareAndAuditWholeBatchThroughSignedSDKAndLedger(t *testin
 			t.Errorf("%s attempts=%d want=%d", op, counts()[op], n)
 		}
 	}
-	usage, e := s.Store.BudgetUsage(ctx, s.Plans.BudgetRef, "", parent.ID)
+	usage, e := s.Store.AttemptUsage(ctx, "", parent.ID)
 	if e != nil || usage.CloudAttempts != 31 || view.Batch.Usage.CloudAttempts != 31 || usage.ModelAttempts != 0 {
 		t.Fatal("root did not account all 31 actual physical attempts", e, usage)
 	}
@@ -199,38 +180,5 @@ func TestUnlistedBatchIDsRequireOneRegionWithoutInventingPairs(t *testing.T) {
 	turn := goalTurn(t, s, c.ID, "ambiguous-pairs", "分批检查ECS i-batch-public-1 i-batch-public-2 i-batch-public-3 入向")
 	if turn.Proposal != nil && turn.Proposal.PlanID != "" || turn.Intent.Status != "needs_clarification" || len(counts()) != 0 || len(turn.Intent.Selection) != 0 || len(turn.Intent.Query.ResourceIDs) != 3 {
 		t.Fatal("unknown ID/region pairs were fabricated", turn.Intent)
-	}
-}
-
-func TestSignedBatchCannotRefillAcceptedTotalPhysicalAllowancePerSegment(t *testing.T) {
-	s, cloud, c, counts := batchSDKFixture(t, 20)
-	ctx := context.Background()
-	offer := goalTurn(t, s, c.ID, "bounded-unlisted-offer", "分批检查杭州 ECS i-batch-public-1 i-batch-public-2 i-batch-public-3 i-batch-public-4 i-batch-public-5 入向，只运行规则")
-	if offer.Proposal == nil || offer.Proposal.PlanID == "" {
-		t.Fatal("bounded full-set preview missing", offer.Intent.Status)
-	}
-	if _, e := s.Store.AcceptIntentProposal(ctx, c.ID, offer.Proposal.ID, "bounded-unlisted-accept", s.Plans.ConfigRevision, offer.Intent.Revision); e != nil {
-		t.Fatal(e)
-	}
-	parent, found, e := s.Store.Claim(ctx)
-	if e != nil || !found {
-		t.Fatal(e)
-	}
-	w := NewWorkflow(s.Store)
-	w.Cloud = cloud
-	if e = w.Run(ctx, parent); e == nil {
-		t.Fatal("twenty accepted physical attempts became thirty-one")
-	}
-	view, e := s.Store.ReadJobWorkspace(ctx, parent.ID)
-	if e != nil || view.Batch == nil || view.Job.Status != "partial" || len(view.Batch.Covered) < 2 || len(view.Batch.Unprocessed) == 0 || len(view.Batch.Covered)+len(view.Batch.Failed)+len(view.Batch.Unprocessed) != 5 {
-		t.Fatal("total exhaustion lost actual partial/unprocessed coverage", e, view.Batch)
-	}
-	actual := 0
-	for _, n := range counts() {
-		actual += n
-	}
-	usage, e := s.Store.BudgetUsage(ctx, s.Plans.BudgetRef, "", parent.ID)
-	if e != nil || actual > 20 || usage.CloudAttempts != int64(actual) || view.Batch.Usage.CloudAttempts != int64(actual) {
-		t.Fatal("segment reset bypassed root physical ledger", e, actual, usage)
 	}
 }

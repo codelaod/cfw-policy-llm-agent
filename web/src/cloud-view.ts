@@ -6,7 +6,7 @@ const text = (value: unknown): value is string => typeof value === 'string' && v
 const count = (value: unknown): value is number => Number.isSafeInteger(value) && Number(value) >= 0
 
 export function decodeCollectionOptions(value: unknown, sourceID: string): CollectionOptions {
-  if (!object(value) || value.source_ref !== sourceID || typeof value.configured !== 'boolean' || typeof value.available !== 'boolean' || value.identity_verified !== false || !count(value.max_http_attempts) || !Array.isArray(value.scopes)) throw new ProtocolError('本地云连接选项校验失败。')
+  if (!object(value) || value.source_ref !== sourceID || typeof value.configured !== 'boolean' || typeof value.available !== 'boolean' || value.identity_verified !== false || !Array.isArray(value.scopes)) throw new ProtocolError('本地云连接选项校验失败。')
   const scopes = new Set<string>()
   for (const item of value.scopes) {
     if (!object(item) || !object(item.scope) || !text(item.scope.ref) || scopes.has(item.scope.ref) || !Array.isArray(item.assets)) throw new ProtocolError('显式云范围目录无效。')
@@ -18,7 +18,7 @@ export function decodeCollectionOptions(value: unknown, sourceID: string): Colle
 }
 
 export function cloudPlanRequest(options: CollectionOptions | null, sourceID: string, scopeID: string, assetIDs: string[], gatewayOnly: boolean, conversation: Conversation | null, kind: 'collect' | 'connection_check'): PlanRequest {
-  if (!options?.configured || !options.available || options.source_ref !== sourceID || options.max_http_attempts < 1) throw new Error('先选择可用的显式服务端只读连接。')
+  if (!options?.configured || !options.available || options.source_ref !== sourceID) throw new Error('先选择可用的显式服务端只读连接。')
   const scope = options.scopes.find(item => item.scope.ref === scopeID)
   if (!scope) throw new Error('请选择本次明确读取的范围。')
   if (!conversation || conversation.archived || conversation.policy_scope_ref !== scopeID) throw new Error('请选择同一范围的未归档会话。')

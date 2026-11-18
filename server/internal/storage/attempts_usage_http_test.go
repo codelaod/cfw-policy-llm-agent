@@ -28,7 +28,7 @@ func TestE3UsageCapturedFromPhysicalModelResponseBeforeSDKDefaults(t *testing.T)
 	} {
 		t.Run(scenario.name, func(t *testing.T) {
 			ctx := context.Background()
-			store, plan, job := e3BudgetCase(t, 0, 3, 0, 3)
+			store, plan, job := e3AttemptCase(t)
 			upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				w.WriteHeader(scenario.status)
 				io.WriteString(w, scenario.body)
@@ -56,7 +56,7 @@ func TestE3UsageCapturedFromPhysicalModelResponseBeforeSDKDefaults(t *testing.T)
 			if scenario.known && attempts[0].Usage.TotalTokens != scenario.total {
 				t.Fatal("reported usage changed")
 			}
-			summary, err := store.BudgetUsage(ctx, plan.BudgetRef, "", job.ID)
+			summary, err := store.AttemptUsage(ctx, "", job.ID)
 			if err != nil {
 				t.Fatal(err)
 			}

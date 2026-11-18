@@ -64,9 +64,8 @@ def check_examples() -> None:
     require(not data["formal_business_implementation"] and not data["semantics_evaluated"], "no business-validation claim")
     require(data["design_version"] == "0.6" and data["requirement_baseline"] == "B2", "design/baseline mismatch")
     limits = data["limits"]
-    require(sum(limits["phases_seconds"].values()) == limits["execution_seconds"] == 240, "phase budget mismatch")
-    require(limits["queue_seconds"] + limits["execution_seconds"] == limits["total_seconds"] == 360, "root budget mismatch")
-    require(limits["cloud_http_attempts"] == 100 and limits["model_http_attempts"] == 6, "changed design caps")
+    require(limits["execution_seconds"] > 0 and limits["agent_max_rounds"] > 0, "invalid task protection")
+    require(limits["queue_seconds"] + limits["execution_seconds"] == limits["total_seconds"], "root deadline mismatch")
     require(limits["nat_gateways_per_task"] == 1 and limits["collection_sweeps_max"] == 2, "scope/sweep mismatch")
     scopes = index(data["policy_scopes"], "scope")
     valid_pairs = {("internet", "in"), ("internet", "out"), ("nat", "out")}
@@ -97,21 +96,20 @@ def check_examples() -> None:
         require(ttl.total_seconds() == limits["plan_ttl_seconds"], "plan TTL mismatch")
         selection = request["selection"]
         if selection["kind"] == "assets":
-            require(1 <= len(selection["asset_ids"]) <= limits["assets_per_task"] and len(set(selection["asset_ids"])) == len(selection["asset_ids"]), "asset selection must be explicit and unique")
+            require(1 <= len(selection["asset_ids"]) <= limits["assets_per_batch"] and len(set(selection["asset_ids"])) == len(selection["asset_ids"]), "asset selection must be explicit and unique")
         else:
             require(selection["kind"] == "gateway_policy" and scope["key"]["boundary"] == "nat", "gateway mode scope")
             require(selection["gateway_ref"] == scope["key"]["policy_set_ref"], "wrong gateway")
         if request["data_policy"]["mode"] == "pinned_snapshot":
             require(snapshots[request["data_policy"]["snapshot_id"]]["policy_scope_ref"] == plan["policy_scope_ref"], "pinned scope mismatch")
-            require(not plan["effect_ceiling"]["allow_cloud_reads"] and plan["limits"]["cloud_http_attempts"] == 0, "pinned must not read cloud")
+            require(not plan["effect_ceiling"]["allow_cloud_reads"], "pinned must not read cloud")
         if request["mode"] == "rules_only":
-            require(not plan["effect_ceiling"]["allow_model_requests"] and plan["limits"]["model_http_attempts"] == 0, "rules-only must not call model")
-        for cap in ("cloud_http_attempts", "model_http_attempts", "model_tool_calls"):
-            require(plan["limits"][cap] <= limits[cap], f"plan exceeds {cap}")
+            require(not plan["effect_ceiling"]["allow_model_requests"], "rules-only must not call model")
+        require(plan["limits"] == limits, "plan must freeze the shared execution settings")
     for start in data["start_requests"]:
         require(start["body"]["plan_id"] in plans, "start must use plan")
         require(set(start) == {"headers", "body"}, "unknown start envelope")
-        require(set(start["body"]) == {"plan_id"}, "start must not override kind/scope/budget")
+        require(set(start["body"]) == {"plan_id"}, "start must not override kind/scope/execution settings")
         require(set(start["headers"]) == {"Idempotency-Key"}, "expected idempotency header")
     for manifest in data["resolved_input_manifests"]:
         plan = plans[manifest["plan_id"]]
@@ -165,7 +163,7 @@ def check_examples() -> None:
     require(set(arms) == {"rules_only", "fixed_model_pipeline", "agent_tool_selection"}, "three experiment arms")
     require(not arms["rules_only"]["uses_model"] and arms["rules_only"]["model_http_calls"] == 0, "rules-only uses model")
     require(all(a["input_ref"] == evaluation["shared_input_ref"] and a["rules_ref"] == evaluation["shared_rule_result_ref"] for a in arms.values()), "unshared baseline")
-    for key in ("model_config_ref","sampling_ref","initial_information_ref","tools_ref","projection_ref","budget_ref"):
+    for key in ("model_config_ref","sampling_ref","initial_information_ref","tools_ref","projection_ref","execution_settings_ref"):
         require(arms["fixed_model_pipeline"][key] == arms["agent_tool_selection"][key], "unfair model-group condition: "+key)
     require(set(evaluation["separate_output_metrics"]) == {"rule_facts","model_hypotheses","recommendations"}, "mixed evaluation outputs")
     require(evaluation["run_status_denominator"] == "all_formal_runs" and evaluation["zero_denominator"] == "not_applicable", "evaluation denominator")
@@ -179,7 +177,7 @@ def check_examples() -> None:
     perf = data["performance_design"]
     require(perf["documentation_only"] and not perf["measured_by_this_review"], "no invented performance result")
     require(not perf["requires_new_cloud_ecs"] and not perf["truncation_counts_as_performance_pass"], "performance scope/claim")
-    require(perf["stress_rule_stage_deadline_seconds"] <= limits["phases_seconds"]["rules"], "performance exceeds rule-stage budget")
+    require(perf["stress_rule_stage_deadline_seconds"] <= limits["execution_seconds"], "performance exceeds task deadline")
     matrix = (ROOT / "docs/validation/verification-plan.md").read_text(encoding="utf-8")
     for case in data["trace_matrix_case_ids"]:
         require(f"| {case} |" in matrix, f"missing planned case {case}")

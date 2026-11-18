@@ -10,7 +10,7 @@ import (
 )
 
 func TestIndependentReviewCrashAfterCommittedOutputMustNotClaimAbsent(t *testing.T) {
-	f := newEvaluationFixture(t, "success", nil)
+	f := newEvaluationFixture(t, "success")
 	a := f.accepted(t, FixedModel, "independent-post-output-crash")
 	f.runner.binding.Journal = endFailedJournal{base: f.journal}
 	first, err := f.runner.Run(context.Background(), f.protocol, f.caseData, a)
@@ -61,7 +61,7 @@ func TestIndependentReviewCrashAfterCommittedOutputMustNotClaimAbsent(t *testing
 }
 
 func TestIndependentReviewSameAcceptedJobCannotRunTwiceWithDifferentRunIDs(t *testing.T) {
-	f := newEvaluationFixture(t, "cancel", nil)
+	f := newEvaluationFixture(t, "cancel")
 	a := f.accepted(t, FixedModel, "independent-one-job-first-run")
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()

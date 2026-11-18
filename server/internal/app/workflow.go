@@ -42,22 +42,24 @@ func (w *Workflow) Run(ctx context.Context, job storage.Job) error {
 		return JobFailure{Code: "EXECUTION_NOT_CONFIGURED"}
 	}
 	plan, err := w.Store.GetPlan(ctx, job.PlanID)
-	if err != nil || plan.Kind != job.Kind || plan.ConversationID != job.ConversationID || plan.Preparation == nil && (plan.EffectCeiling.AllowCloudReads || plan.EffectCeiling.CloudHTTPAttempts != 0) {
+	if err != nil || plan.Kind != job.Kind || plan.ConversationID != job.ConversationID || plan.Preparation == nil && plan.EffectCeiling.AllowCloudReads {
 		return workflowFailure(ctx, "INPUT_PREPARATION_FAILED", false)
 	}
 	if plan.Batch != nil {
 		return w.runBatch(ctx, job, plan)
 	}
 	limits := plan.Workload.Limits
+	analysisCtx := ctx
 	if job.Kind == "audit" {
 		var limitErr error
-		ctx, limitErr = audit.WithExecutionLimits(ctx, audit.ExecutionLimits{MaxAssets: limits.AssetsPerBatch, MaxPolicies: limits.MaxPolicies, MaxQueryCells: limits.MaxQueryCells, Timeout: time.Duration(limits.RulesSeconds) * time.Second})
+		ctx, limitErr = audit.WithExecutionLimits(ctx, audit.ExecutionLimits{MaxAssets: limits.AssetsPerBatch, MaxPolicies: limits.MaxPolicies, MaxQueryCells: limits.MaxQueryCells, Timeout: time.Duration(limits.ExecutionSeconds) * time.Second})
 		if limitErr != nil {
 			return workflowFailure(ctx, "EXECUTION_POLICY_INVALID", false)
 		}
+		var stopAnalysis context.CancelFunc
+		analysisCtx, stopAnalysis = reserveFinalization(ctx, 5*time.Second)
+		defer stopAnalysis()
 	}
-	analysisCtx, stopAnalysis := reserveFinalization(ctx, time.Duration(limits.FinalizeSeconds)*time.Second)
-	defer stopAnalysis()
 	input := plan.PreparedInput
 	input.EvaluationAt = plan.EvaluationAt
 	if input.EvaluationAt == "" {
@@ -89,7 +91,7 @@ func (w *Workflow) Run(ctx context.Context, job storage.Job) error {
 	if err = w.Store.AppendJobEvent(ctx, job.ID, "stage_changed", map[string]any{"phase": "L2", "stage": "rules_started"}); err != nil {
 		return workflowFailure(ctx, "STAGE_SAVE_FAILED", false)
 	}
-	ruleCtx, stopRules := context.WithTimeout(analysisCtx, time.Duration(limits.RulesSeconds)*time.Second)
+	ruleCtx, stopRules := context.WithTimeout(analysisCtx, time.Duration(limits.ExecutionSeconds)*time.Second)
 	result, ruleErr := w.rules(ruleCtx, sealed)
 	if ruleErr == nil {
 		ruleErr = ruleCtx.Err()
@@ -165,35 +167,33 @@ func (w *Workflow) Run(ctx context.Context, job storage.Job) error {
 			}
 		}
 	}
-	finalCtx, stopFinal := context.WithTimeout(ctx, finalizationWindow(ctx, time.Duration(limits.FinalizeSeconds)*time.Second))
-	defer stopFinal()
 	service := NewAuditService(w.Store)
 	if plan.RecheckOfJobID != "" {
-		_, old, readErr := w.Store.ReadJobAudit(finalCtx, plan.RecheckOfJobID)
+		_, old, readErr := w.Store.ReadJobAudit(ctx, plan.RecheckOfJobID)
 		if readErr != nil || old == nil {
-			return workflowFailure(finalCtx, "RECHECK_COMPARISON_FAILED", true)
+			return workflowFailure(ctx, "RECHECK_COMPARISON_FAILED", true)
 		}
-		if _, err = service.CompareRuns(finalCtx, old.ID, record.ID); err != nil {
-			return workflowFailure(finalCtx, "RECHECK_COMPARISON_FAILED", true)
+		if _, err = service.CompareRuns(ctx, old.ID, record.ID); err != nil {
+			return workflowFailure(ctx, "RECHECK_COMPARISON_FAILED", true)
 		}
 	}
-	if err = w.Store.AppendJobEvent(finalCtx, job.ID, "stage_changed", map[string]any{"phase": "L4", "stage": "report_building"}); err != nil {
-		return workflowFailure(finalCtx, "STAGE_SAVE_FAILED", true)
+	if err = w.Store.AppendJobEvent(ctx, job.ID, "stage_changed", map[string]any{"phase": "L4", "stage": "report_building"}); err != nil {
+		return workflowFailure(ctx, "STAGE_SAVE_FAILED", true)
 	}
 	execution.JobStatus = "completed"
 	if partialCode != "" {
 		execution.JobStatus = "partial"
 	}
-	heads, content, err := service.prepareReport(finalCtx, record.ID, "json", &execution)
+	heads, content, err := service.prepareReport(ctx, record.ID, "json", &execution)
 	if err != nil {
-		return workflowFailure(finalCtx, "REPORT_SAVE_FAILED", true)
+		return workflowFailure(ctx, "REPORT_SAVE_FAILED", true)
 	}
 	status, code := "completed", ""
 	if partialCode != "" {
 		status, code = "partial", partialCode
 	}
-	if _, err = w.Store.FinalizeJobWithReport(finalCtx, job.ID, storage.FinalizeJobReportRequest{Format: "json", Heads: heads, Content: content, Key: "workflow_report_" + job.ID, Status: status, Code: code, AgentResultID: agentResultID}); err != nil {
-		return workflowFailure(finalCtx, "FINALIZATION_SAVE_FAILED", true)
+	if _, err = w.Store.FinalizeJobWithReport(ctx, job.ID, storage.FinalizeJobReportRequest{Format: "json", Heads: heads, Content: content, Key: "workflow_report_" + job.ID, Status: status, Code: code, AgentResultID: agentResultID}); err != nil {
+		return workflowFailure(ctx, "FINALIZATION_SAVE_FAILED", true)
 	}
 	if partialCode != "" {
 		return JobFailure{Code: partialCode, Partial: true}
@@ -201,20 +201,11 @@ func (w *Workflow) Run(ctx context.Context, job storage.Job) error {
 	return nil
 }
 
-// Reserve only shortens the earlier phase. It never extends a root deadline.
+// Leave part of the time still available for publishing the local report.
 func reserveFinalization(ctx context.Context, reserve time.Duration) (context.Context, context.CancelFunc) {
 	deadline, ok := ctx.Deadline()
 	if !ok || reserve <= 0 {
 		return context.WithCancel(ctx)
 	}
-	return context.WithDeadline(ctx, deadline.Add(-reserve))
-}
-func finalizationWindow(ctx context.Context, configured time.Duration) time.Duration {
-	if configured > 0 {
-		return configured
-	}
-	if deadline, ok := ctx.Deadline(); ok {
-		return max(time.Until(deadline), time.Nanosecond)
-	}
-	return time.Nanosecond
+	return context.WithDeadline(ctx, deadline.Add(-min(reserve, max(0, time.Until(deadline))/5)))
 }

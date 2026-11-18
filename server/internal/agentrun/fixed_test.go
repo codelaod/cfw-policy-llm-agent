@@ -124,7 +124,7 @@ func TestFixedPipelineUsesActualDomainToolsAndOneFinalModelWithoutForgedWire(t *
 	}
 }
 func TestFixedPipelineCannotChangeSelectionOrSpendDefaultWhenExplicitZero(t *testing.T) {
-	for _, scenario := range []string{"bad-tool", "selection-limit", "tool-zero", "model-zero", "model-chooses-tool"} {
+	for _, scenario := range []string{"bad-tool", "selection-limit", "model-chooses-tool"} {
 		t.Run(scenario, func(t *testing.T) {
 			q := fixedDomain(t)
 			pipeline := FixedPipeline{Version: "fixed-v1", Steps: []FixedStep{{Tool: "get_asset_context", Selector: "assets", MaxItems: 1}, {Tool: "get_business_intent", Selector: "business", MaxItems: 4}}}
@@ -135,11 +135,6 @@ func TestFixedPipelineCannotChangeSelectionOrSpendDefaultWhenExplicitZero(t *tes
 				pipeline.Steps[0].Tool = "DeleteControlPolicy"
 			case "selection-limit":
 				pipeline.Steps[1].MaxItems = 1
-			case "tool-zero":
-				limits.ToolCalls = 0
-				limits.ToolBatch = 0
-			case "model-zero":
-				limits.ModelHTTPAttempts = 0
 			}
 			out, e := RunFixed(context.Background(), Task{Kind: "audit", Queries: q, NewModel: func(context.Context) (model.BaseChatModel, error) {
 				called = true

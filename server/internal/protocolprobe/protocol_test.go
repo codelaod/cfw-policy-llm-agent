@@ -167,7 +167,7 @@ func staticCredential(t *testing.T) credential.Credential {
 func sdkClient(t *testing.T, endpoint string, h *http.Client, c credential.Credential, retries int) *cloudfw.Client {
 	t.Helper()
 	u, _ := url.Parse(endpoint)
-	client, err := cloudfw.NewClient(&openapi.Config{Endpoint: dara.String(u.Host), Protocol: dara.String("http"), RegionId: dara.String("cn-hangzhou"), Credential: c, UserAgent: dara.String("cfw-e0-loopback-probe"), HttpClient: sdkHTTP{client: h}, RetryOptions: &dara.RetryOptions{Retryable: retries > 1, MaxAttempts: retries}})
+	client, err := cloudfw.NewClient(&openapi.Config{Endpoint: dara.String(u.Host), Protocol: dara.String("http"), RegionId: dara.String("cn-hangzhou"), Credential: c, UserAgent: dara.String("cfw-e0-loopback-probe"), HttpClient: sdkHTTP{client: h}, RetryOptions: &dara.RetryOptions{Retryable: retries > 1}})
 	if err != nil {
 		t.Fatal("synthetic SDK initialization failed")
 	}

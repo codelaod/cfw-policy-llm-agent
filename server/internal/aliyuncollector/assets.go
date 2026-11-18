@@ -159,7 +159,7 @@ func (r *run) collectAsset(round int, id string, cfw []map[string]json.RawMessag
 		key := region + "/" + group
 		evidence, cached := r.groups[key]
 		if !cached {
-			rows, complete, e := r.tokens(round, "DescribeSecurityGroupAttribute", map[string]string{"RegionId": region, "SecurityGroupId": group, "MaxResults": strconv.Itoa(groupPageSize(cfg)), "Direction": "all"}, "Permissions", "Permission", "", cfg.MaxPolicies)
+			rows, complete, e := r.tokens(round, "DescribeSecurityGroupAttribute", map[string]string{"RegionId": region, "SecurityGroupId": group, "MaxResults": strconv.Itoa(groupPageSize(cfg)), "Direction": "all"}, "Permissions", "Permission", "", cfg.Workload.Limits.MaxPolicies)
 			if fatal(controlled(e)) {
 				return a, e
 			}

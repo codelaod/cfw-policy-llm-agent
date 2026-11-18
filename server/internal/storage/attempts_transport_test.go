@@ -63,7 +63,7 @@ func (c *e3Credential) GetCredential() (*credential.CredentialModel, error) {
 
 func TestE3PersistentLedgerCountsSDKRetriesAndCredentialHTTP(t *testing.T) {
 	ctx := context.Background()
-	store, initial, job := e3BudgetCase(t, 3, 0, 3, 0)
+	store, initial, job := e3AttemptCase(t)
 	var credentials, cloud atomic.Int32
 	upstream := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -102,7 +102,7 @@ func TestE3PersistentLedgerCountsSDKRetriesAndCredentialHTTP(t *testing.T) {
 	}
 	provider := &e3Credential{Credential: static, ctx: ctx, client: credentialHTTP, endpoint: upstream.URL + "/credential"}
 	u, _ := url.Parse(upstream.URL)
-	client, err := cloudfw.NewClient(&openapi.Config{Endpoint: dara.String(u.Host), Protocol: dara.String("http"), RegionId: dara.String("cn-hangzhou"), Credential: provider, HttpClient: e3SDKHTTP{client: cloudHTTP}, RetryOptions: &dara.RetryOptions{Retryable: true, MaxAttempts: 2}})
+	client, err := cloudfw.NewClient(&openapi.Config{Endpoint: dara.String(u.Host), Protocol: dara.String("http"), RegionId: dara.String("cn-hangzhou"), Credential: provider, HttpClient: e3SDKHTTP{client: cloudHTTP}, RetryOptions: &dara.RetryOptions{Retryable: true}})
 	if err != nil {
 		t.Fatal("synthetic SDK initialization failed")
 	}
@@ -116,15 +116,15 @@ func TestE3PersistentLedgerCountsSDKRetriesAndCredentialHTTP(t *testing.T) {
 	if err = read(); err != nil {
 		t.Fatal("controlled SDK read failed", outbound.ErrorCode(err))
 	}
-	usage, err := store.BudgetUsage(ctx, initial.BudgetRef, "", "")
+	usage, err := store.AttemptUsage(ctx, "", "")
 	if err != nil || credentials.Load() != 1 || cloud.Load() != 2 || usage.CloudAttempts != 3 || usage.UnknownDelivery != 0 {
 		t.Fatalf("physical/durable mismatch: credential=%d cloud=%d usage=%+v err=%v", credentials.Load(), cloud.Load(), usage, err)
 	}
-	if err = read(); err == nil {
-		t.Fatal("SDK logical retry received a fresh allowance")
+	if err = read(); err != nil {
+		t.Fatal("historical usage blocked next read", err)
 	}
-	if credentials.Load() != 1 || cloud.Load() != 2 {
-		t.Fatal("exhausted budget still sent HTTP")
+	if credentials.Load() != 1 || cloud.Load() != 3 {
+		t.Fatal("next physical request was not sent")
 	}
 	attempts, err := store.JobAttempts(ctx, job.ID)
 	if err != nil {
@@ -138,66 +138,11 @@ func TestE3PersistentLedgerCountsSDKRetriesAndCredentialHTTP(t *testing.T) {
 	}
 }
 
-func TestE3BudgetRestartRetainsReservedAttemptsAndPeriod(t *testing.T) {
-	ctx := context.Background()
-	store, initial, job := e3BudgetCase(t, 0, 2, 0, 2)
-	for range 2 {
-		if _, err := store.ReserveAttempt(ctx, job.ID, "model", "configured-model", initial.ConfigRevision); err != nil {
-			t.Fatal(err)
-		}
-	}
-	var path string
-	if err := store.SQL.QueryRowContext(ctx, "SELECT file FROM pragma_database_list WHERE name='main'").Scan(&path); err != nil {
-		t.Fatal(err)
-	}
-	if err := store.Close(); err != nil {
-		t.Fatal(err)
-	}
-	reopened, err := Open(path, false)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer reopened.Close()
-	if err = reopened.Recover(ctx); err != nil {
-		t.Fatal(err)
-	}
-	policy, err := reopened.GetBudgetPolicy(ctx, initial.BudgetRef)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err = reopened.ConfigureBudgetPolicy(ctx, policy); err != nil {
-		t.Fatal(err)
-	}
-	conversation, err := reopened.CreateConversation(ctx, "重启后的新会话", initial.PolicyScopeRef)
-	if err != nil {
-		t.Fatal(err)
-	}
-	initial.ConversationID, initial.ConversationRevision = conversation.ID, conversation.Revision
-	plan, err := reopened.SavePlan(ctx, initial)
-	if err != nil {
-		t.Fatal(err)
-	}
-	next, _, err := reopened.EnqueuePlan(ctx, plan.ID, "e3-after-restart")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if _, found, err := reopened.Claim(ctx); err != nil || !found {
-		t.Fatal(err)
-	}
-	if _, err = reopened.ReserveAttempt(ctx, next.ID, "model", "configured-model", initial.ConfigRevision); !errors.Is(err, ErrBudgetExhausted) {
-		t.Fatal("restart/new conversation reset old period", err)
-	}
-	usage, err := reopened.BudgetUsage(ctx, initial.BudgetRef, "", "")
-	if err != nil || usage.ModelAttempts != 2 || usage.UnknownDelivery != 2 {
-		t.Fatal("unknown sends were refunded on restart", err)
-	}
-}
-
 func TestE3PersistentLedgerWriteFailureStopsPhysicalHTTP(t *testing.T) {
 	for _, stage := range []string{"reserve", "record"} {
 		t.Run(stage, func(t *testing.T) {
 			ctx := context.Background()
-			store, initial, job := e3BudgetCase(t, 0, 5, 0, 5)
+			store, initial, job := e3AttemptCase(t)
 			trigger := "CREATE TRIGGER reject_e3_write BEFORE INSERT ON outbound_attempts BEGIN SELECT RAISE(ABORT,'PRIVATE_STORAGE_FAILURE'); END"
 			if stage == "record" {
 				trigger = "CREATE TRIGGER reject_e3_write BEFORE UPDATE ON outbound_attempts BEGIN SELECT RAISE(ABORT,'PRIVATE_STORAGE_FAILURE'); END"
@@ -230,7 +175,7 @@ func TestE3PersistentLedgerWriteFailureStopsPhysicalHTTP(t *testing.T) {
 			if calls.Load() != wantCalls {
 				t.Fatal("write failure allowed later physical requests")
 			}
-			usage, err := store.BudgetUsage(ctx, initial.BudgetRef, "", "")
+			usage, err := store.AttemptUsage(ctx, "", "")
 			if err != nil || usage.ModelAttempts != int64(wantCalls) || usage.UnknownDelivery != int64(wantCalls) {
 				t.Fatal("write failure lost unknown reservations", err)
 			}

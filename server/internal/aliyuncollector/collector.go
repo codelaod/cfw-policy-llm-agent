@@ -23,8 +23,8 @@ type Collector struct {
 type run struct {
 	collector        *Collector
 	ctx              context.Context
-	calls            int
-	artifacts        []RawArtifact
+	rawArtifactBytes int
+	artifacts        []domain.CloudRawArtifact
 	observations     []Observation
 	instances        map[string]map[string]json.RawMessage
 	instanceComplete map[string]bool
@@ -121,7 +121,7 @@ func (c *Collector) Collect(ctx context.Context, selection domain.Selection) (Co
 	}
 	selection.AssetIDs = append([]string(nil), selection.AssetIDs...)
 	sort.Strings(selection.AssetIDs)
-	window, _ := time.ParseDuration(strconv.Itoa(c.cfg.Workload.Limits.CollectionSeconds) + "s")
+	window, _ := time.ParseDuration(strconv.Itoa(c.cfg.Workload.Limits.ExecutionSeconds) + "s")
 	ctx, cancel := context.WithTimeout(ctx, window)
 	defer cancel()
 	r := &run{collector: c, ctx: ctx}
@@ -201,7 +201,7 @@ func (c *Collector) Collect(ctx context.Context, selection domain.Selection) (Co
 	}
 	version := hash([]byte(started + strings.Join(first.fingerprints, "\x00")))
 	in := domain.Input{SchemaVersion: 1, SnapshotVersion: "live-" + version[:32], ProfileVersion: "unconfirmed-v1", IntentVersion: "unconfirmed-v1", NormalizerVersion: audit.NormalizerVersion, KernelVersion: audit.KernelVersion, SourceKind: "live_readonly", EvaluationAt: time.Now().UTC().Format(time.RFC3339Nano), CollectedAt: started, Scope: c.cfg.Scope, Semantics: domain.Semantics{ProfileID: profile, Version: audit.ProviderSemanticsVersion, DefaultAction: "unknown", SourceRef: "T-06"}, Completeness: domain.Completeness{Declared: true, EnumerationComplete: complete, ObservationConsistency: consistency, KnownGaps: unique(gaps)}, Protection: protection, Selection: selection, Assets: first.assets, GatewayMetadata: first.gateway, Policies: first.policies, AddressRefs: first.addresses, PortRefs: first.ports, Baseline: audit.ProjectBaseline()}
-	validationContext, validationErr := audit.WithInputObjectLimits(ctx, c.cfg.Workload.Limits.AssetsPerBatch, c.cfg.MaxPolicies)
+	validationContext, validationErr := audit.WithInputObjectLimits(ctx, c.cfg.Workload.Limits.AssetsPerBatch, c.cfg.Workload.Limits.MaxPolicies)
 	if validationErr != nil {
 		return Collection{Observations: r.observations, Artifacts: r.artifacts}, Failure("COLLECTOR_CONFIGURATION_INVALID")
 	}
@@ -254,7 +254,7 @@ func controlled(err error) error {
 	var coded interface{ ErrorCode() string }
 	if errors.As(err, &coded) {
 		code := coded.ErrorCode()
-		for _, allowed := range []string{"CLOUD_ACCESS_DENIED", "CLOUD_THROTTLED", "CLOUD_PROVIDER_UNAVAILABLE", "CLOUD_PROVIDER_REJECTED", "CLOUD_CREDENTIAL_EXPIRED", "CLOUD_CREDENTIAL_UNAVAILABLE", "CLOUD_IDENTITY_NOT_VERIFIED", "CLOUD_ACCOUNT_MISMATCH", "CLOUD_OWNER_MISMATCH", "CLOUD_GATEWAY_MISMATCH", "CLOUD_ASSET_SCOPE_MISMATCH", "CLOUD_GROUP_SCOPE_MISMATCH", "CLOUD_IDENTITY_REFUSED", "CLOUD_IDENTITY_INVALID", "CLOUD_QUERY_REFUSED", "CLOUD_RESPONSE_INVALID", "CLOUD_RESPONSE_READ_FAILED", "CLOUD_RESPONSE_CONTAINS_CREDENTIAL", "UPSTREAM_RESPONSE_TOO_LARGE", "ATTEMPT_LIMIT", "BUDGET_EXPIRED", "BUDGET_NOT_CONFIGURED", "EXECUTION_CLOSED", "EFFECT_DENIED", "CONFIGURATION_STALE"} {
+		for _, allowed := range []string{"CLOUD_ACCESS_DENIED", "CLOUD_THROTTLED", "CLOUD_PROVIDER_UNAVAILABLE", "CLOUD_PROVIDER_REJECTED", "CLOUD_CREDENTIAL_EXPIRED", "CLOUD_CREDENTIAL_UNAVAILABLE", "CLOUD_IDENTITY_NOT_VERIFIED", "CLOUD_ACCOUNT_MISMATCH", "CLOUD_OWNER_MISMATCH", "CLOUD_GATEWAY_MISMATCH", "CLOUD_ASSET_SCOPE_MISMATCH", "CLOUD_GROUP_SCOPE_MISMATCH", "CLOUD_IDENTITY_REFUSED", "CLOUD_IDENTITY_INVALID", "CLOUD_QUERY_REFUSED", "CLOUD_RESPONSE_INVALID", "CLOUD_RESPONSE_READ_FAILED", "CLOUD_RESPONSE_CONTAINS_CREDENTIAL", "UPSTREAM_RESPONSE_TOO_LARGE", "EXECUTION_CLOSED", "EFFECT_DENIED", "CONFIGURATION_STALE"} {
 			if code == allowed {
 				return Failure(code)
 			}
@@ -279,10 +279,6 @@ func (r *run) read(round int, operation string, q map[string]string) (json.RawMe
 	if err := r.ctx.Err(); err != nil {
 		return nil, err
 	}
-	if r.calls >= r.collector.cfg.MaxAttempts {
-		return nil, Failure("COLLECTION_ATTEMPT_LIMIT")
-	}
-	r.calls++
 	body, err := r.collector.reader.Read(r.ctx, operation, cloneQuery(q))
 	if err != nil {
 		return nil, controlled(err)
@@ -290,12 +286,19 @@ func (r *run) read(round int, operation string, q map[string]string) (json.RawMe
 	if len(body) > 2<<20 {
 		return nil, Failure("UPSTREAM_RESPONSE_TOO_LARGE")
 	}
+	artifact := domain.CloudRawArtifact{Round: round, Operation: operation, Query: cloneQuery(q), Body: body, SHA256: hash(body)}
+	// Allow a separator for each entry and the enclosing array brackets.
+	size := artifact.EncodedSize() + 1
+	if r.rawArtifactBytes+size+2 > domain.MaxCloudEvidenceBytes {
+		return nil, Failure("COLLECTION_RAW_LIMIT")
+	}
 	if _, err := object(body); err != nil {
 		return nil, err
 	}
-	copyBody := append(json.RawMessage(nil), body...)
-	r.artifacts = append(r.artifacts, RawArtifact{Round: round, Operation: operation, Query: cloneQuery(q), Body: copyBody, SHA256: hash(copyBody)})
-	return copyBody, nil
+	artifact.Body = append([]byte(nil), body...)
+	r.artifacts = append(r.artifacts, artifact)
+	r.rawArtifactBytes += size
+	return artifact.Body, nil
 }
 
 func (r *run) collectFamily(round int, selection domain.Selection) (family, error) {
@@ -400,7 +403,7 @@ func (r *run) collectFamily(round int, selection domain.Selection) (family, erro
 		op = "DescribeNatFirewallControlPolicy"
 		q = map[string]string{"Direction": "out", "NatGatewayId": cfg.GatewayID}
 	}
-	rows, complete, pageErr := r.pages(round, op, q, "Policys", "CurrentPage", true, "AclUuid", cfg.MaxPolicies)
+	rows, complete, pageErr := r.pages(round, op, q, "Policys", "CurrentPage", true, "AclUuid", cfg.Workload.Limits.MaxPolicies)
 	if fatal(controlled(pageErr)) {
 		return f, pageErr
 	}

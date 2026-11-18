@@ -24,8 +24,6 @@ var (
 type EffectCeiling struct {
 	AllowCloudReads    bool `json:"allow_cloud_reads"`
 	AllowModelRequests bool `json:"allow_model_requests"`
-	CloudHTTPAttempts  int  `json:"cloud_http_attempts"`
-	ModelHTTPAttempts  int  `json:"model_http_attempts"`
 }
 type ExecutionPlan struct {
 	ResourceGroupVersionID string `json:"resource_group_version_id,omitempty" gorm:"-"`
@@ -50,7 +48,6 @@ type ExecutionPlan struct {
 	EvaluationAt         string             `json:"evaluation_at,omitempty"`
 	Request              json.RawMessage    `json:"request" gorm:"-"`
 	EffectCeiling        EffectCeiling      `json:"effect_ceiling" gorm:"-"`
-	BudgetRef            string             `json:"budget_ref"`
 	PreparedInput        domain.Input       `json:"-" gorm:"-"`
 	Heads                []AssetHeadVersion `json:"-" gorm:"-"`
 	ConfigRevision       string             `json:"-"`
@@ -94,12 +91,12 @@ func migrateExecution(tx *gorm.DB) error {
 		return setBusinessSchema2(tx)
 	}
 	statements := []string{
-		`CREATE TABLE execution_plans(id TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('audit','collect','connection_check','assistant_turn')),conversation_id TEXT NOT NULL REFERENCES conversations(id),data_source_id TEXT NOT NULL,policy_scope_ref TEXT NOT NULL,snapshot_id TEXT REFERENCES snapshots(id),mode TEXT NOT NULL,conversation_revision INTEGER NOT NULL,created_at TEXT NOT NULL,expires_at TEXT NOT NULL,consumed_job_id TEXT,config_revision TEXT NOT NULL,budget_ref TEXT NOT NULL,body TEXT NOT NULL CHECK(json_valid(body)),prepared_json TEXT NOT NULL CHECK(json_valid(prepared_json)),heads_json TEXT NOT NULL CHECK(json_valid(heads_json)))`,
+		`CREATE TABLE execution_plans(id TEXT PRIMARY KEY,kind TEXT NOT NULL CHECK(kind IN ('audit','collect','connection_check','assistant_turn')),conversation_id TEXT NOT NULL REFERENCES conversations(id),data_source_id TEXT NOT NULL,policy_scope_ref TEXT NOT NULL,snapshot_id TEXT REFERENCES snapshots(id),mode TEXT NOT NULL,conversation_revision INTEGER NOT NULL,created_at TEXT NOT NULL,expires_at TEXT NOT NULL,consumed_job_id TEXT,config_revision TEXT NOT NULL,body TEXT NOT NULL CHECK(json_valid(body)),prepared_json TEXT NOT NULL CHECK(json_valid(prepared_json)),heads_json TEXT NOT NULL CHECK(json_valid(heads_json)))`,
 		`INSERT OR IGNORE INTO conversations(id,title,policy_scope_ref,revision,archived,last_seq,created_at,updated_at) SELECT conversation_id,'E0本机联调历史','',1,0,0,min(created_at),max(created_at) FROM e0_jobs GROUP BY conversation_id`,
 		`ALTER TABLE e0_events RENAME TO legacy_e0_events`,
 		`ALTER TABLE e0_jobs RENAME TO legacy_e0_jobs`,
-		`CREATE TABLE e0_jobs(id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL REFERENCES conversations(id),client_request_id TEXT UNIQUE NOT NULL,request_digest TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('e0_probe','audit','collect','connection_check','assistant_turn')),plan_id TEXT UNIQUE REFERENCES execution_plans(id),status TEXT NOT NULL CHECK(status IN ('queued','running','cancelling','completed','partial','failed','cancelled','interrupted')),view_seq INTEGER NOT NULL DEFAULT 0 CHECK(view_seq>=0),created_at TEXT NOT NULL,started_at TEXT NOT NULL DEFAULT '',finished_at TEXT NOT NULL DEFAULT '',queue_deadline TEXT NOT NULL,root_deadline TEXT NOT NULL,execution_deadline TEXT NOT NULL DEFAULT '',result_ref TEXT REFERENCES audit_runs(id),error_code TEXT NOT NULL DEFAULT '',budget_ref TEXT NOT NULL,sealed_input TEXT CHECK(sealed_input IS NULL OR json_valid(sealed_input)))`,
-		`INSERT INTO e0_jobs(id,conversation_id,client_request_id,request_digest,kind,status,view_seq,created_at,started_at,finished_at,queue_deadline,root_deadline,budget_ref) SELECT id,conversation_id,client_request_id,'','e0_probe',status,view_seq,created_at,started_at,finished_at,created_at,created_at,'application-default' FROM legacy_e0_jobs`,
+		`CREATE TABLE e0_jobs(id TEXT PRIMARY KEY,conversation_id TEXT NOT NULL REFERENCES conversations(id),client_request_id TEXT UNIQUE NOT NULL,request_digest TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN ('e0_probe','audit','collect','connection_check','assistant_turn')),plan_id TEXT UNIQUE REFERENCES execution_plans(id),status TEXT NOT NULL CHECK(status IN ('queued','running','cancelling','completed','partial','failed','cancelled','interrupted')),view_seq INTEGER NOT NULL DEFAULT 0 CHECK(view_seq>=0),created_at TEXT NOT NULL,started_at TEXT NOT NULL DEFAULT '',finished_at TEXT NOT NULL DEFAULT '',queue_deadline TEXT NOT NULL,root_deadline TEXT NOT NULL,execution_deadline TEXT NOT NULL DEFAULT '',result_ref TEXT REFERENCES audit_runs(id),error_code TEXT NOT NULL DEFAULT '',sealed_input TEXT CHECK(sealed_input IS NULL OR json_valid(sealed_input)))`,
+		`INSERT INTO e0_jobs(id,conversation_id,client_request_id,request_digest,kind,status,view_seq,created_at,started_at,finished_at,queue_deadline,root_deadline) SELECT id,conversation_id,client_request_id,'','e0_probe',status,view_seq,created_at,started_at,finished_at,created_at,created_at FROM legacy_e0_jobs`,
 		`CREATE TABLE e0_events(job_id TEXT NOT NULL REFERENCES e0_jobs(id),seq INTEGER NOT NULL CHECK(seq>0),schema_version INTEGER NOT NULL CHECK(schema_version=1),type TEXT NOT NULL,occurred_at TEXT NOT NULL,payload TEXT NOT NULL CHECK(json_valid(payload)),PRIMARY KEY(job_id,seq))`,
 		`INSERT INTO e0_events SELECT * FROM legacy_e0_events`,
 		`DROP TABLE legacy_e0_events`,
@@ -125,22 +122,6 @@ func setBusinessSchema2(tx *gorm.DB) error {
 		if err := tx.Exec(q).Error; err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-func validateEffects(kind string, e EffectCeiling, limits workload.Limits) error {
-	if e.CloudHTTPAttempts < 0 || e.CloudHTTPAttempts > limits.CloudHTTPAttempts || e.ModelHTTPAttempts < 0 || e.ModelHTTPAttempts > limits.ModelHTTPAttempts {
-		return ErrInputInvalid
-	}
-	if (!e.AllowCloudReads && e.CloudHTTPAttempts != 0) || (!e.AllowModelRequests && e.ModelHTTPAttempts != 0) {
-		return ErrInputInvalid
-	}
-	if kind == "assistant_turn" && (e.AllowCloudReads || e.CloudHTTPAttempts != 0) {
-		return ErrInputInvalid
-	}
-	if (kind == "collect" || kind == "connection_check") && (e.AllowModelRequests || e.ModelHTTPAttempts != 0) {
-		return ErrInputInvalid
 	}
 	return nil
 }
@@ -203,9 +184,6 @@ func preparePlan(p ExecutionPlan, internal bool) (ExecutionPlan, error) {
 	at := time.Now().UTC()
 	p.CreatedAt = at.Format(time.RFC3339Nano)
 	p.ExpiresAt = at.Add(5 * time.Minute).Format(time.RFC3339Nano)
-	if p.BudgetRef == "" {
-		p.BudgetRef = "application-default"
-	}
 	if p.EvaluationAt != "" {
 		if _, err = time.Parse(time.RFC3339Nano, p.EvaluationAt); err != nil {
 			return p, ErrInputInvalid
@@ -324,7 +302,7 @@ func insertPlan(tx *gorm.DB, p ExecutionPlan) error {
 	if p.SnapshotID != "" {
 		snapshotID = p.SnapshotID
 	}
-	return tx.Exec("INSERT INTO execution_plans(id,kind,conversation_id,data_source_id,policy_scope_ref,snapshot_id,mode,conversation_revision,created_at,expires_at,config_revision,budget_ref,body,prepared_json,heads_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", p.ID, p.Kind, p.ConversationID, p.DataSourceID, p.PolicyScopeRef, snapshotID, p.Mode, p.ConversationRevision, p.CreatedAt, p.ExpiresAt, p.ConfigRevision, p.BudgetRef, p.Body, p.PreparedJSON, p.HeadsJSON).Error
+	return tx.Exec("INSERT INTO execution_plans(id,kind,conversation_id,data_source_id,policy_scope_ref,snapshot_id,mode,conversation_revision,created_at,expires_at,config_revision,body,prepared_json,heads_json) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)", p.ID, p.Kind, p.ConversationID, p.DataSourceID, p.PolicyScopeRef, snapshotID, p.Mode, p.ConversationRevision, p.CreatedAt, p.ExpiresAt, p.ConfigRevision, p.Body, p.PreparedJSON, p.HeadsJSON).Error
 }
 func (s *Store) SavePlan(ctx context.Context, input ExecutionPlan) (p ExecutionPlan, err error) {
 	p, err = preparePlan(input, false)
@@ -518,8 +496,8 @@ func createPlannedJob(tx *gorm.DB, p ExecutionPlan, key, digest string, message 
 	if err != nil {
 		return job, saved, ErrInputInvalid
 	}
-	job = Job{ID: id, ConversationID: p.ConversationID, ClientRequestID: key, RequestDigest: digest, Kind: p.Kind, PlanID: p.ID, Status: "queued", CreatedAt: at.Format(time.RFC3339Nano), QueueDeadline: at.Add(queue).Format(time.RFC3339Nano), RootDeadline: at.Add(queue + execution).Format(time.RFC3339Nano), BudgetRef: p.BudgetRef, Workload: p.Workload}
-	if err = tx.Exec("INSERT INTO e0_jobs(id,conversation_id,client_request_id,request_digest,kind,plan_id,status,created_at,queue_deadline,root_deadline,budget_ref) VALUES(?,?,?,?,?,?,?,?,?,?,?)", id, job.ConversationID, key, digest, p.Kind, p.ID, "queued", job.CreatedAt, job.QueueDeadline, job.RootDeadline, job.BudgetRef).Error; err != nil {
+	job = Job{ID: id, ConversationID: p.ConversationID, ClientRequestID: key, RequestDigest: digest, Kind: p.Kind, PlanID: p.ID, Status: "queued", CreatedAt: at.Format(time.RFC3339Nano), QueueDeadline: at.Add(queue).Format(time.RFC3339Nano), RootDeadline: at.Add(queue + execution).Format(time.RFC3339Nano), Workload: p.Workload}
+	if err = tx.Exec("INSERT INTO e0_jobs(id,conversation_id,client_request_id,request_digest,kind,plan_id,status,created_at,queue_deadline,root_deadline) VALUES(?,?,?,?,?,?,?,?,?,?)", id, job.ConversationID, key, digest, p.Kind, p.ID, "queued", job.CreatedAt, job.QueueDeadline, job.RootDeadline).Error; err != nil {
 		return
 	}
 	if p.Batch != nil {
@@ -1165,8 +1143,8 @@ func (s *Store) createProbe(ctx context.Context, conversation, key string) (job 
 		if e != nil {
 			return e
 		}
-		job = Job{ID: id, ConversationID: conversation, ClientRequestID: key, RequestDigest: digest, Kind: "e0_probe", Status: "queued", CreatedAt: stamp, QueueDeadline: at.Add(120 * time.Second).Format(time.RFC3339Nano), RootDeadline: at.Add(150 * time.Second).Format(time.RFC3339Nano), BudgetRef: "application-default"}
-		if e = tx.Exec("INSERT INTO e0_jobs(id,conversation_id,client_request_id,request_digest,kind,status,created_at,queue_deadline,root_deadline,budget_ref) VALUES(?,?,?,?,?,'queued',?,?,?,?)", id, conversation, key, digest, job.Kind, stamp, job.QueueDeadline, job.RootDeadline, job.BudgetRef).Error; e != nil {
+		job = Job{ID: id, ConversationID: conversation, ClientRequestID: key, RequestDigest: digest, Kind: "e0_probe", Status: "queued", CreatedAt: stamp, QueueDeadline: at.Add(120 * time.Second).Format(time.RFC3339Nano), RootDeadline: at.Add(150 * time.Second).Format(time.RFC3339Nano)}
+		if e = tx.Exec("INSERT INTO e0_jobs(id,conversation_id,client_request_id,request_digest,kind,status,created_at,queue_deadline,root_deadline) VALUES(?,?,?,?,?,'queued',?,?,?)", id, conversation, key, digest, job.Kind, stamp, job.QueueDeadline, job.RootDeadline).Error; e != nil {
 			return e
 		}
 		return appendEvent(tx, &job, "job_status", map[string]any{"status": "queued", "source": "synthetic"})
@@ -1287,4 +1265,11 @@ func (s *Store) FinishWithCode(ctx context.Context, id, status, code string) err
 		}
 		return finishJob(tx, &job, status, code)
 	})
+}
+
+func validateEffects(kind string, e EffectCeiling, _ workload.Limits) error {
+	if kind == "assistant_turn" && e.AllowCloudReads || (kind == "collect" || kind == "connection_check") && e.AllowModelRequests {
+		return ErrInputInvalid
+	}
+	return nil
 }

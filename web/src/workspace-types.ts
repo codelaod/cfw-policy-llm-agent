@@ -44,7 +44,7 @@ export type ConfirmationPreview = { preview_id: string; draft_id: string; draft_
 export type ConfirmationResult = { action_id: string; draft_id: string; status: string; revision: number; heads: AssetHead[]; saved_at: string }
 export type AssetView = { asset: Asset; declared_asset: Asset; head: AssetHead; local_confirmed_sections: string[]; source_kind: string }
 export type PlanRequest = { kind: 'audit' | 'collect' | 'connection_check'; conversation_id: string; data_source_id: string; policy_scope_ref: string; selection: { kind: 'assets' | 'gateway_policy' | 'identity_only'; asset_ids: string[]; gateway_ref?: string }; data_policy: { mode: 'pinned_snapshot' | 'force_refresh'; snapshot_id?: string; allow_stale_fallback?: boolean }; baseline_version_id: string; mode: 'rules_only' | 'rules_and_agent'; evaluation_at?: string }
-export type ExecutionPlan = { id: string; expires_at: string; request?: PlanRequest; effect_ceiling?: { allow_cloud_reads?: boolean; allow_model_requests?: boolean; cloud_http_attempts?: number; model_http_attempts?: number }; gaps?: string[]; warnings?: string[]; [key: string]: unknown }
+export type ExecutionPlan = { id: string; expires_at: string; request?: PlanRequest; effect_ceiling?: { allow_cloud_reads?: boolean; allow_model_requests?: boolean }; gaps?: string[]; warnings?: string[]; [key: string]: unknown }
 export type Capabilities = { offline_available?: boolean; worker_slots?: number; m1_enabled?: boolean; model_configured?: boolean; model_mode?: string; model_available?: boolean; models?: { id: string; label: string; available?: boolean; configured?: boolean }[]; [key: string]: unknown }
 export type RecheckComparison = { comparable: boolean; reasons: string[]; issues: { issue_key: string; state: string; old_finding_ids: string[]; new_finding_ids: string[] }[] }
 export type RecheckRecord = { id: string; old_audit_id: string; new_audit_id: string; created_at: string; comparison: RecheckComparison }
@@ -61,7 +61,7 @@ export type ReportedModelTokens = { prompt_tokens: number; completion_tokens: nu
 export type AttemptUsage = { cloud_attempts: number; model_attempts: number; unknown_delivery: number; known_usage_responses: number; unknown_usage_attempts: number; reported_tokens: ReportedModelTokens | null; usage_totals_overflow: boolean }
 export type DataSource = { id: string; label: string; kind: string; available: boolean; cloud_reads: boolean }
 export type CollectionScope = { scope: Scope; assets: { id: string; region: string }[] }
-export type CollectionOptions = { source_ref: string; configured: boolean; available: boolean; identity_verified: false; max_http_attempts: number; scopes: CollectionScope[] }
+export type CollectionOptions = { source_ref: string; configured: boolean; available: boolean; identity_verified: false; scopes: CollectionScope[] }
 export type CloudObservation = { round: number; operation: string; pages: number; started_at: string; finished_at: string; enumeration_complete: boolean; semantic_sha256: string }
 export type CloudRecord = { id: string; job_id: string; created_at: string; content: { job_id: string; kind: 'collect' | 'connection_check' | 'audit'; policy_scope_ref: string; snapshot_id?: string; identity_verified: boolean; product_ready: boolean; observations: CloudObservation[]; limitations: string[] } }
 

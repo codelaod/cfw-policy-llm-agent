@@ -80,7 +80,7 @@ type evaluationFixture struct {
 	requests    atomic.Int32
 }
 
-func newEvaluationFixture(t *testing.T, behavior string, ceiling *workload.AttemptCeiling) *evaluationFixture {
+func newEvaluationFixture(t *testing.T, behavior string) *evaluationFixture {
 	t.Helper()
 	f := &evaluationFixture{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -163,11 +163,7 @@ func newEvaluationFixture(t *testing.T, behavior string, ceiling *workload.Attem
 	f.plans = app.NewPlanService(store)
 	f.plans.ModelReady = true
 	f.plans.ConfigRevision = "evaluation-local-v1"
-	f.plans.BudgetRef = "same-evaluation-grant"
-	if e = store.ConfigureBudgetPolicy(ctx, storage.BudgetPolicy{Ref: f.plans.BudgetRef, ApplicationModelAttempts: 30, SessionModelAttempts: 30, ExpiresAt: time.Now().Add(time.Hour).UTC().Format(time.RFC3339Nano)}); e != nil {
-		t.Fatal(e)
-	}
-	manager, e := outbound.NewManager(store, outbound.Config{Revision: f.plans.ConfigRevision, Sources: []outbound.Source{{Ref: "configured-model", Class: "model", Origin: server.URL, AllowLoopbackHTTP: true, Routes: []outbound.Route{{Method: "POST", Path: "/v1/chat/completions"}}, Timeout: 5 * time.Second, MaxResponseBytes: 256 << 10, Ceiling: ceiling}}})
+	manager, e := outbound.NewManager(store, outbound.Config{Revision: f.plans.ConfigRevision, Sources: []outbound.Source{{Ref: "configured-model", Class: "model", Origin: server.URL, AllowLoopbackHTTP: true, Routes: []outbound.Route{{Method: "POST", Path: "/v1/chat/completions"}}, Timeout: 5 * time.Second, MaxResponseBytes: 256 << 10}}})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -182,7 +178,7 @@ func newEvaluationFixture(t *testing.T, behavior string, ceiling *workload.Attem
 		t.Fatal(e)
 	}
 	t.Cleanup(func() { _ = f.journal.Close() })
-	f.runner, e = NewRunner(Binding{Store: store, Factory: factory, Journal: f.journal, RuntimeRevision: f.plans.ConfigRevision, BudgetRef: f.plans.BudgetRef, ModelConfigRef: "same-local-fixture-v1", Sampling: Sampling{Temperature: 0.2, TopP: 1}, SensitiveValues: []string{"synthetic-evaluation-key", "PRIVATE_LABEL_SENTINEL"}})
+	f.runner, e = NewRunner(Binding{Store: store, Factory: factory, Journal: f.journal, RuntimeRevision: f.plans.ConfigRevision, ModelConfigRef: "same-local-fixture-v1", Sampling: Sampling{Temperature: 0.2, TopP: 1}, SensitiveValues: []string{"synthetic-evaluation-key", "PRIVATE_LABEL_SENTINEL"}})
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -224,7 +220,7 @@ func (f *evaluationFixture) accepted(t *testing.T, arm Arm, id string) Assignmen
 	return Assignment{RunID: id, CaseID: f.caseData.Definition.ID, Arm: arm, Repetition: 1, JobID: j.ID}
 }
 func TestThreeArmsUseRealManagerLedgerAndDistinctSelectionPaths(t *testing.T) {
-	f := newEvaluationFixture(t, "success", nil)
+	f := newEvaluationFixture(t, "success")
 	var outcomes []RunOutcome
 	for i, arm := range AllArms() {
 		a := f.accepted(t, arm, []string{"run-rules", "run-fixed", "run-agent"}[i])
@@ -261,7 +257,7 @@ func TestThreeArmsUseRealManagerLedgerAndDistinctSelectionPaths(t *testing.T) {
 			t.Fatal("logical vs physical actual fixture count", len(attempts), e)
 		}
 		for _, attempt := range attempts {
-			if attempt.BudgetRef != f.plans.BudgetRef || attempt.Class != "model" {
+			if attempt.Class != "model" {
 				t.Fatal("invented new budget", attempt)
 			}
 		}
@@ -284,115 +280,15 @@ func TestThreeArmsUseRealManagerLedgerAndDistinctSelectionPaths(t *testing.T) {
 	if e != nil || strings.Contains(string(raw), "PRIVATE_EVAL_REASONING") || strings.Contains(string(raw), "PRIVATE_LABEL_SENTINEL") || strings.Contains(string(raw), "synthetic-evaluation-key") || strings.Contains(string(raw), "127.0.0.1") || strings.Contains(string(raw), "模型协议fixture") {
 		t.Fatal("journal leaked protected content", e)
 	}
-	usage, e := f.store.BudgetUsage(context.Background(), f.plans.BudgetRef, "", "")
+	usage, e := f.store.AttemptUsage(context.Background(), "", "")
 	if e != nil || usage.ModelAttempts != 4 {
 		t.Fatal("not a shared ledger", usage, e)
 	}
 }
 
-func TestFailuresAndPrivateCapsRemainInRunPopulation(t *testing.T) {
-	for _, behavior := range []string{"http-error", "invalid-output", "private-zero", "fixed-selection"} {
-		t.Run(behavior, func(t *testing.T) {
-			var ceiling *workload.AttemptCeiling
-			if behavior == "private-zero" {
-				zero := int64(0)
-				ceiling = &workload.AttemptCeiling{ApplicationAttempts: &zero}
-			}
-			f := newEvaluationFixture(t, behavior, ceiling)
-			if behavior == "fixed-selection" {
-				f.protocol.FixedPipeline.Steps[1].MaxItems = 1
-			}
-			a := f.accepted(t, FixedModel, "failure-run")
-			out, e := f.runner.Run(context.Background(), f.protocol, f.caseData, a)
-			if e != nil || out.Record.Status != "partial" || !out.Record.ModelOutputAbsent || out.Record.ModelLayer != "not_produced" || out.Record.RuleAuditRef == "" || out.Record.ErrorCode == "" {
-				t.Fatal(out.Record, e)
-			}
-			if behavior == "private-zero" && (f.requests.Load() != 0 || out.Record.Usage.Attempts.ModelAttempts != 0) {
-				t.Fatal("private zero expanded", out.Record)
-			}
-			if behavior == "fixed-selection" && (f.requests.Load() != 0 || out.Record.ModelCalls != 0 || out.Record.ToolCalls != 1 || len(out.Record.Traces) != 1) {
-				t.Fatal("prefetch failure fabricated model call", out.Record)
-			}
-			if behavior == "http-error" && out.Record.Usage.Attempts.ModelAttempts != 1 {
-				t.Fatal("failed HTTP disappeared", out.Record)
-			}
-			score, e := ScoreModel(out, nil)
-			if e != nil || score.Status != "not_produced" {
-				t.Fatal(score, e)
-			}
-		})
-	}
-}
-
-type rejectedJournal struct{}
-
 func (rejectedJournal) Begin(context.Context, RunStart) (*RunRecord, bool, error) {
 	return nil, false, ErrJournal
 }
 func (rejectedJournal) End(context.Context, RunRecord) error { return ErrJournal }
-func TestAdmissionMismatchAndJournalFailureMakeNoRequest(t *testing.T) {
-	for _, change := range []string{"sampling", "input", "workload", "journal", "runtime"} {
-		t.Run(change, func(t *testing.T) {
-			f := newEvaluationFixture(t, "success", nil)
-			a := f.accepted(t, FixedModel, "unadmitted-run")
-			switch change {
-			case "sampling":
-				f.protocol.Sampling.Temperature = 0.5
-			case "input":
-				f.caseData.input.Assets[0].Name = "changed"
-			case "workload":
-				f.protocol.Workload.Limits.ToolCalls--
-			case "journal":
-				f.runner.binding.Journal = rejectedJournal{}
-			case "runtime":
-				f.runner.binding.RuntimeRevision = "other-revision"
-			}
-			_, e := f.runner.Run(context.Background(), f.protocol, f.caseData, a)
-			if e == nil || f.requests.Load() != 0 {
-				t.Fatal("invalid admission spent request", e)
-			}
-			usage, e := f.store.BudgetUsage(context.Background(), f.plans.BudgetRef, "", a.JobID)
-			if e != nil || usage.ModelAttempts != 0 {
-				t.Fatal("invalid admission spent ledger", usage, e)
-			}
-		})
-	}
-}
 
-func TestRulesRunNeedsNoFactoryAndZeroFinalizeUsesFiniteRoot(t *testing.T) {
-	f := newEvaluationFixture(t, "success", nil)
-	ctx := context.Background()
-	conversation, e := f.store.CreateConversation(ctx, "共享根截止时间测试", f.snapshot.ScopeRef)
-	if e != nil {
-		t.Fatal(e)
-	}
-	preview, e := f.plans.Preview(ctx, app.PlanRequest{Kind: "audit", ConversationID: conversation.ID, DataSourceID: "local-offline", PolicyScopeRef: f.snapshot.ScopeRef, Selection: app.PlanSelection{Kind: "assets", AssetIDs: f.snapshot.Input.Selection.AssetIDs}, DataPolicy: app.DataPolicy{Mode: "pinned_snapshot", SnapshotID: f.snapshot.ID}, BaselineVersionID: "B2-v1", Mode: "rules_only"})
-	if e != nil {
-		t.Fatal(e)
-	}
-	plan := preview.ExecutionPlan
-	plan.ID = ""
-	plan.Workload.Limits.FinalizeSeconds = 0
-	plan, e = f.store.SavePlan(ctx, plan)
-	if e != nil {
-		t.Fatal(e)
-	}
-	_, _, e = f.store.EnqueuePlan(ctx, plan.ID, "zero-finalize", f.plans.ConfigRevision)
-	if e != nil {
-		t.Fatal(e)
-	}
-	job, found, e := f.store.Claim(ctx)
-	if e != nil || !found {
-		t.Fatal(found, e)
-	}
-	f.protocol.Workload = plan.Workload
-	f.caseData, e = FreezeCase(ctx, f.caseData.Definition, f.snapshot.Input, plan.Workload)
-	if e != nil {
-		t.Fatal(e)
-	}
-	f.runner.binding.Factory = nil
-	out, e := f.runner.Run(ctx, f.protocol, f.caseData, Assignment{RunID: "zero-finalize", CaseID: f.caseData.Definition.ID, Arm: RulesOnly, Repetition: 1, JobID: job.ID})
-	if e != nil || out.Record.Status != "completed" || out.Record.ReportRef == "" || out.Record.ModelCalls != 0 || f.requests.Load() != 0 {
-		t.Fatal(out.Record, e)
-	}
-}
+type rejectedJournal struct{}

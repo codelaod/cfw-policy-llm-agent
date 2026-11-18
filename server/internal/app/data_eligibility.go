@@ -17,16 +17,14 @@ import (
 var ErrDataEligibilityRequest = errors.New("DATA_ELIGIBILITY_REQUEST_INVALID")
 
 // Policy thresholds are explicit engineering policy, not cloud service levels.
-// Legacy is an audit label; callers can supply a versioned replacement.
 type DataFreshnessPolicy struct {
 	Version                    string `json:"version"`
-	Legacy                     bool   `json:"legacy"`
 	ConfigurationMaxAgeSeconds int    `json:"configuration_max_age_seconds"`
 	MetadataMaxAgeSeconds      int    `json:"metadata_max_age_seconds"`
 }
 
-func LegacyDataFreshnessPolicy() DataFreshnessPolicy {
-	return DataFreshnessPolicy{Version: "legacy-uncalibrated-15m-60m-v1", Legacy: true, ConfigurationMaxAgeSeconds: 15 * 60, MetadataMaxAgeSeconds: 60 * 60}
+func DefaultDataFreshnessPolicy() DataFreshnessPolicy {
+	return DataFreshnessPolicy{Version: "freshness-v1", ConfigurationMaxAgeSeconds: 15 * 60, MetadataMaxAgeSeconds: 60 * 60}
 }
 func (p DataFreshnessPolicy) Validate() error {
 	if p.Version == "" || len(p.Version) > 128 {
@@ -169,8 +167,7 @@ func currentBinding(c storage.SnapshotCandidate, r DataEligibilityRequest) bool 
 	return c.Cloud.Content.Kind == "audit" && storage.Terminal(c.ProducerStatus) && (c.DataStatus == "complete" || c.DataStatus == "partial")
 }
 
-// EvaluateDataEligibility is pure: it never updates a snapshot, current heads,
-// its original timestamps, a budget, a directory or a provider connection.
+// EvaluateDataEligibility evaluates a stored candidate using only the request.
 func EvaluateDataEligibility(c storage.SnapshotCandidate, r DataEligibilityRequest) DataEligibilityDecision {
 	in := c.Snapshot.Input
 	d := DataEligibilityDecision{SnapshotID: c.Snapshot.ID, Reasons: []string{}, Warnings: []string{}, Provenance: DataProvenance{SourceKind: in.SourceKind, CollectedAt: in.CollectedAt, PolicyVersion: r.Policy.Version, Manifest: cachedInputManifest(in)}}

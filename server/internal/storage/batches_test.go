@@ -66,13 +66,10 @@ func batchCase(t *testing.T, model bool) (*Store, ExecutionPlan, Job, domain.Inp
 	effects := EffectCeiling{}
 	if model {
 		mode = "rules_and_agent"
-		limits.ModelLogicalCalls = 3
-		limits.ModelHTTPAttempts = 3
-		limits.ToolCalls = 5
-		limits.ToolBatch = 4
-		effects = EffectCeiling{AllowModelRequests: true, ModelHTTPAttempts: 3}
+		limits.MaxRounds = 3
+		effects = EffectCeiling{AllowModelRequests: true}
 	}
-	p, e := s.SavePlan(ctx, ExecutionPlan{Batch: &BatchSpec{Resources: resources, Size: 2}, Workload: workload.Resolved{ProfileRef: "public-batch-fixture", Limits: limits}, Kind: "audit", ConversationID: conv.ID, ConversationRevision: conv.Revision, DataSourceID: "local-offline", PolicyScopeRef: in.Scope.Ref, SnapshotID: snap.ID, Mode: mode, BudgetRef: "batch-budget", ConfigRevision: "batch-config", PreparedInput: frozen, Heads: heads, EffectCeiling: effects})
+	p, e := s.SavePlan(ctx, ExecutionPlan{Batch: &BatchSpec{Resources: resources, Size: 2}, Workload: workload.Resolved{ProfileRef: "public-batch-fixture", Limits: limits}, Kind: "audit", ConversationID: conv.ID, ConversationRevision: conv.Revision, DataSourceID: "local-offline", PolicyScopeRef: in.Scope.Ref, SnapshotID: snap.ID, Mode: mode, ConfigRevision: "batch-config", PreparedInput: frozen, Heads: heads, EffectCeiling: effects})
 	if e != nil {
 		t.Fatal("preview full batch", e)
 	}
@@ -163,7 +160,7 @@ func TestBatchPinnedSerialSegmentsKeepOwnEvidenceAndOneRootSlot(t *testing.T) {
 		if _, _, e = s.StartNextBatchSegment(ctx, parent.ID); !errors.Is(e, ErrBusy) {
 			t.Fatal("parallel segment accepted", e)
 		}
-		if child.RootDeadline > parent.RootDeadline || child.ExecutionDeadline > parent.ExecutionDeadline || child.BudgetRef != parent.BudgetRef {
+		if child.RootDeadline > parent.RootDeadline || child.ExecutionDeadline > parent.ExecutionDeadline {
 			t.Fatal("segment extended root authority")
 		}
 		finishBatchAudit(t, s, child, 0, 0, false)
@@ -237,48 +234,10 @@ func TestBatchPinnedFreezesBusinessAndDoesNotReadLaterGoal(t *testing.T) {
 		t.Fatal("child changed accepted message position")
 	}
 }
-func TestBatchCountersAndPhaseLimitsNeverResetAtNextSegment(t *testing.T) {
-	s, _, parent, _ := batchCase(t, true)
-	ctx := context.Background()
-	if e := s.ConfigureBudgetPolicy(ctx, BudgetPolicy{Ref: parent.BudgetRef, ApplicationModelAttempts: 20, SessionModelAttempts: 20}); e != nil {
-		t.Fatal(e)
-	}
-	first, found, e := s.StartNextBatchSegment(ctx, parent.ID)
-	if e != nil || !found {
-		t.Fatal(e)
-	}
-	for i := 0; i < 2; i++ {
-		if _, e = s.ReserveAttempt(ctx, first.ID, "model", "configured-model", "batch-config"); e != nil {
-			t.Fatal(e)
-		}
-	}
-	finishBatchAudit(t, s, first, 2, 3, false)
-	second, found, e := s.StartNextBatchSegment(ctx, parent.ID)
-	if e != nil || !found {
-		t.Fatal("remaining segment", e)
-	}
-	if second.Workload.Limits.ModelLogicalCalls != 1 || second.Workload.Limits.ToolCalls != 2 || second.Workload.Limits.ToolBatch != 2 || second.Workload.Limits.ModelHTTPAttempts != 1 {
-		t.Fatal("cumulative allowance reset", second.Workload)
-	}
-	if _, e = s.ReserveAttempt(ctx, second.ID, "model", "configured-model", "batch-config"); e != nil {
-		t.Fatal("last physical attempt denied", e)
-	}
-	if _, e = s.ReserveAttempt(ctx, second.ID, "model", "configured-model", "batch-config"); !errors.Is(e, ErrBudgetExhausted) {
-		t.Fatal("physical root ceiling reset", e)
-	}
-	finishBatchAudit(t, s, second, 1, 2, false)
-	if _, found, e = s.StartNextBatchSegment(ctx, parent.ID); e != nil || found {
-		t.Fatal("exhausted root started a new segment", found, e)
-	}
-	value, e := s.GetBatchRequest(ctx, parent.ID)
-	if e != nil || value.ErrorCode != "BATCH_LIMIT_EXHAUSTED" || value.Usage.ModelCalls != 3 || value.Usage.ToolCalls != 5 || value.Usage.ModelAttempts != 3 || len(value.Unprocessed) != 1 {
-		t.Fatal("lost total or unprocessed coverage", value, e)
-	}
-}
-func TestBatchUnknownLogicalOrPhaseUsageStopsRatherThanRefills(t *testing.T) {
-	for _, kind := range []string{"logical", "phase"} {
+func TestBatchRequiresKnownAgentRoundsAndSharesParentDeadline(t *testing.T) {
+	for _, kind := range []string{"logical", "missing stage", "invalid stage time"} {
 		t.Run(kind, func(t *testing.T) {
-			s, _, parent, _ := batchCase(t, kind == "logical")
+			s, _, parent, _ := batchCase(t, true)
 			ctx := context.Background()
 			child, found, e := s.StartNextBatchSegment(ctx, parent.ID)
 			if e != nil || !found {
@@ -292,14 +251,37 @@ func TestBatchUnknownLogicalOrPhaseUsageStopsRatherThanRefills(t *testing.T) {
 					t.Fatal(e)
 				}
 			} else {
-				finishBatchAudit(t, s, child, 0, 0, true)
+				finishBatchAudit(t, s, child, 1, 0, kind == "missing stage")
+				if kind == "invalid stage time" {
+					if e = s.db.Exec("UPDATE e0_events SET occurred_at=? WHERE job_id=? AND type='stage_changed'", "invalid", child.ID).Error; e != nil {
+						t.Fatal(e)
+					}
+				}
 			}
-			if _, found, e = s.StartNextBatchSegment(ctx, parent.ID); e != nil || found {
-				t.Fatal("unknown usage became fresh allowance", found, e)
+			next, found, e := s.StartNextBatchSegment(ctx, parent.ID)
+			if e != nil || found != (kind != "logical") {
+				t.Fatal("only unknown Agent rounds should block the next segment", found, e)
 			}
 			value, e := s.GetBatchRequest(ctx, parent.ID)
-			if e != nil || !value.Usage.UsageUnknown || value.ErrorCode != "BATCH_USAGE_UNKNOWN" || len(value.Unprocessed) == 0 {
+			if e != nil || !value.Usage.UsageUnknown {
 				t.Fatal("unknown usage not retained", value, e)
+			}
+			if kind == "logical" {
+				if value.ErrorCode != "BATCH_USAGE_UNKNOWN" || len(value.Unprocessed) == 0 {
+					t.Fatal("unknown Agent rounds must stop remaining segments", value)
+				}
+				return
+			}
+			if next.ExecutionDeadline != child.ExecutionDeadline || next.Workload.Limits.ExecutionSeconds != parent.Workload.Limits.ExecutionSeconds || next.Workload.Limits.MaxRounds != parent.Workload.Limits.MaxRounds-1 {
+				t.Fatal("segment changed the shared deadline or refilled Agent rounds", next)
+			}
+			finishBatchAudit(t, s, next, next.Workload.Limits.MaxRounds, 0, false)
+			if _, found, e = s.StartNextBatchSegment(ctx, parent.ID); found || e != nil {
+				t.Fatal("new segment started after the shared Agent rounds were exhausted", found, e)
+			}
+			value, e = s.GetBatchRequest(ctx, parent.ID)
+			if e != nil || value.ErrorCode != "BATCH_LIMIT_EXHAUSTED" || len(value.Unprocessed) != 1 {
+				t.Fatal("round exhaustion failed to preserve the unprocessed segment", value, e)
 			}
 		})
 	}
@@ -428,7 +410,7 @@ func TestBatchCloudSegmentsInheritOriginalAcceptanceWatermarksAndHeads(t *testin
 	}
 	limits := workload.Default("audit")
 	limits.AssetsPerBatch = 2
-	p, e := s.SavePlan(ctx, ExecutionPlan{Batch: &BatchSpec{Resources: resources, Size: 2}, Workload: workload.Resolved{ProfileRef: "public-cloud-batch", Limits: limits}, Preparation: &PreparationSpec{SourceRef: grant.SourceRef, ConfigRevision: grant.ConfigRevision, Query: domain.ResourceQuery{Region: "cn-test", ResourceType: "ecs", ResourceIDs: ids}, Selected: resources, Boundary: "internet", Direction: "in", DataPolicy: "force_refresh", AllowMultiple: true, ResultLimit: len(resources)}, Kind: "audit", ConversationID: conv.ID, ConversationRevision: conv.Revision, DataSourceID: grant.SourceRef, ConfigRevision: grant.ConfigRevision, PolicyScopeRef: in.Scope.Ref, Mode: "rules_only", BudgetRef: "cloud-batch-budget", PreparedInput: domain.Input{Scope: in.Scope, Baseline: audit.ProjectBaseline()}, EffectCeiling: EffectCeiling{AllowCloudReads: true, CloudHTTPAttempts: 10}})
+	p, e := s.SavePlan(ctx, ExecutionPlan{Batch: &BatchSpec{Resources: resources, Size: 2}, Workload: workload.Resolved{ProfileRef: "public-cloud-batch", Limits: limits}, Preparation: &PreparationSpec{SourceRef: grant.SourceRef, ConfigRevision: grant.ConfigRevision, Query: domain.ResourceQuery{Region: "cn-test", ResourceType: "ecs", ResourceIDs: ids}, Selected: resources, Boundary: "internet", Direction: "in", DataPolicy: "force_refresh", AllowMultiple: true, ResultLimit: len(resources)}, Kind: "audit", ConversationID: conv.ID, ConversationRevision: conv.Revision, DataSourceID: grant.SourceRef, ConfigRevision: grant.ConfigRevision, PolicyScopeRef: in.Scope.Ref, Mode: "rules_only", PreparedInput: domain.Input{Scope: in.Scope, Baseline: audit.ProjectBaseline()}, EffectCeiling: EffectCeiling{AllowCloudReads: true}})
 	if e != nil {
 		t.Fatal("cloud batch preview", e)
 	}
@@ -496,39 +478,6 @@ func TestBatchCloudSegmentsInheritOriginalAcceptanceWatermarksAndHeads(t *testin
 	}
 }
 
-func TestBatchRemainingPhaseProtectionAndMeasuredReplay(t *testing.T) {
-	s, p, parent, _ := batchCase(t, false)
-	ctx := context.Background()
-	left, _, enough := remainingBatchLimits(p, BatchUsage{ExecutionMillis: 20000, Phases: BatchPhaseUsage{RulesMillis: 20000}}, 2)
-	if enough || left.Limits.RulesSeconds != 0 {
-		t.Fatal("phase zero refilled", left)
-	}
-	child, found, e := s.StartNextBatchSegment(ctx, parent.ID)
-	if e != nil || !found {
-		t.Fatal(e)
-	}
-	finishBatchAudit(t, s, child, 0, 0, false)
-	if e = s.RecordBatchPhaseUsage(ctx, child.ID, BatchPhaseUsage{}); e != nil {
-		t.Fatal(e)
-	}
-	if e = s.RecordBatchPhaseUsage(ctx, child.ID, BatchPhaseUsage{}); e != nil {
-		t.Fatal("same normalized phase measurement lost idempotency", e)
-	}
-	seg, e := s.RefreshBatchSegment(ctx, parent.ID, 1)
-	if e != nil || seg.PhaseSource != "measured" {
-		t.Fatal(seg, e)
-	}
-	if seg.ExecutionMillis != seg.Phases.CollectionMillis+seg.Phases.RulesMillis+seg.Phases.ModelMillis+seg.Phases.FinalizeMillis {
-		t.Fatal("unaccounted segment wall time")
-	}
-	second, found, e := s.StartNextBatchSegment(ctx, parent.ID)
-	if e != nil || !found {
-		t.Fatal(e)
-	}
-	if seg.ExecutionMillis > 0 && second.Workload.Limits.FinalizeSeconds >= p.Workload.Limits.FinalizeSeconds {
-		t.Fatal("measured finalize time refilled")
-	}
-}
 func TestBatchRootCancellationAndRecoveryKeepUnprocessedObjects(t *testing.T) {
 	for _, action := range []string{"cancel", "recover"} {
 		t.Run(action, func(t *testing.T) {

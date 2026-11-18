@@ -378,7 +378,7 @@ func (b *guidanceBuilder) active() bool {
 	}
 	b.catalog.State = b.context.JobStatus
 	if b.context.ObservationDisconnected {
-		b.add("GDE-RECONNECT", "恢复原任务观察，任务继续使用原额度", "observe_job", "navigate_local", "job_observation", b.context.Refs.JobID, []string{"job_id"}, GuidanceEffects{}, false)
+		b.add("GDE-RECONNECT", "重新查看原任务进度", "observe_job", "navigate_local", "job_observation", b.context.Refs.JobID, []string{"job_id"}, GuidanceEffects{}, false)
 	}
 	b.add("GDE-12", "看本次阶段、等待和已知用量", "inspect_job", "navigate_local", "job", b.context.Refs.JobID, []string{"job_id"}, GuidanceEffects{}, false)
 	if b.context.JobStatus != "cancelling" {

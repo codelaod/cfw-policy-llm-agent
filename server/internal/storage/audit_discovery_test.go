@@ -21,7 +21,7 @@ func discoveryCase(t *testing.T) (*Store, ExecutionPlan, Job, []domain.Resource,
 	coverages := []domain.CatalogueCoverage{{AccountRef: in.Scope.AccountRef, Selector: p.Preparation.Query, Complete: true, Source: "live_readonly", ObservedAt: in.CollectedAt, Limitations: []string{}}}
 	body := []byte(`{"Instances":{"Instance":[]},"private_discovery_marker":"keep-private"}`)
 	hash := sha256.Sum256(body)
-	raw, _ := json.Marshal([]CloudRawArtifact{{Round: 0, Operation: "DescribeInstances", Query: map[string]string{"RegionId": "cn-test", "InstanceName": "web-*", "MaxResults": "100"}, Body: body, SHA256: hex.EncodeToString(hash[:])}})
+	raw, _ := json.Marshal([]domain.CloudRawArtifact{{Round: 0, Operation: "DescribeInstances", Query: map[string]string{"RegionId": "cn-test", "InstanceName": "web-*", "MaxResults": "100"}, Body: body, SHA256: hex.EncodeToString(hash[:])}})
 	return s, plan, job, resources, coverages, raw
 }
 
@@ -55,7 +55,7 @@ func TestAuditDiscoveryPersistsDirectoryAndPrivateRawWithoutSealingOrFinishing(t
 	if err = s.db.Raw("SELECT raw_artifacts FROM audit_discovery WHERE job_id=?", job.ID).Scan(&storedRaw).Error; err != nil || storedRaw != string(raw) {
 		t.Fatal("original private artifact bytes were changed", err)
 	}
-	var artifacts []CloudRawArtifact
+	var artifacts []domain.CloudRawArtifact
 	if json.Unmarshal([]byte(storedRaw), &artifacts) != nil || artifacts[0].Round != 0 {
 		t.Fatal("discovery was mislabeled as configuration collection")
 	}
@@ -135,7 +135,7 @@ func TestAuditDiscoveryUnknownTagMetadataRemainsPartial(t *testing.T) {
 	coverage := domain.CatalogueCoverage{AccountRef: in.Scope.AccountRef, Selector: p.Preparation.Query, Complete: true, Source: "live_readonly", ObservedAt: in.CollectedAt}
 	body := []byte(`{"Instances":{"Instance":[]}}`)
 	hash := sha256.Sum256(body)
-	raw, _ := json.Marshal([]CloudRawArtifact{{Round: 0, Operation: "DescribeInstances", Query: map[string]string{"RegionId": "cn-test", "InstanceName": "web-*", "Tag.1.Key": "owner", "Tag.1.Value": "team-a", "MaxResults": "100"}, Body: body, SHA256: hex.EncodeToString(hash[:])}})
+	raw, _ := json.Marshal([]domain.CloudRawArtifact{{Round: 0, Operation: "DescribeInstances", Query: map[string]string{"RegionId": "cn-test", "InstanceName": "web-*", "Tag.1.Key": "owner", "Tag.1.Value": "team-a", "MaxResults": "100"}, Body: body, SHA256: hex.EncodeToString(hash[:])}})
 	record, err := s.SaveAuditDiscovery(context.Background(), job.ID, []domain.Resource{resource}, []domain.CatalogueCoverage{coverage}, raw, "")
 	if err != nil || record.Complete || len(record.UnverifiedResourceRefs) != 1 || record.Coverages[0].Complete {
 		t.Fatal("missing tag collection became an absent/matching tag fact", record, err)
@@ -148,7 +148,7 @@ func TestAuditDiscoveryNATPreservesOriginalNamesAndLimitedDirectory(t *testing.T
 	coverage := domain.CatalogueCoverage{AccountRef: in.Scope.AccountRef, Selector: p.Preparation.Query, Complete: true, Source: "live_readonly", ObservedAt: in.CollectedAt, Limitations: []string{"NAT_DIRECTORY_CFW_MANAGED_ONLY"}}
 	body := []byte(`{"NatFirewallList":[]}`)
 	hash := sha256.Sum256(body)
-	raw, _ := json.Marshal([]CloudRawArtifact{{Round: 0, Operation: "DescribeNatFirewallList", Query: map[string]string{"RegionNo": "cn-test", "PageNo": "1", "PageSize": "50"}, Body: body, SHA256: hex.EncodeToString(hash[:])}})
+	raw, _ := json.Marshal([]domain.CloudRawArtifact{{Round: 0, Operation: "DescribeNatFirewallList", Query: map[string]string{"RegionNo": "cn-test", "PageNo": "1", "PageSize": "50"}, Body: body, SHA256: hex.EncodeToString(hash[:])}})
 	record, err := s.SaveAuditDiscovery(context.Background(), job.ID, []domain.Resource{*in.GatewayMetadata}, []domain.CatalogueCoverage{coverage}, raw, "")
 	if err != nil || record.Complete || record.Coverages[0].Complete || record.Resources[0].SourceNames["firewall_name"] != "nat-cfw" || record.Resources[0].ResourceID != "ngw-public-fixture" {
 		t.Fatal("limited NAT directory became whole account or lost provider identity", record, err)
@@ -182,7 +182,7 @@ func TestAuditDiscoveryRejectsForeignEvidenceAndRollsBackDirectory(t *testing.T)
 			s, plan, job, resources, coverages, raw := discoveryCase(t)
 			ctx := context.Background()
 			code := ""
-			var artifacts []CloudRawArtifact
+			var artifacts []domain.CloudRawArtifact
 			if json.Unmarshal(raw, &artifacts) != nil {
 				t.Fatal("fixture raw")
 			}

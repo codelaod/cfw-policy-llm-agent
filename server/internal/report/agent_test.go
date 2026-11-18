@@ -261,7 +261,7 @@ func TestAgentUsageKeepsUnknownPartialAndExplicitZeroDistinct(t *testing.T) {
 			}
 		})
 	}
-	for _, usage := range []*AgentUsage{{PhysicalAttempts: 1, KnownUsageResponses: 1, UnknownUsageAttempts: 1}, {PhysicalAttempts: 1, KnownUsageResponses: 1}, {PhysicalAttempts: 1, UnknownUsageAttempts: 1, ReportedTokens: &domain.ModelUsage{}}, {PhysicalAttempts: 7, UnknownUsageAttempts: 7}, {PhysicalAttempts: 1, KnownUsageResponses: 1, ReportedTokens: &domain.ModelUsage{TotalTokens: -1}}} {
+	for _, usage := range []*AgentUsage{{PhysicalAttempts: 1, KnownUsageResponses: 1, UnknownUsageAttempts: 1}, {PhysicalAttempts: 1, KnownUsageResponses: 1}, {PhysicalAttempts: 1, UnknownUsageAttempts: 1, ReportedTokens: &domain.ModelUsage{}}, {PhysicalAttempts: 1, KnownUsageResponses: 1, ReportedTokens: &domain.ModelUsage{TotalTokens: -1}}} {
 		in, result, supp, _ := supplementCase(t)
 		supp.Usage = usage
 		if _, e := BuildWithAgent(context.Background(), in, result, nil, "json", Execution{Mode: "rules_and_agent", ModelStage: "completed"}, supp); !errors.Is(e, ErrInvalidResult) {

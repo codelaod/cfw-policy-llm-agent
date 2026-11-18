@@ -57,7 +57,7 @@ func TestReviewCloudProtocolRejectsKnownApplicationSecret(t *testing.T) {
 			// the protocol adapter, as the production runtime must do at startup.
 			upstream := httptest.NewServer(handler)
 			defer upstream.Close()
-			cfg := cloudRuntimeConfig(t, true, plans.BudgetRef, 0)
+			cfg := cloudRuntimeConfig(t, true)
 			sources := aliyunapi.Sources(cfg)
 			for i := range sources {
 				sources[i].Origin = upstream.URL
@@ -136,7 +136,7 @@ func TestReviewCloudPersistenceRechecksInputAndEscapedPrivateArtifacts(t *testin
 					query["synthetic"] = secret
 				}
 				digest := sha256.Sum256(body)
-				collected.Artifacts = []aliyuncollector.RawArtifact{{Round: 1, Operation: "DescribeControlPolicy", Query: query, Body: body, SHA256: hex.EncodeToString(digest[:])}}
+				collected.Artifacts = []domain.CloudRawArtifact{{Round: 1, Operation: "DescribeControlPolicy", Query: query, Body: body, SHA256: hex.EncodeToString(digest[:])}}
 				return collected, nil
 			}
 			preview, err := plans.Preview(context.Background(), req)
@@ -169,7 +169,7 @@ func TestReviewCloudPersistenceRechecksInputAndEscapedPrivateArtifacts(t *testin
 func TestReviewRuntimePropagatesKnownApplicationSecretToCloudBoundary(t *testing.T) {
 	store, _, _, _, _ := planCase(t)
 	model := runtimeConfig(t, true)
-	cloud := cloudRuntimeConfig(t, true, model.Budget().Ref, 4)
+	cloud := cloudRuntimeConfig(t, true)
 	const secret = "synthetic-runtime-app-token"
 	runtime, err := NewRuntime(store, model, cloud, secret)
 	if err != nil {

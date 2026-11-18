@@ -42,13 +42,12 @@ func runCommand(args []string, output io.Writer) error {
 	flags.SetOutput(output)
 	envFile := flags.String("env-file", "", "explicit unified dotenv file; process CFW_* values take precedence")
 	migrate := flags.Bool("migrate", false, "explicitly apply the local SQL schema and exit")
-	budgetChangePath := flags.String("budget-change", "", "apply one explicit local authorization revision and exit; existing ledger required")
 	configCheck := flags.Bool("config-check", false, "validate unified settings locally and print a redacted summary")
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
-	if flags.NArg() != 0 || (*configCheck && *migrate) || (*budgetChangePath != "" && (*configCheck || *migrate)) {
-		return errExecutionConfiguration
+	if flags.NArg() != 0 || (*configCheck && *migrate) {
+		return fmt.Errorf("invalid command options")
 	}
 	settings, err := configuration.Load(*envFile)
 	if err != nil {
@@ -56,9 +55,6 @@ func runCommand(args []string, output io.Writer) error {
 	}
 	if *configCheck {
 		return json.NewEncoder(output).Encode(settings.Summary())
-	}
-	if *budgetChangePath != "" {
-		return applyBudgetChange(settings.DBPath(), *budgetChangePath, output)
 	}
 	token := settings.Token()
 	if !*migrate && !settings.TokenReady() {
@@ -79,7 +75,7 @@ func runCommand(args []string, output io.Writer) error {
 	selectedModel := settings.Model
 	modelRuntime, err := app.NewRuntimeWithExecution(store, settings.Model, settings.Cloud, settings.Execution, token)
 	if err != nil {
-		return fmt.Errorf("runtime initialization failed; check explicit settings and the persisted shared authorization")
+		return fmt.Errorf("runtime initialization failed; check explicit settings")
 	}
 	defer modelRuntime.Close()
 	// A process-owned loopback endpoint supplies bounded artificial work. No user

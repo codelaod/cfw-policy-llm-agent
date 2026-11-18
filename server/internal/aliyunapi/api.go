@@ -159,7 +159,7 @@ func ErrorCode(err error) string {
 		return string(f)
 	}
 	switch code := outbound.ErrorCode(err); code {
-	case "ATTEMPT_LIMIT", "EXECUTION_CLOSED", "BUDGET_NOT_CONFIGURED", "BUDGET_EXPIRED", "EFFECT_DENIED", "CONFIGURATION_STALE", "ATTEMPT_RECORD_FAILED", "ADMISSION_UNAVAILABLE", "OUTBOUND_STOPPING", "DESTINATION_REFUSED", "UPSTREAM_TRANSPORT", "UPSTREAM_HTTP_ERROR", "UPSTREAM_READ", "UPSTREAM_RESPONSE_TOO_LARGE", "UPSTREAM_ENCODING_UNSUPPORTED", "REDIRECT_REFUSED":
+	case "EXECUTION_CLOSED", "EFFECT_DENIED", "CONFIGURATION_STALE", "ATTEMPT_RECORD_FAILED", "ADMISSION_UNAVAILABLE", "OUTBOUND_STOPPING", "DESTINATION_REFUSED", "UPSTREAM_TRANSPORT", "UPSTREAM_HTTP_ERROR", "UPSTREAM_READ", "UPSTREAM_RESPONSE_TOO_LARGE", "UPSTREAM_ENCODING_UNSUPPORTED", "REDIRECT_REFUSED":
 		return code
 	}
 	return "CLOUD_REQUEST_FAILED"
@@ -221,7 +221,7 @@ func (r *Reader) Read(ctx context.Context, operation string, query map[string]st
 		return nil, e
 	}
 	u, _ := url.Parse(origin)
-	settings := &openapi.Config{Endpoint: dara.String(u.Host), Protocol: dara.String(u.Scheme), RegionId: dara.String(r.factory.config.Connection.ControlPlaneRegion()), Credential: provider, HttpClient: capture, RetryOptions: &dara.RetryOptions{Retryable: false, MaxAttempts: 1}, UserAgent: dara.String("cfw-readonly-collector")}
+	settings := &openapi.Config{Endpoint: dara.String(u.Host), Protocol: dara.String(u.Scheme), RegionId: dara.String(r.factory.config.Connection.ControlPlaneRegion()), Credential: provider, HttpClient: capture, RetryOptions: &dara.RetryOptions{Retryable: false}, UserAgent: dara.String("cfw-readonly-collector")}
 	if source != CFWSource && source != IdentitySource {
 		settings.RegionId = dara.String(q["RegionId"])
 	}

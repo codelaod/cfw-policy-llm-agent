@@ -25,7 +25,7 @@ func reopenForRecovery(t *testing.T, f *evaluationFixture) {
 	f.runner.binding.Journal = j
 }
 func TestRecoveryReconcilesCommittedProductsCountsAndKeepsJournalFailure(t *testing.T) {
-	f := newEvaluationFixture(t, "success", nil)
+	f := newEvaluationFixture(t, "success")
 	ctx := context.Background()
 	var records []RunRecord
 	for i, arm := range []Arm{RulesOnly, AgentSelection} {
@@ -70,7 +70,7 @@ func TestRecoveryReconcilesCommittedProductsCountsAndKeepsJournalFailure(t *test
 }
 
 func TestRecoveryAfterHTTPBeforeAgentSaveKeepsLogicalCountsUnknown(t *testing.T) {
-	f := newEvaluationFixture(t, "http-error", nil)
+	f := newEvaluationFixture(t, "http-error")
 	ctx := context.Background()
 	a := f.accepted(t, FixedModel, "recovery-before-agent-save")
 	f.runner.binding.Journal = startOnlyJournal{base: f.journal}
@@ -119,7 +119,7 @@ func TestRecoveryAfterHTTPBeforeAgentSaveKeepsLogicalCountsUnknown(t *testing.T)
 }
 
 func TestMissingFactoryNewRunKeepsRulesAndExplicitUnexecutedModel(t *testing.T) {
-	f := newEvaluationFixture(t, "success", nil)
+	f := newEvaluationFixture(t, "success")
 	a := f.accepted(t, FixedModel, "disabled-new-run")
 	f.runner.binding.Factory = nil
 	out, e := f.runner.Run(context.Background(), f.protocol, f.caseData, a)

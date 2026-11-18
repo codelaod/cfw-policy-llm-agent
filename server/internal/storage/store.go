@@ -20,11 +20,12 @@ import (
 )
 
 var (
-	ErrNotFound = errors.New("not found")
-	ErrBusy     = errors.New("conversation busy")
-	ErrConflict = errors.New("idempotency conflict")
-	ErrCapacity = errors.New("queue full")
-	ErrCursor   = errors.New("invalid cursor")
+	ErrNotFound                  = errors.New("not found")
+	ErrBusy                      = errors.New("conversation busy")
+	ErrConflict                  = errors.New("idempotency conflict")
+	ErrCapacity                  = errors.New("queue full")
+	ErrCursor                    = errors.New("invalid cursor")
+	errUnsupportedBusinessSchema = fmt.Errorf("unsupported business schema; select a new database path and run --migrate to initialize schema %d", BusinessSchemaVersion)
 )
 
 type Job struct {
@@ -47,7 +48,6 @@ type Job struct {
 	ExecutionDeadline string            `json:"execution_deadline,omitempty"`
 	ResultRef         string            `json:"result_ref,omitempty"`
 	ErrorCode         string            `json:"error_code,omitempty"`
-	BudgetRef         string            `json:"budget_ref"`
 }
 
 type Event struct {
@@ -125,7 +125,7 @@ func Open(path string, migrate bool) (*Store, error) {
 			v = 0
 			err = db.Raw("SELECT version FROM business_schema").Scan(&v).Error
 			if err == nil && v != BusinessSchemaVersion {
-				err = errors.New("unsupported business schema")
+				err = errUnsupportedBusinessSchema
 			}
 			if err == nil {
 				err = checkAdmissionShape(db)
@@ -134,6 +134,9 @@ func Open(path string, migrate bool) (*Store, error) {
 	}
 	if err != nil {
 		s.Close()
+		if errors.Is(err, errUnsupportedBusinessSchema) {
+			return nil, err
+		}
 		return nil, fmt.Errorf("schema unavailable; run explicit --migrate: %w", err)
 	}
 	return s, nil
@@ -148,6 +151,19 @@ func (s *Store) Close() error {
 
 func (s *Store) migrate() error {
 	return s.db.Transaction(func(tx *gorm.DB) error {
+		var existing int64
+		if err := tx.Raw("SELECT count(*) FROM sqlite_master WHERE type='table' AND name='business_schema'").Scan(&existing).Error; err != nil {
+			return err
+		}
+		if existing > 0 {
+			var version int
+			if err := tx.Raw("SELECT version FROM business_schema").Scan(&version).Error; err != nil {
+				return err
+			}
+			if version != BusinessSchemaVersion {
+				return errUnsupportedBusinessSchema
+			}
+		}
 		statements := []string{
 			`CREATE TABLE IF NOT EXISTS e0_schema (version INTEGER PRIMARY KEY CHECK(version=1))`,
 			`INSERT OR IGNORE INTO e0_schema(version) VALUES(1)`,
@@ -327,7 +343,7 @@ func (s *Store) Cancel(ctx context.Context, id string) (j Job, err error) {
 }
 
 // Recovery is called only after Open owns the process lock. Active executions
-// are interrupted without replay; valid never-started plans keep their budget.
+// are interrupted without replay; valid never-started plans keep their deadline.
 func (s *Store) Recover(ctx context.Context) error {
 	return s.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if e := expireQueued(tx); e != nil {

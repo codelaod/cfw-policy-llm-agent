@@ -9,7 +9,7 @@ import (
 
 func TestHistoricalModelGuidancePrefillBuildsReportAExplanationAfterCurrentTargetB(t *testing.T) {
 	s, c, oldJob, old := rootWorkflowReviewReport(t)
-	s.Plans.ModelReady, s.Plans.ModelHTTPAttempts = true, 2
+	s.Plans.ModelReady = true
 	changed := goalTurn(t, s, c.ID, "historical-guidance-current-b", "改查北京 web-prod ECS，使用模型补充")
 	if len(changed.Intent.Selection) != 1 || changed.Intent.Selection[0].Region != "cn-beijing" {
 		t.Fatal("fixture did not select current B")
